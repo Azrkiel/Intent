@@ -20,9 +20,9 @@ export async function consumeEvents(
   try {
     while (true) {
       const chunk = await reader.read();
-      pending += decoder
-        .decode(chunk.value, { stream: !chunk.done })
-        .replace(/\r\n/g, "\n");
+      pending = (
+        pending + decoder.decode(chunk.value, { stream: !chunk.done })
+      ).replace(/\r\n/g, "\n");
       let end: number;
       while ((end = pending.indexOf("\n\n")) >= 0) {
         const frame = pending.slice(0, end);

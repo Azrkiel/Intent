@@ -30,6 +30,24 @@ describe("streamed turn updates", () => {
     );
   });
 
+  it("handles CRLF frame delimiters split across network chunks", async () => {
+    const bytes = new TextEncoder().encode(
+      'data: {"type":"stage","message":"Café"}\r\n\r\ndata: {"type":"done"}\r\n\r\n',
+    );
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const byte of bytes) controller.enqueue(new Uint8Array([byte]));
+        controller.close();
+      },
+    });
+    const events: unknown[] = [];
+    await consumeEvents(new Response(stream), (event) => events.push(event));
+    expect(events).toEqual([
+      { type: "stage", message: "Café" },
+      { type: "done" },
+    ]);
+  });
+
   it("treats an interrupted stream as failure", async () => {
     const response = new Response(
       'data: {"type":"stage","message":"Extracting"}\n\n',
