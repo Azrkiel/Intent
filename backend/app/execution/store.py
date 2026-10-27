@@ -1,5 +1,6 @@
 import sqlite3
 
+from ..planning.validation import overlaps
 from .contracts import Run
 
 
@@ -13,14 +14,37 @@ class ExecutionStore:
                 "status TEXT NOT NULL, state TEXT NOT NULL, "
                 "UNIQUE(session_id,plan_hash,package_id))"
             )
-            db.execute(
-                "CREATE UNIQUE INDEX IF NOT EXISTS one_active_executor ON execution_runs((1)) "
-                "WHERE status IN ('queued','running','verifying','blocked')"
-            )
+            db.execute("DROP INDEX IF EXISTS one_active_executor")
 
-    def claim(self, run: Run) -> Run:
+    def claim(self, run: Run, *, capacity=1, global_capacity=1) -> Run:
         try:
             with self.sessions.connect() as db:
+                db.execute("BEGIN IMMEDIATE")
+                records = [
+                    Run.model_validate_json(row[0])
+                    for row in db.execute("SELECT state FROM execution_runs").fetchall()
+                ]
+
+                def phase_key(r):
+                    return r.session_id, r.plan.content_hash, r.package_id.split("-W")[0]
+
+                same = [r for r in records if phase_key(r) == phase_key(run)]
+                if any(r.status in {"blocked", "cancelled"} or r.stale for r in same):
+                    raise ValueError("Phase is blocked; preserve work and require repair/review")
+                active = [r for r in records if r.status in {"queued", "running", "verifying", "blocked"}]
+                held = [r for r in records if r.status not in {"cancelled"}]
+                if any(phase_key(r) != phase_key(run) for r in held):
+                    raise ValueError("Another phase requires acceptance before dispatch")
+                if (
+                    len(active) >= global_capacity
+                    or len([r for r in active if r.session_id == run.session_id]) >= capacity
+                ):
+                    raise ValueError("Codex worker capacity is occupied")
+                for current in active:
+                    if any(overlaps(a, b) for a in run.owned_paths for b in current.owned_paths) or set(
+                        run.interfaces
+                    ) & set(current.interfaces):
+                        raise ValueError("Worker ownership or interface conflict")
                 db.execute(
                     "INSERT INTO execution_runs VALUES(?,?,?,?,?,?)",
                     (

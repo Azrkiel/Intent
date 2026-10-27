@@ -13,6 +13,7 @@ from ..planning.export import COMMON_RULES
 from ..planning.render import render_package
 from ..planning.validation import safe_path, validate_plan
 from .contracts import Run
+from .scheduler import Scheduler
 from .store import ExecutionStore
 from .worktrees import Worktrees
 
@@ -21,6 +22,9 @@ class Executor:
     def __init__(self, settings, sessions, factory=None):
         self.settings, self.sessions = settings, sessions
         self.runs = ExecutionStore(sessions)
+        self.scheduler = Scheduler(
+            self.runs, capacity=settings.codex_max_workers, global_capacity=settings.codex_global_max_workers
+        )
         self.worktrees = Worktrees(settings.codex_project_root, settings.codex_worktree_root)
         self.factory = factory or self.default_client
         self.profile = str(
@@ -61,14 +65,14 @@ class Executor:
 
     def start(self, session, identity, package_id, model=None):
         document = self.guard(session, identity)
-        package = next((p for p in document.phases[0].packages if p.id == package_id), None)
-        if package is None or package.depends_on:
-            raise ValueError("Phase 2 supports one initial work package without prerequisites")
+        package = next(
+            (p for p in self.scheduler.eligible(session.id, document, "P1") if p.id == package_id), None
+        )
+        if package is None:
+            raise ValueError("Package is attempted, dependent, or in an ineligible phase")
         for path in package.owned_paths:
             if path.split("/")[0].casefold() in {".git", "agents.md", "claude.md"}:
                 raise ValueError("Execution control files cannot be worker-owned paths")
-        if any(not task.done() for task in self.tasks.values()):
-            raise ValueError("The single Codex executor is occupied")
         run = Run(
             session_id=session.id,
             plan=identity,
@@ -78,7 +82,10 @@ class Executor:
             deadline=time.time() + self.settings.codex_timeout_seconds,
         )
         run.project, run.worktree = map(str, self.worktrees.paths(session.id, run.id))
-        self.runs.claim(run)  # Durable ownership precedes every filesystem/process side effect.
+        self.scheduler.claim(
+            run, package.owned_paths, [i.name for i in [*package.produces, *package.consumes]]
+        )
+        # Durable ownership precedes every filesystem/process side effect.
         self.tasks[run.id] = asyncio.create_task(self.execute(run.id))
         return run
 
@@ -105,7 +112,7 @@ class Executor:
             document = self.guard(self.sessions.get(run.session_id), run.plan)
             package = next(p for phase in document.phases for p in phase.packages if p.id == run.package_id)
             if not reconnect:
-                base = await self.worktrees.create(run.session_id, run.id)
+                base = await self.worktrees.create(run.session_id, run.id, base_commit=run.base_commit)
                 run = self.set(run_id, base_commit=base)
             client = await self.factory(run)
             self.clients[run_id] = client
@@ -198,6 +205,7 @@ class Executor:
             if current.status != "cancelled":
                 message = str(error) if isinstance(error, (CodexError, ValueError)) else "Codex worker failed"
                 self.set(run_id, status="blocked", error=message[:500])
+                await self.stop_peers(run_id)
         finally:
             try:
                 if client:
@@ -230,6 +238,32 @@ class Executor:
         if run.session_id != session_id:
             raise KeyError(run_id)
         return run
+
+    async def stop_peers(self, run_id):
+        failed = self.runs.get(run_id)
+        for peer in self.runs.list(failed.session_id):
+            if (
+                peer.id == run_id
+                or peer.plan != failed.plan
+                or peer.package_id.split("-W")[0] != failed.package_id.split("-W")[0]
+                or peer.status not in {"queued", "running", "verifying"}
+            ):
+                continue
+            self.set(
+                peer.id,
+                status="blocked",
+                cancel_requested=True,
+                error="Another package failed or was cancelled; preserve work for phase review",
+            )
+            client = self.clients.get(peer.id)
+            if client and peer.thread_id and peer.turn_id:
+                try:
+                    await asyncio.wait_for(client.interrupt(peer.thread_id, peer.turn_id), 2)
+                except (CodexError, TimeoutError):
+                    pass
+            task = self.tasks.get(peer.id)
+            if task and not task.done():
+                task.cancel()
 
     async def decide(self, session_id, run_id, request_id, decision, generation):
         async with self.locks[run_id]:
@@ -279,6 +313,7 @@ class Executor:
         if task and not task.done():
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
+        await self.stop_peers(run_id)
         return self.runs.get(run_id)
 
     async def invalidate(self, session_id):
@@ -295,7 +330,7 @@ class Executor:
                 error="External dispatch outcome is uncertain; no duplicate launched",
             )
             return self.runs.get(run_id)
-        if run.status in {"verifying", "cancelled"}:
+        if run.status in {"verifying", "integrated", "cancelled"}:
             return run
         if run_id in self.tasks and not self.tasks[run_id].done():
             raise ValueError("Run is already connected")

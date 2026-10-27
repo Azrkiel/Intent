@@ -14,7 +14,10 @@ class Run(BaseModel):
     session_id: str
     plan: PlanApproval
     package_id: str
-    status: Literal["queued", "running", "verifying", "blocked", "cancelled"] = "queued"
+    status: Literal["queued", "running", "verifying", "integrated", "blocked", "cancelled"] = "queued"
+    owned_paths: list[str] = Field(default_factory=list, max_length=20)
+    interfaces: list[str] = Field(default_factory=list, max_length=20)
+    integrated_commit: str | None = None
     created_at: float = Field(default_factory=time.time)
     deadline: float = Field(default_factory=lambda: time.time() + 300)
     project: str | None = None
