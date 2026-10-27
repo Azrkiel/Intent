@@ -1,0 +1,17 @@
+.venv/
+node_modules/
+.next/
+.env
+.env.local
+!.env.example
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+*.tsbuildinfo
+.data/
+builds/
+coverage/
+test-results/
+playwright-report/
+*.log

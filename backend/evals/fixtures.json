@@ -1,0 +1,69 @@
+[
+  {
+    "id": "habit-tracker",
+    "prompt": "I want a habit tracker, no login, saved across my phone and laptop, and reminders should be automatic.",
+    "ambiguities": [
+      {"id": "identity-for-sync", "description": "Cross-device persistence without login needs a project identity mechanism.", "keywords": ["sync", "device", "login", "code"], "answer": "Use a shareable sync code, no accounts."},
+      {"id": "automatic-behaviour", "description": "Automatic could mean reminders or automatically marking completion.", "keywords": ["automatic", "reminder", "notification"], "answer": "Send a daily reminder; never mark a habit done automatically."}
+    ]
+  },
+  {
+    "id": "family-groceries",
+    "prompt": "A simple grocery list for the whole family. Anyone should be able to add things and it needs to update instantly, even when reception is bad.",
+    "ambiguities": [
+      {"id": "family-access", "description": "Who counts as family, and how is list access shared?", "keywords": ["access", "invite", "family", "link", "account"], "answer": "Anyone with a private list link can read and edit it, without accounts."},
+      {"id": "offline-conflicts", "description": "Instant shared edits and bad reception require offline and merge semantics.", "keywords": ["offline", "conflict", "reception", "merge"], "answer": "Queue offline edits and merge additions; a checked item stays checked."}
+    ]
+  },
+  {
+    "id": "study-planner",
+    "prompt": "Make a smart study planner for my exams. It should automatically adjust my schedule when I miss a day, but never move the things I already planned.",
+    "ambiguities": [
+      {"id": "smart-priority", "description": "Smart scheduling needs a defined priority and workload rule.", "keywords": ["priority", "smart", "schedule", "hours", "exam"], "answer": "Prioritize the nearest exam, with at most two hours of studying each day."},
+      {"id": "reschedule-vs-fixed", "description": "Automatic rescheduling conflicts with not moving existing plans.", "keywords": ["move", "reschedule", "fixed", "adjust", "miss"], "answer": "Keep manually scheduled events fixed and move only generated study blocks."}
+    ]
+  },
+  {
+    "id": "event-rsvp",
+    "prompt": "I need a public RSVP page for a club event, no sign-up, one ticket per person, and a waitlist that just handles itself. We need to export the list later.",
+    "ambiguities": [
+      {"id": "ticket-identity", "description": "One ticket per person without sign-up requires duplicate prevention.", "keywords": ["duplicate", "person", "email", "ticket", "identity"], "answer": "Use an email address to prevent duplicate RSVPs; no account creation."},
+      {"id": "waitlist-promotion", "description": "Self-managing waitlist needs a promotion and notification rule.", "keywords": ["waitlist", "promot", "cancel", "notify"], "answer": "When someone cancels, offer the next person a spot by email for 24 hours."},
+      {"id": "export-data", "description": "Export format and included personal data are undefined.", "keywords": ["export", "csv", "format", "fields"], "answer": "Export a CSV with name, email, RSVP time and ticket status, visible only to the organizer."}
+    ]
+  },
+  {
+    "id": "private-notes",
+    "prompt": "A private notes app. Nothing should go to the cloud, and I want the same notes on my laptop and phone. It must work offline too.",
+    "ambiguities": [
+      {"id": "no-cloud-sync", "description": "Sync across devices without a cloud needs an explicit transfer mechanism.", "keywords": ["cloud", "sync", "transfer", "device", "phone"], "answer": "For version one use manual encrypted file export and import between devices."},
+      {"id": "private-encryption", "description": "Private could mean local storage or encryption against device access.", "keywords": ["encrypt", "password", "private", "lock"], "answer": "Encrypt local notes using a passphrase, which is never stored."}
+    ]
+  },
+  {
+    "id": "expense-splitter",
+    "prompt": "Build an expense splitter for my roommates. Everyone sees everything but each expense should be private. No accounts. Remind people who owe money automatically.",
+    "ambiguities": [
+      {"id": "privacy-scope", "description": "Everyone sees everything conflicts with private expenses.", "keywords": ["private", "visibility", "see", "access"], "answer": "All roommates see group totals, but only participants see the details of an expense."},
+      {"id": "roommate-identity", "description": "Roommate identity and access without accounts need a mechanism.", "keywords": ["identity", "link", "roommate", "account", "login"], "answer": "Give each roommate a private invitation link tied to their identity."},
+      {"id": "reminder-delivery", "description": "Automatic reminders need a channel, consent and cadence.", "keywords": ["remind", "email", "notification", "cadence"], "answer": "Send one opt-in email reminder a week, and never send payments automatically."}
+    ]
+  },
+  {
+    "id": "file-organizer",
+    "prompt": "A smart tool to clean up my downloads, remove duplicates, and organize everything automatically. I really cannot lose any files.",
+    "ambiguities": [
+      {"id": "duplicate-definition", "description": "Duplicate could mean identical bytes, names or visually similar files.", "keywords": ["duplicate", "hash", "identical", "content"], "answer": "Only identical file contents, verified by a content hash, count as duplicates."},
+      {"id": "delete-vs-no-loss", "description": "Automatic removal conflicts with not losing files.", "keywords": ["delete", "remove", "trash", "undo", "lose"], "answer": "Move duplicates to a review folder and require approval before any deletion."},
+      {"id": "organization-rule", "description": "Smart organization does not specify folder rules or metadata processing.", "keywords": ["folder", "organiz", "smart", "rule"], "answer": "Group by file extension and month; do not read document content or send it to an AI."}
+    ]
+  },
+  {
+    "id": "volunteer-shifts",
+    "prompt": "We need a fair volunteer shift scheduler for a small nonprofit. Assign people automatically based on availability, let them swap, and never leave a shift empty.",
+    "ambiguities": [
+      {"id": "fairness-rule", "description": "Fairness needs a measurable assignment rule.", "keywords": ["fair", "hours", "balance", "assign"], "answer": "Balance assigned hours across volunteers over the current month, subject to availability."},
+      {"id": "swap-and-empty", "description": "Swapping and guaranteed coverage need approval and cancellation rules.", "keywords": ["swap", "empty", "cover", "cancel", "approv"], "answer": "Require the replacement volunteer and an organizer to approve a swap; alert the organizer if no cover exists."}
+    ]
+  }
+]

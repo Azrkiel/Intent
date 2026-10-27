@@ -1,0 +1,230 @@
+# Prompt Caller
+
+Turn a rough software idea into a brief a coding agent can build from. The application
+keeps an explicit **Intent Ledger**, asks one build-changing question at a time, plays
+back its understanding, and compiles a brief with a source for every requirement.
+
+This is a local, single-user MVP. The default **demo mode is scripted**: it makes no
+model calls and the build preview is a clearly labeled prebuilt example. The live
+Nemotron adapter and Claude Code subprocess adapter are implemented, but need your
+credentials and a live smoke test before a demo or submission.
+
+## Run locally
+
+Prerequisites: Node.js 22+, Python 3.11+, [uv](https://docs.astral.sh/uv/), and Git.
+For live builds, install and authenticate the [Claude Code CLI](https://code.claude.com/docs/en/overview).
+
+```powershell
+uv sync --group dev
+npm ci
+npm run dev
+```
+
+Open **http://127.0.0.1:3000**. The orchestrator runs on port 8000; interactive API
+documentation is at http://127.0.0.1:8000/docs. Both servers bind to loopback. Use
+Ctrl+C to stop them. The launcher stops the processes it started, including their
+child processes on Windows.
+
+If `uv` reports an unknown certificate issuer on a managed Windows machine, use
+`uv --system-certs sync --group dev`. For npm, use your organization's trusted CA
+bundle with `NODE_EXTRA_CA_CERTS`; keep certificate verification enabled.
+
+Start with the habit-tracker example. Choose a sync mechanism, clarify “automatic,”
+define the core flow and exclusions, and pick an observable success criterion. Once
+the meter reaches 100%, review the playback, approve it, and compile the brief.
+Compare the raw transcript with the cited requirements, export `CLAUDE.md`, or try
+the labeled demo handoff.
+
+## Connect Nemotron
+
+Copy `.env.example` to `.env` in the repository root and edit:
+
+```dotenv
+PROMPT_CALLER_MODE=live
+NEBIUS_API_KEY=your-token-factory-key
+```
+
+Restart the server after changing environment variables. The browser never receives
+the API key. Live mode sends the current utterance, ledger and question history to
+Token Factory for model processing. Existing sessions retain their original mode; create a new conversation
+after switching modes. There is no silent fallback from live mode to demo responses.
+
+The OpenAI SDK targets `https://api.tokenfactory.nebius.com/v1/`. Routing defaults:
+
+| Pass                               | Model                                   | Behaviour                             |
+| ---------------------------------- | --------------------------------------- | ------------------------------------- |
+| Extraction and playback            | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` | Narrow, schema-validated outputs      |
+| Six critics, ranking, verification | `nvidia/nemotron-3-super-120b-a12b`     | Six concurrent lenses, then ranking   |
+| Brief compilation                  | `nvidia/Nemotron-3-Ultra-550b-a55b`     | One logical compiler pass per session |
+
+Every response is validated with Pydantic. Invalid JSON gets one repair retry. A
+failed critic keeps the build gate closed; the user can retry analysis. A failed
+extraction is retried before criticism, so a correction cannot be ignored when
+the gate is reevaluated.
+
+`SEND_THINKING_CONTROLS=false` is the compatibility default. Set it to `true` after
+checking the account's support for `chat_template_kwargs.enable_thinking` and
+`reasoning_budget`. With controls enabled, Nano uses thinking off, Super uses the
+configured budget, and Ultra uses a larger budget. With controls disabled, prompt
+and output-token limits apply; the provider's default thinking behaviour is
+unverified. All model IDs and the API base URL can be changed in `.env`.
+
+Usage and latency are retained per successful API response, including invalid JSON
+responses. Dollar figures use the role's published price assumptions and are
+**estimates**, not invoices. Concurrent calls reserve their maximum estimated cost
+before starting. `SESSION_BUDGET_USD` defaults to $2. Compiler JSON repair can make
+a second API request within that logical pass. Recompiling after a correction
+uses a deterministic rendering of the ledger instead of another Ultra pass.
+
+### Day-one smoke test
+
+```powershell
+uv run python -m backend.smoke
+# After the basic requests work, test optional thinking controls:
+uv run python -m backend.smoke --thinking-controls
+```
+
+This compares extraction on Nano and Lightning and makes a Super critic request,
+logging validity, latency, tokens and estimated cost. It does not run automatically
+or use credentials from another application.
+
+## Claude Code handoff
+
+After approving and compiling the brief, set `ALLOW_CLAUDE_BUILD=true` and restart.
+Click **Build with Claude Code**. The adapter:
+
+1. Creates `.data/builds/<session-id>/r<revision>/` and writes the approved `CLAUDE.md`.
+2. Initializes a repository and runs `claude -p --output-format stream-json --verbose`.
+3. Uses restricted file tools, a dollar budget and a timeout; it does not bypass
+   permissions, invoke shell tools, or pass the Token Factory key to the agent.
+4. Saves the streamed progress log and shows the resulting `index.html` in a sandbox.
+
+**Current build limitation:** the live adapter asks for a self-contained HTML/CSS/JS
+application. It can produce browser-local apps, but does not run a generated backend
+or implement cross-device synchronization. Claude is explicitly instructed to disclose
+such unsupported requirements instead of simulating them. The habit-tracker fixture
+also discloses that it is prebuilt and does not satisfy a user-selected sync decision.
+Do not present that fixture as proof that a clarified sync requirement was built.
+
+The embedded preview blocks network requests, navigation privileges and browser
+storage. Download the HTML to run it separately and try browser-local saving.
+Live CLI authentication, billing and the generated app's correctness need testing
+on your machine. `--restricted` requires a recent Claude Code version; the installed
+version at implementation time was 2.1.310. There are no fallback permission-bypass flags.
+
+## How the engine works
+
+```text
+Voice or text
+    |
+    v
+Nano extraction --> exact source-quote checks --> SQLite ledger
+                                                   |
+                                                   v
+             Data / Access / Behaviour / Contradictions / Edges / Done-ness
+                                                   |
+                                                   v
+           Super ranker --> divergence x uncertainty x cost to change
+                                                   |
+                                           one useful question
+                                                   |
+                                   answer --> extraction loop
+                                                   |
+                           ready --> playback --> explicit approval
+                                                   |
+                        Ultra brief --> Super verifier --> structural checks
+                                                   |
+                                cited CLAUDE.md --> coding adapter
+```
+
+The app owns ledger IDs and applies deltas atomically. Confirmation requires an exact
+quote from the current user turn. A model cannot confirm an item using an assistant's
+question or a quote from an unrelated turn. Inferred requirements remain unconfirmed.
+
+The build gate requires confirmed values for goal, core flow, data, access, non-goals
+and an observable success criterion; completed analysis; no conflicts; and no open
+question with impact at least 12. Divergence 1 questions are dropped. Equal scores
+prioritize contradictions, then question text, so critic completion order does not
+change the ranking. Playback is generated after every four answered questions and
+can be requested for final review. Any new utterance invalidates playback approval,
+the compiled brief, and the displayed build output.
+
+The semantic verifier rejects unsupported brief lines. Structural validation removes
+invalid citations, retains all confirmed items, and renders unanswered questions and
+inferences as **Undecided — choose the simplest option and report the choice**.
+Citations alone are not proof of semantic fidelity: use the live evaluation and
+review a sample of compiled briefs before making quality claims.
+
+## Verification and evaluation
+
+```powershell
+uv run pytest -q
+uv run ruff check backend
+npm test
+npm run typecheck
+npm run build
+npm run eval:demo
+# Uses real Token Factory calls and credits:
+uv run python -m backend.evals.run
+```
+
+Eight fixtures in `backend/evals/fixtures.json` contain 2–3 documented ambiguities
+each. The runner compares six lenses with one general critic, keeping extraction,
+ranking, required-slot fallbacks and compilation the same. The six-lens strategy
+has a larger model-call and candidate budget; report spend alongside quality.
+
+Reports are written to `.data/evals/latest.json`. They retain questions, code
+differences, ledger entries, briefs, token usage, costs and planted answers. Keyword
+hits are a **screening proxy**, not a measured ambiguity catch rate. Manually score
+each ambiguity and semantic invented requirement from the saved report. A zero
+structural citation-error count does not prove zero invented requirements.
+`--demo` runs both pipelines with deterministic fixtures and measures no model quality.
+
+## Project map
+
+```text
+frontend/app/          Conversation, ledger, playback, brief comparison, build UI
+frontend/lib/          Typed API/SSE client and optional browser speech
+backend/app/domain.py Ledger contracts, quote checks, ranking, gate, traceability
+backend/app/engine.py  Extract -> six critics -> rank -> ask -> playback -> compile
+backend/app/models.py Token Factory adapter, JSON repair and usage accounting
+backend/app/demo.py   Explicit deterministic fixture provider
+backend/app/store.py  SQLite persistence with short, closed transactions
+backend/app/builder.py Restricted Claude Code subprocess and bounded HTML preview
+backend/app/main.py   Local FastAPI routes and streamed turn events
+backend/evals/        Annotated fixtures and comparison runner
+backend/tests/        Evidence, gate, retry, persistence, API and evaluation tests
+scripts/dev.mjs       Starts and stops the local web and API servers
+```
+
+## Scope and remaining work
+
+Included: browser text and push-to-talk, spoken questions, live ledger updates,
+one question with 2–3 options, impact inspection, playback approval, traceable brief
+export, transcript comparison, persistent sessions, and the restricted coding adapter.
+Browser speech depends on browser support and may use the browser vendor's recognition
+service; it is not guaranteed to run locally. Text is always available.
+
+Before submission: run the live model smoke test, tune prompts against the eight
+fixtures, manually audit brief fidelity, validate microphone behaviour in the demo
+browser, test the authenticated CLI path, and extend generated-app execution to a
+real backend if the demo must prove cross-device sync. Speculative criticism while
+the user is still speaking and instant Nano filler acknowledgments are not implemented;
+the current pipeline starts after the user sends the final transcript.
+
+Excluded: phone calls, barge-in, accounts, multi-project memory, post-build feedback,
+Codex support, deployment, billing UI and pricing strategy. Post-build iteration,
+multi-project memory and alternate agent adapters remain roadmap items.
+
+This server is designed for one trusted local user and one orchestrator process.
+Session locks and build jobs are process-local. The API has no account authentication;
+keep it on loopback and do not publish it. Session content is stored unencrypted in
+the ignored `.data/` directory. The preview is sandboxed; the Claude CLI itself is
+a local process rather than a VM or operating-system sandbox.
+
+## API references
+
+- [Token Factory text generation](https://docs.tokenfactory.nebius.com/api-reference/examples/text-generation)
+- [Token Factory structured output](https://docs.tokenfactory.nebius.com/ai-models-inference/json)
+- [Token Factory model catalog](https://tokenfactory.nebius.com/model-catalog.md)
+- [Claude Code programmatic execution](https://code.claude.com/docs/en/headless)
