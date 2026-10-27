@@ -86,7 +86,18 @@ class Store:
             rows = db.execute("SELECT state FROM sessions").fetchall()
         for (raw,) in rows:
             session = Session.model_validate_json(raw)
+            changed = False
             if session.build.status == "running":
                 session.build.status = "failed"
                 session.build.logs.append("Server restarted. Start a new build to retry.")
+                changed = True
+            if session.planning.status == "planning":
+                session.planning.status = "blocked"
+                session.planning.approval = None
+                if session.planning.attempts:
+                    session.planning.attempts[-1].error = (
+                        "Server restarted. Sections and usage were preserved."
+                    )
+                changed = True
+            if changed:
                 self.save(session)

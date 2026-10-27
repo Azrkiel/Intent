@@ -14,6 +14,8 @@ from .demo import DemoModels
 from .domain import Build, Session, gate_for, public_session
 from .engine import Engine
 from .models import LiveModels, ModelError
+from .planning.routes import planning_router
+from .planning.service import PlanningService
 from .settings import Settings
 from .store import Store
 
@@ -38,6 +40,7 @@ def create_app(settings: Settings | None = None):
     store = Store(settings.database_path)
     models = DemoModels() if settings.mode == "demo" else LiveModels(settings)
     engine = Engine(store, models)
+    planner = PlanningService(store, models, settings)
     locks = defaultdict(asyncio.Lock)
     jobs: set[asyncio.Task] = set()
 
@@ -106,6 +109,8 @@ def create_app(settings: Settings | None = None):
             "models_configured": bool(settings.nebius_api_key and settings.nebius_api_key.get_secret_value()),
             "build_enabled": settings.allow_claude_build,
             "agent": "Claude Code",
+            "planning_enabled": True,
+            "execution_enabled": False,
         }
 
     @app.get("/api/sessions")
@@ -245,6 +250,7 @@ def create_app(settings: Settings | None = None):
             },
         )
 
+    app.include_router(planning_router(store, planner, locks, load, guard_edit))
     return app
 
 
