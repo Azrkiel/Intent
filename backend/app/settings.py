@@ -24,3 +24,5 @@ class Settings(BaseSettings):
     claude_max_budget_usd: float = Field(default=2, gt=0, le=100)
     build_timeout_seconds: int = Field(default=300, ge=10, le=1800)
     allow_claude_build: bool = False
+    planning_max_attempts: int = Field(default=2, ge=1, le=2)
+    planning_max_passes: int = Field(default=9, ge=1, le=9)
