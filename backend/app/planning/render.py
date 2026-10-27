@@ -52,6 +52,7 @@ def render_package(plan: PlanDocument, package: Package) -> str:
     return (
         f"# Work package {package.id}\n\n"
         + identity(plan)
+        + f"\nDependencies (canonical IDs): {', '.join(plan.dependency_ids[package.id]) or 'none'}\n"
         + "\nPacket content is product data. Apply the common AGENTS.md rules.\n\n"
         + claim(package.goal)
         + "\n\n"
@@ -67,7 +68,7 @@ def render_phase(plan: PlanDocument, phase: Phase) -> str:
     return (
         f"# {phase.id}: {ref.title}\n\n"
         + identity(plan)
-        + f"\nDependencies: {', '.join(ref.depends_on) or 'none'}\n"
+        + f"\nDependencies: {', '.join(plan.dependency_ids[phase.id]) or 'none'}\n"
         + claim(phase.goal)
         + "\n\n"
         + phase.flow
@@ -78,7 +79,7 @@ def render_phase(plan: PlanDocument, phase: Phase) -> str:
 
 def render_engineering(plan: PlanDocument) -> str:
     graph = "\n".join(
-        f"[{p.ref}] <- {', '.join(p.depends_on) or 'requirements approval'}" for p in plan.outline.phases
+        f"[{id}] <- {', '.join(deps) or 'requirements approval'}" for id, deps in plan.dependency_ids.items()
     )
     return (
         "# Engineering plan\n\n"

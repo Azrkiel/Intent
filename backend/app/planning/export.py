@@ -49,10 +49,7 @@ def export_bundle(plan: PlanDocument, approval: PlanApproval | None, revision: i
     validate_plan(plan, ledger)
     sources = [item.model_dump() for item in plan.sources]
     files = {
-        "plan.json": json.dumps(
-            {"plan": plan.model_dump(mode="json"), "sources": sources}, ensure_ascii=False, indent=2
-        )
-        + "\n",
+        "plan.json": plan.model_dump_json(round_trip=True, indent=2) + "\n",
         "VISION.md": render_human(plan),
         "SPEC.md": identity(plan)
         + claims("Cited requirements", plan.outline.specification)
@@ -81,7 +78,7 @@ def export_bundle(plan: PlanDocument, approval: PlanApproval | None, revision: i
                 + "\nRead root AGENTS.md. Dependency outputs must be integrated before starting.\n"
                 + json.dumps(
                     {
-                        "dependencies": package.depends_on,
+                        "dependencies": plan.dependency_ids[package.id],
                         "inputs": package.inputs,
                         "interfaces": [x.model_dump() for x in package.consumes],
                         "decisions": [x.model_dump() for x in plan.outline.specification],

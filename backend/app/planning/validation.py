@@ -76,7 +76,13 @@ def unique(values):
         raise ValueError("Duplicate proposal reference")
 
 
+def check_diagram(diagram: str):
+    if re.search(r"[^\x09\x0a\x0d\x20-\x7e]", diagram):
+        raise ValueError("Diagrams must use plain ASCII")
+
+
 def accept_outline(outline: OutlineProposal, ledger) -> OutlineProposal:
+    check_diagram(outline.architecture)
     check_citations(outline, ledger)
     unique([p.ref for p in outline.phases] + [s.ref for s in outline.screens])
     graph = {p.ref: p.depends_on for p in outline.phases}
@@ -88,6 +94,10 @@ def accept_outline(outline: OutlineProposal, ledger) -> OutlineProposal:
     covered = {id for s in outline.specification if s.status == "confirmed" for id in s.ledger_ids}
     if not required <= covered:
         raise ValueError("Specification misses confirmed requirements")
+    unresolved = {x.id for x in ledger if x.status != "confirmed"}
+    visible = {id for s in outline.choices if s.status != "confirmed" for id in s.ledger_ids}
+    if not unresolved <= visible:
+        raise ValueError("Unconfirmed ledger items must remain visible as proposed or unresolved choices")
     rules = {id for s in outline.common_rules for id in s.ledger_ids}
     if (
         not {x.id for x in ledger if x.status == "confirmed" and x.type in {"constraint", "non-goal"}}
@@ -103,12 +113,17 @@ def accept_screen(screen: ScreenProposal, outline: OutlineProposal, ref: str) ->
     expected = next((s for s in outline.screens if s.ref == ref), None)
     if expected is None or screen.ref != ref or set(screen.wireframes) != set(expected.states):
         raise ValueError("Screen does not match accepted outline states")
+    for diagram in screen.wireframes.values():
+        check_diagram(diagram)
     return screen
 
 
 def accept_phase(phase: PhaseProposal, outline: OutlineProposal, index: int) -> Phase:
     if index >= len(outline.phases) or outline.phases[index].ref != phase.ref:
         raise ValueError("Phase does not match accepted outline")
+    check_diagram(phase.flow)
+    for package in phase.packages:
+        check_diagram(package.flow)
     phase_id = f"P{index + 1}"
     packages = []
     for i, package in enumerate(phase.packages, 1):
@@ -123,13 +138,14 @@ def overlaps(left: str, right: str) -> bool:
     return left == right or left.startswith(right + "/") or right.startswith(left + "/")
 
 
-def validate_plan(plan: PlanDocument, ledger):
+def validate_plan(plan: PlanDocument, ledger, *, complete: bool = True):
     accept_outline(plan.outline, ledger)
     check_citations(plan, ledger)
     sources = [x.model_dump(include={"id", "type", "text", "status", "source", "turn"}) for x in ledger]
     if [x.model_dump() for x in plan.sources] != sources:
         raise ValueError("Plan source snapshot differs from the current ledger")
-    if [p.ref for p in plan.phases] != [p.ref for p in plan.outline.phases]:
+    expected_phases = plan.outline.phases if complete else plan.outline.phases[: len(plan.phases)]
+    if [p.ref for p in plan.phases] != [p.ref for p in expected_phases]:
         raise ValueError("Incomplete or changed phases")
     if [s.ref for s in plan.screens] != [s.ref for s in plan.outline.screens]:
         raise ValueError("Incomplete or changed screens")
@@ -145,7 +161,7 @@ def validate_plan(plan: PlanDocument, ledger):
     order = {p.ref: i for i, p in enumerate(plan.phases)}
     required = {x.id for x in ledger if x.status == "confirmed"}
     covered = {id for w in packages for s in w.acceptance if s.status == "confirmed" for id in s.ledger_ids}
-    if not required <= covered:
+    if complete and not required <= covered:
         raise ValueError("Package acceptance misses confirmed requirements")
     exclusions = {x.id for x in ledger if x.status == "confirmed" and x.type in {"constraint", "non-goal"}}
     producers = {}
@@ -196,5 +212,4 @@ def validate_plan(plan: PlanDocument, ledger):
         *(w.flow for w in packages),
         *(x for s in plan.screens for x in s.wireframes.values()),
     ]:
-        if re.search(r"[^\x09\x0a\x0d\x20-\x7e]", diagram):
-            raise ValueError("Diagrams must use plain ASCII")
+        check_diagram(diagram)

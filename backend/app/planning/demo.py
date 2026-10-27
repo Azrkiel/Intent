@@ -25,7 +25,8 @@ def demo_response(session, role, payload):
                 statement(
                     "Choose a runtime and persistence design before real execution", status="unresolved"
                 ),
-            ],
+            ]
+            + [statement(x.text, [x.id], "unresolved") for x in ledger if x.status != "confirmed"],
             "architecture": "[Browser UI] -> [API contract] -> [Persistence adapter]\n"
             "[Invalid input / save failure] -> [Visible error and retry]",
             "screens": [

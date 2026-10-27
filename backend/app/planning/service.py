@@ -36,6 +36,21 @@ class PlanningService:
         if session.build.status == "running":
             raise ValueError("Wait for the current build to finish")
 
+    def document(self, session, attempt, phases=None):
+        return PlanDocument(
+            id=attempt.plan_id,
+            revision=attempt.revision,
+            requirements_revision=attempt.requirements_revision,
+            mode=session.mode,
+            outline=attempt.outline,
+            screens=attempt.screens,
+            phases=attempt.phases if phases is None else phases,
+            sources=[
+                SourceItem(**x.model_dump(include={"id", "type", "text", "status", "source", "turn"}))
+                for x in session.ledger
+            ],
+        )
+
     def event(self, session, kind, message=None):
         state = session.planning
         attempt = state.attempts[-1] if state.attempts else None
@@ -123,22 +138,16 @@ class PlanningService:
                     },
                 )
                 check_citations(draft, session.ledger)
-                attempt.phases.append(accept_phase(draft, outline, index))
+                accepted = accept_phase(draft, outline, index)
+                validate_plan(
+                    self.document(session, attempt, [*attempt.phases, accepted]),
+                    session.ledger,
+                    complete=False,
+                )
+                attempt.phases.append(accepted)
                 self.store.save(session)
                 yield self.event(session, "plan_section")
-            plan = PlanDocument(
-                id=attempt.plan_id,
-                revision=attempt.revision,
-                requirements_revision=session.revision,
-                mode=session.mode,
-                outline=outline,
-                screens=attempt.screens,
-                phases=attempt.phases,
-                sources=[
-                    SourceItem(**x.model_dump(include={"id", "type", "text", "status", "source", "turn"}))
-                    for x in session.ledger
-                ],
-            )
+            plan = self.document(session, attempt)
             validate_plan(plan, session.ledger)
             catalog = statement_catalog(plan)
             verification = await self.call(

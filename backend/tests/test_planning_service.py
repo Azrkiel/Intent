@@ -196,3 +196,25 @@ async def test_planning_uses_existing_budget_without_resetting_usage(setup):
     assert events[-1]["type"] == "plan_error"
     assert "budget" in events[-1]["message"].lower()
     assert len(store.get(session.id).usage) == 1
+
+
+async def test_invalid_package_edges_never_become_accepted_sections(setup):
+    store, session, _ = setup
+
+    class Invalid(DemoModels):
+        async def call(self, current, role, schema, instruction, payload):
+            result = await super().call(current, role, schema, instruction, payload)
+            if role == "planner:phase:foundation":
+                result.packages[0].depends_on = ["undeclared"]
+            return result
+
+    events = await collect(PlanningService(store, Invalid(), Settings()), session)
+    assert events[-1]["type"] == "plan_error"
+    assert session.planning.attempts[0].phases == []
+
+
+async def test_source_whitespace_is_preserved_in_the_hashed_snapshot(setup):
+    _, session, service = setup
+    session.ledger[0].text = "  Save notes with whitespace  "
+    events = await collect(service, session)
+    assert events[-1]["type"] == "plan_ready"

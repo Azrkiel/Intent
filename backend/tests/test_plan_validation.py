@@ -40,6 +40,8 @@ def test_assigns_stable_ids_and_covers_confirmed_requirements():
     session, doc = plan()
     validate_plan(doc, session.ledger)
     assert doc.phases[1].packages[0].tasks[0].id == "P2-W1-T1"
+    assert doc.dependency_ids["P2"] == ["P1"]
+    assert doc.dependency_ids["P2-W1"] == ["P1-W1"]
 
 
 @pytest.mark.parametrize(
@@ -104,3 +106,28 @@ def test_unknown_phase_and_duplicate_outline_references_rejected():
         accept_phase(
             PhaseProposal.model_validate(phase("unknown")), OutlineProposal.model_validate(outline()), 0
         )
+
+
+def test_unicode_diagrams_are_rejected_before_section_acceptance():
+    session = ready_session()
+    proposal = OutlineProposal.model_validate(outline())
+    proposal.architecture = "[Save] → [Read]"
+    with pytest.raises(ValueError, match="ASCII"):
+        accept_outline(proposal, session.ledger)
+
+
+def test_unconfirmed_ledger_items_must_remain_visible_as_open_choices():
+    from backend.app.domain import LedgerItem
+    from backend.app.planning.contracts import Statement
+
+    session = ready_session()
+    session.ledger.append(
+        LedgerItem(id="L99", type="assumption", text="Storage remains undecided", status="inferred", turn=1)
+    )
+    proposal = OutlineProposal.model_validate(outline())
+    with pytest.raises(ValueError, match="Unconfirmed"):
+        accept_outline(proposal, session.ledger)
+    proposal.choices.append(
+        Statement(text="Storage remains undecided", ledger_ids=["L99"], status="unresolved")
+    )
+    accept_outline(proposal, session.ledger)

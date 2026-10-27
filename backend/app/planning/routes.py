@@ -3,7 +3,7 @@ import json
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response, StreamingResponse
 
-from .contracts import PlanApproval, PlanDocument, PlanningModel, SourceItem
+from .contracts import PlanApproval, PlanningModel
 from .export import export_bundle
 from .render import render_engineering, render_human
 from .validation import validate_plan
@@ -32,19 +32,7 @@ def planning_router(store, service, locks, load, guard_edit):
         elif state.attempts and state.attempts[-1].outline:
             attempt = state.attempts[-1]
             partial = True
-            document = PlanDocument(
-                id=attempt.plan_id,
-                revision=attempt.revision,
-                requirements_revision=attempt.requirements_revision,
-                mode=session.mode,
-                outline=attempt.outline,
-                screens=attempt.screens,
-                phases=attempt.phases,
-                sources=[
-                    SourceItem(**x.model_dump(include={"id", "type", "text", "status", "source", "turn"}))
-                    for x in session.ledger
-                ],
-            )
+            document = service.document(session, attempt)
         return {
             "session_id": session.id,
             "requirements_revision": session.revision,

@@ -17,6 +17,7 @@ constraints/non-goals in common_rules. Declare at most four ordered phases with
 dependencies on earlier phases, and at most three screens with applicable states.
 Declare no screens for a project without screens. Phase and screen refs must be unique.
 Include all confirmed requirements, journeys, architecture, and visible proposed choices.
+Every unconfirmed ledger item must appear separately in choices as proposal or unresolved.
 """
 )
 

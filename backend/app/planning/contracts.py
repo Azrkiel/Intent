@@ -118,7 +118,7 @@ class PlanVerification(PlanningModel):
 class SourceItem(PlanningModel):
     id: Text
     type: Text
-    text: Text
+    text: str = Field(min_length=1, max_length=2000)
     status: Literal["confirmed", "inferred", "open", "conflict"]
     source: str | None = Field(default=None, max_length=6000)
     turn: int = Field(ge=0)
@@ -149,6 +149,15 @@ class PlanDocument(PlanningModel):
     @property
     def content_hash(self) -> str:
         return content_hash(self.model_dump(mode="json", round_trip=True))
+
+    @computed_field
+    @property
+    def dependency_ids(self) -> dict[str, list[str]]:
+        phases = {p.ref: f"P{i}" for i, p in enumerate(self.outline.phases, 1)}
+        packages = {w.ref: w.id for p in self.phases for w in p.packages}
+        return {phases[p.ref]: [phases[ref] for ref in p.depends_on] for p in self.outline.phases} | {
+            w.id: [packages[ref] for ref in w.depends_on] for p in self.phases for w in p.packages
+        }
 
 
 class PlanApproval(PlanningModel):

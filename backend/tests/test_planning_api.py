@@ -74,3 +74,38 @@ def test_restart_marks_planning_interrupted_and_preserves_pass_reservations(clie
     restored = client.app.state.store.get(session.id)
     assert restored.planning.status == "blocked"
     assert restored.planning.attempts[0].passes == ["planner:outline"]
+
+
+async def test_simultaneous_plan_requests_do_not_duplicate_passes(tmp_path):
+    import asyncio
+
+    import httpx
+
+    app = create_app(Settings(database_path=str(tmp_path / "sessions.db"), mode="demo"))
+    session = ready_session()
+    app.state.store.save(session)
+    original = app.state.engine.models.call
+    entered, release = asyncio.Event(), asyncio.Event()
+    calls = []
+
+    async def pause(current, role, schema, instruction, payload):
+        calls.append(role)
+        if role == "planner:outline":
+            entered.set()
+            await release.wait()
+        return await original(current, role, schema, instruction, payload)
+
+    app.state.engine.models.call = pause
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as client,
+    ):
+        task = asyncio.create_task(client.post(f"/api/sessions/{session.id}/plan", json={}))
+        try:
+            await asyncio.wait_for(entered.wait(), 5)
+            duplicate = await client.post(f"/api/sessions/{session.id}/plan", json={})
+            assert duplicate.status_code == 409
+        finally:
+            release.set()
+        assert (await task).status_code == 200
+        assert calls.count("planner:outline") == 1

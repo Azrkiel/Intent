@@ -5,7 +5,7 @@ import zipfile
 
 import pytest
 
-from backend.app.planning.contracts import PlanApproval
+from backend.app.planning.contracts import PlanApproval, PlanDocument
 from backend.app.planning.export import export_bundle
 from backend.tests.test_plan_validation import plan
 
@@ -37,6 +37,8 @@ def test_bundle_inventory_hashes_and_deterministic_bytes():
             "phases/P1/work-packages/P1-W1/TASK.md",
         } <= set(names)
         manifest = json.loads(archive.read("manifest.json"))
+        restored = PlanDocument.model_validate_json(archive.read("plan.json"))
+        assert restored == doc and restored.content_hash == manifest["content_hash"]
         for entry in manifest["artifacts"]:
             if entry["path"] != "manifest.json":
                 assert hashlib.sha256(archive.read(entry["path"])).hexdigest() == entry["sha256"]
