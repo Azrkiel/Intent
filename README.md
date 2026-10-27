@@ -147,6 +147,45 @@ fidelity, live latency/spend, microphone behaviour and authenticated app generat
 still need separate checks. Generated apps remain self-contained HTML and do not
 run a backend or synchronize across devices.
 
+## Visual phase plans and instruction bundles
+
+After approving the current requirements playback, open **Phase plan** (or
+**Plan phases** from the compiled brief) and choose **Generate phase plan**.
+Validated outline, wireframe, and phase sections appear progressively. Switch
+between **Vision & wireframes** and **Engineering & work packages** to inspect
+the same revision. Proposed choices and unresolved questions remain explicit.
+
+Choose **Approve this revision**, then **Export instruction bundle**. The ZIP
+contains the canonical `plan.json`, a hashed manifest, cited specification, vision,
+wireframes, architecture, shared `AGENTS.md`/compatible `CLAUDE.md`, and detailed
+phase and work-package packets. Approval binds the plan ID, revision, content hash,
+and requirements revision. A new utterance clears approval and preserves the old
+plan for inspection. Draft, failed, or stale plans cannot export.
+
+Planning uses Super through the existing model adapter and session budget. It does
+not consume another Ultra compiler pass. An attempt has an outline pass, up to
+three screen passes, up to four phase passes, and one semantic verification pass;
+each allows the existing single JSON repair. Defaults allow two attempts per
+session, with all reservations and response usage preserved across failure,
+correction, interruption, and restart. `PLANNING_MAX_ATTEMPTS` (1–2) and
+`PLANNING_MAX_PASSES` (1–9) can lower these limits. Each phase holds at most two
+packages and each package at most three ordered leaf tasks. Exceeding a bound
+blocks the plan rather than silently dropping work.
+
+**Phase 1 status (2026-10-27, America/New_York):** offline implementation and demo
+browser verification are complete; user phase acceptance is pending. The suite
+passes 109 backend tests, Ruff, 9 frontend tests, TypeScript checking, the production
+build, and 16/16 existing scripted evaluations. Additional HTTP fixtures exercise
+the live model adapter without making provider requests. The browser check covered
+both views, approval, export, reload, and correction invalidation.
+
+Demo planning is a generic, labeled synthetic fixture, not a custom model-generated
+implementation contract or evidence of semantic quality. Actual Nemotron planning
+qualification remains pending. Codex dispatch is unavailable in Phase 1; the
+[implementation plan](docs/plans/2026-10-26-phase-plans-codex-orchestration.md)
+puts transport and execution in later phases. The existing HTML builder remains
+available separately.
+
 ## Claude Code handoff
 
 After approving and compiling the brief, set `ALLOW_CLAUDE_BUILD=true` and restart.

@@ -1,13 +1,14 @@
 # Draft: visual phase plans and Codex orchestration
 
-Status: revised design with a file-level implementation plan for review; no runtime
-implementation is included.
+Status: Phase 1 planning, synchronized views and export are implemented offline;
+user phase review and actual Nemotron qualification remain pending. Codex execution
+is not implemented.
 Date: 2026-10-26 (America/New_York).
 
 Next artifact: [implementation plan](../plans/2026-10-26-phase-plans-codex-orchestration.md),
 covering bounded planning passes, repository ownership, tests, small commits and
 user acceptance gates for all five delivery phases. Runtime implementation has not
-started; the first checkpoint is planning contracts and persistence.
+started for Phases 2-5; Phase 1 evidence is recorded in the implementation plan.
 
 ## Goal
 

@@ -1,7 +1,8 @@
 # Implementation plan: visual phase plans and local Codex orchestration
 
 Date: 2026-10-26 (America/New_York).
-Status: prepared for implementation review. No runtime changes are included.
+Status: Phase 1 implemented and verified on 2026-10-27 (America/New_York);
+awaiting user phase acceptance. Phases 2-5 remain pending.
 Source: [design](../specs/2026-10-26-phase-plans-codex-orchestration.md).
 
 **Goal:** Turn approved, cited requirements into synchronized design and engineering
@@ -148,7 +149,7 @@ New directories are packages with `__init__.py`. Keep pure contracts free of
 | `backend/app/execution/worktrees.py`, `scheduler.py` | Single-worker worktree creation, isolation hardening, dependency claims, two-worker scheduling | 2.3 / 3.1 / 3.2 |
 | `backend/app/execution/verification.py`, `review.py` | Trusted evidence, integration, phase acceptance, invalidation | 3.3 / 4.1 |
 | `frontend/lib/execution.ts`, `execution.test.ts`, `frontend/components/execution-panel.tsx` | Progress, approvals, cancellation, evidence, phase acceptance | 4.2 |
-| `backend/tests/fixtures/planning/`, `backend/tests/fixtures/codex/` | Synthetic, redacted contracts; no account or session data | 1.1 / 2.1 |
+| `backend/tests/planning_fixtures.py`, `backend/tests/fixtures/codex/` | Synthetic, redacted contracts; no account or session data | 1.1 / 2.1 |
 | `backend/qualify_planning.py`, `backend/qualify_codex.py`, `README.md` | Explicit live qualification and honest status | 5.1 |
 
 No workers edit shared files concurrently. Contracts are integrated before dependent
@@ -159,29 +160,29 @@ packages are assigned. For this repository's implementation, `main.py`, `domain.
 
 ### 1.1 Bounded contracts and backward-compatible persistence
 
-- [ ] Add `backend/tests/test_plan_contracts.py` and
+- [x] Add `backend/tests/test_plan_contracts.py` and
   `backend/tests/test_plan_store.py`. First failing cases: old session JSON loads
   with no plan; provider-supplied canonical IDs/status/approvals are forbidden;
   empty steps/checks, excessive nesting, and size limits fail validation; immutable
   snapshots survive SQLite reopen without computed output fields being persisted.
-- [ ] Add proposal contracts in `planning/contracts.py` using Pydantic
+- [x] Add proposal contracts in `planning/contracts.py` using Pydantic
   `ConfigDict(extra="forbid")`. Use proposal references separately from application
   IDs. Every cited statement carries `ledger_ids`; every decision declares
   `confirmed`, `proposal`, or `unresolved`. Confirmed statements may reference only
   confirmed source items. Open/inferred items remain visible separately.
-- [ ] Define `OutlineProposal`, `ScreenProposal`, `PhaseProposal`,
+- [x] Define `OutlineProposal`, `ScreenProposal`, `PhaseProposal`,
   `PackageProposal`, `LeafTaskProposal`, `PlanVerification`, `PlanDocument`,
   `PlanAttempt`, and `PlanApproval`. Bound strings, arrays, ASCII diagrams, inputs,
   outputs, interface references, required artifacts, and expected check results.
   Each package includes the full contract from the design: goal, citations,
   preconditions, dependencies, owned paths, consumed/produced interfaces, ordered
   leaves, happy/failure flow, acceptance, exclusions, proposals, and open questions.
-- [ ] Add `PlanningState` to `Session` with an optional active plan reference,
+- [x] Add `PlanningState` to `Session` with an optional active plan reference,
   durable attempts, and no approval by default. Add an immutable `plans` table in
   `Store` keyed by `(session_id, plan_id, plan_revision)`. Store content hash and
   requirements revision. Updating an existing revision's content is an error;
   mutable attempt/approval state lives outside the immutable plan body.
-- [ ] Establish canonical hashing with this exact encoding; never hash mutable
+- [x] Establish canonical hashing with this exact encoding; never hash mutable
   run state, UI text caches, approval metadata, or the hash field itself:
 
 ```python
@@ -197,101 +198,101 @@ def content_hash(content: dict) -> str:
     return hashlib.sha256(encoded).hexdigest()
 ```
 
-- [ ] Run `uv run pytest backend/tests/test_plan_contracts.py backend/tests/test_plan_store.py -q`.
+- [x] Run `uv run pytest backend/tests/test_plan_contracts.py backend/tests/test_plan_store.py -q`.
   Expect initial import failures, then all new tests passing. Run
   `uv run pytest -q` and `uv run ruff check backend`; all existing tests must pass.
   Commit: `feat: add versioned planning contracts and persistence`.
 
 ### 1.2 Application-owned IDs and deterministic validation
 
-- [ ] Add `backend/tests/test_plan_validation.py` with valid and adversarial
+- [x] Add `backend/tests/test_plan_validation.py` with valid and adversarial
   fixtures. Cover unknown/duplicate references, references changing between
   sections, unknown ledger citations, missing confirmed requirements, self/cyclic
   dependencies, backward phase dependencies, conflicting interfaces, and path
   collisions on both Windows and POSIX.
-- [ ] Implement `accept_outline`, `accept_screen`, `accept_phase`, and
+- [x] Implement `accept_outline`, `accept_screen`, `accept_phase`, and
   `validate_plan` in `planning/validation.py`. Intent allocates plan IDs and stable
   `P1`, `P1-W1`, `P1-W1-T1` identities from an accepted outline. Models cannot add
   undeclared phase references in later passes. Persist the reference mapping.
-- [ ] Require every confirmed ledger ID to appear in the cited specification;
+- [x] Require every confirmed ledger ID to appear in the cited specification;
   every actionable confirmed requirement must map to a package's acceptance
   criteria. Constraints/non-goals must also appear in common rules and applicable
   scope exclusions. A source link alone is not semantic validation.
-- [ ] Normalize owned paths as relative POSIX paths for generated projects; reject
+- [x] Normalize owned paths as relative POSIX paths for generated projects; reject
   absolute/drive/UNC paths, traversal, NUL, backslashes, reserved Windows names,
   trailing spaces/dots, ADS colons, wildcard ownership, and case-insensitive
   collisions. Directory ownership conflicts with all descendants. Shared
   interfaces have one producer and explicit consumers depending on that producer.
-- [ ] Test package DAGs and phase DAGs independently. Same-path work may run
+- [x] Test package DAGs and phase DAGs independently. Same-path work may run
   sequentially through an explicit dependency; unordered overlaps block approval.
   Reject unknown or incompatible interface versions. Empty ownership is invalid.
-- [ ] Run `uv run pytest backend/tests/test_plan_validation.py -q`,
+- [x] Run `uv run pytest backend/tests/test_plan_validation.py -q`,
   `uv run pytest -q`, and `uv run ruff check backend`. Expect deterministic results
   regardless of proposal ordering. Commit: `feat: validate plan provenance and dependency ownership`.
 
 ### 1.3 Deterministic renderers and portable instruction bundle
 
-- [ ] Add `backend/tests/test_plan_render.py` and `test_plan_export.py` using a
+- [x] Add `backend/tests/test_plan_render.py` and `test_plan_export.py` using a
   two-phase synthetic plan with shared contracts before independent UI/API work.
   Assert both views, each phase, and every packet identify the same plan revision,
   hash, IDs, and source requirements. Assert proposals/open questions remain visible.
-- [ ] Implement pure `render_human`, `render_engineering`, `render_phase`, and
+- [x] Implement pure `render_human`, `render_engineering`, `render_phase`, and
   `render_package` functions. Include empty/loading/error/success screen states
   when applicable; a screen-free project explicitly declares no screens. Preserve
   plain-text wireframes and happy/failure diagrams; escape when shown in HTML.
-- [ ] Implement `export_bundle` entirely from a validated, approved immutable
+- [x] Implement `export_bundle` entirely from a validated, approved immutable
   document. Produce the exact design inventory: `plan.json`, `manifest.json`,
   `VISION.md`, `SPEC.md`, `WIREFRAMES.txt`, `ARCHITECTURE.txt`, `AGENTS.md`,
   `CLAUDE.md`, and each phase/package's `PLAN.md`, `DIAGRAM.txt`, `TASK.md`, and
   `CONTEXT.md`. The compatibility `CLAUDE.md` points to shared `AGENTS.md` rules.
-- [ ] Build instruction policy from application-controlled templates. Quote user
+- [x] Build instruction policy from application-controlled templates. Quote user
   data in explicitly delimited sections; it cannot select permissions, models,
   sandbox flags, destination roots, or automatic delegation. Tell workers they
   share a project, must preserve other workers' changes, and must report scope
   deviations. Pass common rules and assigned packets explicitly at dispatch.
-- [ ] Use fixed ZIP metadata and sorted member names. Compute SHA-256 over exact
+- [x] Use fixed ZIP metadata and sorted member names. Compute SHA-256 over exact
   UTF-8 bytes. The manifest inventories and hashes all other members, and names
   itself without a self-referential digest. Do not serialize a `Session`, its
   usage, environment, local paths, auth state, or Codex transcripts into exports.
-- [ ] Reject traversal/case collisions and instruction filename injection before
+- [x] Reject traversal/case collisions and instruction filename injection before
   archive creation. Test tampering, malicious titles, unsafe names, deterministic
   bytes, missing approval, mismatched hash, and stale requirements revision.
-- [ ] Run `uv run pytest backend/tests/test_plan_render.py backend/tests/test_plan_export.py -q`,
+- [x] Run `uv run pytest backend/tests/test_plan_render.py backend/tests/test_plan_export.py -q`,
   `uv run pytest -q`, and `uv run ruff check backend`.
   Commit: `feat: render synchronized plans and export worker instruction bundles`.
 
 ### 1.4 Bounded planning passes, usage, and correction invalidation
 
-- [ ] Add `backend/tests/test_planning_service.py` and extend
+- [x] Add `backend/tests/test_planning_service.py` and extend
   `test_models.py`/`test_offline_pipeline.py`. Failing cases cover failure in each
   named pass, invalid JSON plus repair, budget exhaustion, persistence between
   sections, repeated generation, concurrent duplicate requests, attempt limits,
   correction after approval, and semantic rejection despite complete citations.
-- [ ] Add bounded settings for the proposed limits above. Keep `LiveModels.call`
+- [x] Add bounded settings for the proposed limits above. Keep `LiveModels.call`
   as the only provider-call path. Assert planning roles route to Super with its
   existing token/thinking settings and share `session.usage` and reservations.
   Do not modify the one-logical-Ultra-compiler-pass policy or reset `compiler_calls`.
-- [ ] In `PlanningService`, require `gate_for(session).ready` and current
+- [x] In `PlanningService`, require `gate_for(session).ready` and current
   requirements approval before starting. Reserve and persist each named logical
   pass before calling it. Save usage in `finally`, as `Engine.call` already does.
   Same-session mutations use the same lock as utterances and compilation.
-- [ ] Generate outline, then each screen, then each phase. Each complete response
+- [x] Generate outline, then each screen, then each phase. Each complete response
   is structurally validated, atomically persisted, and emitted as an accepted
   section. Show a pending outline skeleton but never treat missing phase tasks
   or raw provider JSON as executable. A disconnected streaming request must leave
   durable state recoverable, release locks, and record interruption.
-- [ ] Run the final `planner:verify` over all cited statements and acceptance
+- [x] Run the final `planner:verify` over all cited statements and acceptance
   mappings, including proposals versus confirmed decisions. Use stable statement
   IDs in its result. Any unsupported statement, missing requirement, invalid
   verifier reference, verifier failure, or deterministic validation error prevents
   `review_ready`. Do not silently delete rejected material and approve the rest.
-- [ ] On a new utterance, mark the plan stale, clear plan approval, and preserve
+- [x] On a new utterance, mark the plan stale, clear plan approval, and preserve
   snapshots and usage. Once execution exists, also stop new dispatch and request
   interruption of affected workers. Do not erase completed work or evidence.
-- [ ] Add synthetic planning responses to `DemoModels` keyed by the same roles.
+- [x] Add synthetic planning responses to `DemoModels` keyed by the same roles.
   Demo responses and exported plans carry a visible demo designation and make no
   paid calls. A restored demo session must never invoke `LiveModels` after a mode switch.
-- [ ] Run `uv run pytest -q`, `uv run ruff check backend`, and `npm run eval:demo`.
+- [x] Run `uv run pytest -q`, `uv run ruff check backend`, and `npm run eval:demo`.
   Expect all backend tests and all 16 existing scripted evaluations to pass without
   credentials. Commit: `feat: generate bounded validated plan sections with retained usage`.
 
@@ -308,36 +309,36 @@ registry inside the router.
 | `POST /api/sessions/{id}/plan/approve` | Exact plan ID/revision/hash/requirements revision; require `review_ready` |
 | `GET /api/sessions/{id}/plan/bundle` | ZIP for the current approved hash; 409 for stale/draft/unapproved |
 
-- [ ] Add `backend/tests/test_planning_api.py`. Unknown session -> 404; blank or
+- [x] Add `backend/tests/test_planning_api.py`. Unknown session -> 404; blank or
   invalid body -> 422; mode mismatch, stale hash, concurrent conflicting work,
   unmet requirements, and invalid state -> 409. Retain redacted actionable model
   failure events; never send provider exception bodies or keys to the browser.
-- [ ] Emit bounded events `plan_started`, `plan_section`, `plan_ready`, and
+- [x] Emit bounded events `plan_started`, `plan_section`, `plan_ready`, and
   `plan_error`; each contains attempt identity, requirements revision, and
   accepted-section version. Final approval uses the completed content hash.
   GET reload is authoritative after missed events. Existing stream events continue
   working. Include planning availability and execution-disabled state in health.
-- [ ] Run `uv run pytest backend/tests/test_planning_api.py -q`,
+- [x] Run `uv run pytest backend/tests/test_planning_api.py -q`,
   `uv run pytest -q`, and `uv run ruff check backend`.
   Commit: `feat: expose planning progress approval and bundle endpoints`.
 
 ### 1.6 Progressive UI and phase-one acceptance
 
-- [ ] Add failing Vitest tests in `frontend/lib/planning.test.ts` for event
+- [x] Add failing Vitest tests in `frontend/lib/planning.test.ts` for event
   revision matching, pending versus accepted sections, mode mismatch, error
   persistence, approval eligibility, and stale/corrected plan actions.
-- [ ] Add typed planning contracts and selectors in `frontend/lib/planning.ts`;
+- [x] Add typed planning contracts and selectors in `frontend/lib/planning.ts`;
   reuse `frontend/lib/stream.ts`. Extend `Session` with planning state and `Health`
   with feature availability. Never infer approval from a view being open.
-- [ ] Add `PlanPanel`: separate human and engineering tabs over the same data,
+- [x] Add `PlanPanel`: separate human and engineering tabs over the same data,
   monospaced scrollable ASCII, cited decisions, proposed choices, unresolved
   questions, named pass progress, failures, usage, revision approval, and bundle
   export. Show that dispatch is unavailable until later delivery phases.
-- [ ] Wire a planning action after current requirements approval. Reload restores
+- [x] Wire a planning action after current requirements approval. Reload restores
   accepted sections and the active revision. Corrections clear active approval
   immediately. Buttons remain disabled for stale/partial/failed plans even when
   prior plan snapshots are inspectable. Keep the existing brief/build flow working.
-- [ ] Run `npm test`, `npm run typecheck`, `npm run build`, and `npm run eval:demo`.
+- [x] Run `npm test`, `npm run typecheck`, `npm run build`, and `npm run eval:demo`.
   Do not build against an active dev server's `.next`; stop only an owned server.
   Run backend checks after shared API changes. Browser-check a demo: partial
   progress, synchronized views, approval, ZIP download, reload, and a correction.
@@ -596,8 +597,21 @@ uv run python -m backend.qualify_codex --output .data/live-check/codex.json
 
 ## Verification and requirement coverage
 
-No code or tests have been executed under this plan yet. The checklist is the work
-contract, not evidence of completion. Fresh checks are required for each checkpoint.
+Phase 1 evidence (2026-10-27): 109 backend tests, Ruff, 9 frontend tests,
+TypeScript checking, production build, and 16/16 scripted evaluations passed.
+Production-browser demo checks covered generation, both views and matching hashes,
+approval, bundle download, reload restoration, and correction invalidation. Model
+adapter tests used synthetic HTTP responses; no actual provider/model calls were
+made. Runtime artifacts stay ignored under `.data/phase-one-check/`.
+The final browser run also reapproved the corrected requirements, generated revision
+2 within the two-attempt allowance, and exported 18 artifacts. Every artifact digest
+and the exported canonical plan's content hash passed an independent readback check.
+
+Local branch: `codex/phase-plans`, worktree `C:/Users/jiang/Intent-phase-plans`.
+Checkpoints: `fb9724c` contracts/store, `e442e89` validation, `e823c63` render/export,
+`c224425` generation, `08c6cab` API, and `82baf00` verification fixes. UI and final
+evidence are recorded in subsequent commits on the same branch. No push or merge
+is included. Fresh verification remains required for each future checkpoint.
 
 | Design requirement | Implementation and proof |
 | --- | --- |
