@@ -19,8 +19,9 @@ pipeline runs passed. The new runner also rejects empty critic targets and omits
 raw exceptions from CLI output. Both smoke configurations were attempted; each
 wrote an ignored `missing_credentials` report and exited 1 without requests.
 Checkpoint 4 remains pending until `NEBIUS_API_KEY` is configured locally and
-actual model/browser evidence exists. No production build was run during this
-milestone because a dev server was active and frontend code was unchanged.
+actual model/browser evidence exists. No production build was run in the initial
+pass because a dev server was active and frontend code was unchanged. The offline
+follow-up below includes a production build.
 
 **Starting point:** `c49e2ca` implements the first slice; `fbff0f3` records frequent
 verified commits. Baseline: 29 backend tests, 3 frontend stream tests and a successful
@@ -343,6 +344,29 @@ assert "reasoning_budget" not in requests[0]
       `git commit -m "test: characterize optional Nemotron thinking controls"`.
 
 ## Checkpoint 4: actual live qualification
+
+### Offline preparation (completed 2026-10-26, America/New_York)
+
+- [x] Verify the production build and run the browser demo from clarification
+      through explicit approval, compilation, export and labeled demo preview.
+- [x] Check blank input, reload restoration and a correction after approval.
+      The correction updates existing data IDs and clears approval, brief and build.
+      Local demo exports are in `.data/offline-check/`; they are not live evidence.
+- [x] Exercise `LiveModels` with simulated HTTP responses: routing, retained usage,
+      failed extraction/critic repair and retry, failed compilation/verification,
+      cached compilation, SQLite restoration and invalidation.
+- [x] Exercise the coding adapter with a real local scripted subprocess: stdout,
+      stderr, missing/failed result, nonzero exit, missing HTML, timeout and cancellation.
+      Confirm Claude installation/authentication without running paid generation.
+- [x] Reproduce and fix CRLF stream delimiters split across network chunks, with a
+      failing regression test first (`e1354af`). The offline HTTP tests are in
+      `3c09b5f`; subprocess tests are in `7e2e301`.
+
+Verification: 57 backend tests, Ruff, 4 frontend tests, TypeScript checking,
+production build and all 16 scripted demo pipeline runs passed. This proves offline
+contracts and demo plumbing only. All actual live qualification tasks remain below.
+
+### Actual provider and browser checks (pending)
 
 **Prerequisite:** `NEBIUS_API_KEY` must be configured in the ignored `.env` file.
 It was absent when this plan was written. Do not request a key in chat or copy one

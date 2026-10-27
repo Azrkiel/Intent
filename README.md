@@ -115,6 +115,38 @@ source, verify all confirmed decisions remain, and check corrections, failure/re
 and session restoration. Save the session export and `CLAUDE.md` locally under
 `.data/live-check/`. No live session or model-quality pass is claimed.
 
+### Offline qualification
+
+The 2026-10-26 offline follow-up passed 57 backend tests, Ruff, 4 frontend stream
+tests, TypeScript checking, the production build and all 16 scripted demo pipeline
+runs. A regression test reproduces CRLF delimiters split across network chunks;
+the stream parser now normalizes the joined buffer so valid responses are not
+reported as interrupted.
+
+```powershell
+uv run pytest backend/tests/test_offline_pipeline.py backend/tests/test_builder_process.py -q
+```
+
+These tests exercise the real `LiveModels` adapter against simulated HTTP responses,
+including failed JSON repair, retained usage, Nano/Super/Ultra routing, compilation,
+SQLite restoration and correction invalidation. Their token and cost values are
+synthetic. Coding-adapter tests run a local scripted subprocess to check stdout and
+stderr handling, successful-result and output-file requirements, timeouts,
+cancellation and process cleanup. They do not invoke Claude Code or require keys.
+
+A production-browser demo run covered blank input, the sync/access and automatic
+reminder questions, explicit approval, compilation, brief export, a labeled demo
+preview, reload restoration and a correction after approval. All nine confirmed
+ledger entries appeared in the demo brief. The correction updated existing data
+IDs and cleared approval, the compiled brief and the prior build. Demo session
+exports and the brief are saved locally under `.data/offline-check/`.
+
+Claude Code 2.1.310 is installed and its authentication status reports signed in.
+No paid coding-agent build was run. Actual provider validity, semantic brief
+fidelity, live latency/spend, microphone behaviour and authenticated app generation
+still need separate checks. Generated apps remain self-contained HTML and do not
+run a backend or synchronize across devices.
+
 ## Claude Code handoff
 
 After approving and compiling the brief, set `ALLOW_CLAUDE_BUILD=true` and restart.
