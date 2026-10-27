@@ -126,6 +126,9 @@ def overlaps(left: str, right: str) -> bool:
 def validate_plan(plan: PlanDocument, ledger):
     accept_outline(plan.outline, ledger)
     check_citations(plan, ledger)
+    sources = [x.model_dump(include={"id", "type", "text", "status", "source", "turn"}) for x in ledger]
+    if [x.model_dump() for x in plan.sources] != sources:
+        raise ValueError("Plan source snapshot differs from the current ledger")
     if [p.ref for p in plan.phases] != [p.ref for p in plan.outline.phases]:
         raise ValueError("Incomplete or changed phases")
     if [s.ref for s in plan.screens] != [s.ref for s in plan.outline.screens]:

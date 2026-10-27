@@ -115,9 +115,22 @@ class PlanVerification(PlanningModel):
     missing_ledger_ids: list[Text] = Field(max_length=100)
 
 
+class SourceItem(PlanningModel):
+    id: Text
+    type: Text
+    text: Text
+    status: Literal["confirmed", "inferred", "open", "conflict"]
+    source: str | None = Field(default=None, max_length=6000)
+    turn: int = Field(ge=0)
+
+
 def content_hash(content: dict) -> str:
     encoded = json.dumps(
-        content, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False,
+        content,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
@@ -130,6 +143,7 @@ class PlanDocument(PlanningModel):
     outline: OutlineProposal
     screens: list[ScreenProposal] = Field(max_length=3)
     phases: list[Phase] = Field(max_length=4)
+    sources: list[SourceItem] = Field(default_factory=list, max_length=100)
 
     @computed_field
     @property

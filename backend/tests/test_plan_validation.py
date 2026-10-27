@@ -1,6 +1,12 @@
 import pytest
 
-from backend.app.planning.contracts import OutlineProposal, PhaseProposal, PlanDocument, ScreenProposal
+from backend.app.planning.contracts import (
+    OutlineProposal,
+    PhaseProposal,
+    PlanDocument,
+    ScreenProposal,
+    SourceItem,
+)
 from backend.app.planning.validation import accept_outline, accept_phase, accept_screen, validate_plan
 from backend.tests.planning_fixtures import outline, package, phase, ready_session, screen
 
@@ -22,6 +28,10 @@ def plan():
         outline=draft,
         screens=[accept_screen(ScreenProposal.model_validate(screen()), draft, "notes")],
         phases=phases,
+        sources=[
+            SourceItem(**x.model_dump(include={"id", "type", "text", "status", "source", "turn"}))
+            for x in session.ledger
+        ],
     )
     return session, doc
 
