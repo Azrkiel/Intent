@@ -12,6 +12,16 @@ flow, including Ultra compilation and Super verification.
 **Stack:** existing Python, Pydantic, OpenAI SDK, pytest, FastAPI and Next.js.
 No new dependencies, services, accounts or deployment.
 
+**Progress (2026-10-26, America/New_York):** checkpoints 1–3 are implemented
+and committed as `2867a4f`, `3ecbabd` and `1ed2f87`. Verification: 45 backend
+tests, Ruff, 3 frontend tests, TypeScript checking and all 16 scripted demo
+pipeline runs passed. The new runner also rejects empty critic targets and omits
+raw exceptions from CLI output. Both smoke configurations were attempted; each
+wrote an ignored `missing_credentials` report and exited 1 without requests.
+Checkpoint 4 remains pending until `NEBIUS_API_KEY` is configured locally and
+actual model/browser evidence exists. No production build was run during this
+milestone because a dev server was active and frontend code was unchanged.
+
 **Starting point:** `c49e2ca` implements the first slice; `fbff0f3` records frequent
 verified commits. Baseline: 29 backend tests, 3 frontend stream tests and a successful
 production build. Those results validate implementation, not live model quality.
@@ -75,7 +85,7 @@ without evidence from provider documentation or response metadata.
 
 ## Checkpoint 1: redacted report helper
 
-- [ ] Add `backend/tests/test_smoke_report.py`:
+- [x] Add `backend/tests/test_smoke_report.py`:
 
 ```python
 import json
@@ -103,9 +113,9 @@ def test_report_keeps_usage_but_drops_unapproved_fields(tmp_path):
     assert "test-secret" not in output.read_text()
 ```
 
-- [ ] Run `uv run pytest backend/tests/test_smoke_report.py -q`.
+- [x] Run `uv run pytest backend/tests/test_smoke_report.py -q`.
       Expected RED: `ModuleNotFoundError: No module named 'backend.smoke_report'`.
-- [ ] Add `backend/smoke_report.py`:
+- [x] Add `backend/smoke_report.py`:
 
 ```python
 import json
@@ -142,16 +152,16 @@ def write_report(output, records, thinking_controls):
     return report
 ```
 
-- [ ] Run the targeted tests, then `uv run ruff check backend`.
+- [x] Run the targeted tests, then `uv run ruff check backend`.
       Expected: 2 passing new tests and no Ruff findings. Format imports with
       `uv run ruff check backend --select I --fix` and `uv run ruff format backend`
       before the check if needed.
-- [ ] Commit: `git add backend/smoke_report.py backend/tests/test_smoke_report.py`
+- [x] Commit: `git add backend/smoke_report.py backend/tests/test_smoke_report.py`
       then `git commit -m "feat: add redacted live model smoke reports"`.
 
 ## Checkpoint 2: preserve failed probe costs and validate actual gaps
 
-- [ ] Add `backend/tests/test_smoke.py` with these two regression tests:
+- [x] Add `backend/tests/test_smoke.py` with these two regression tests:
 
 ```python
 import json
@@ -211,9 +221,9 @@ async def test_failed_probes_preserve_usage_and_close_clients(tmp_path, monkeypa
     assert "test-only" not in output.read_text()
 ```
 
-- [ ] Run `uv run pytest backend/tests/test_smoke.py -q`.
+- [x] Run `uv run pytest backend/tests/test_smoke.py -q`.
       Expected RED: the existing `run` does not accept `provider_factory` or an output path.
-- [ ] Import `write_report` into `backend/smoke.py`, then replace its `run` function
+- [x] Import `write_report` into `backend/smoke.py`, then replace its `run` function
       with this implementation. Retain the existing domain/model/settings imports.
 
 ```python
@@ -268,7 +278,7 @@ async def run(thinking_controls, output=".data/live-check/basic.json",
         raise SystemExit(1)
 ```
 
-- [ ] Add `parser.add_argument("--output", default=".data/live-check/basic.json")`
+- [x] Add `parser.add_argument("--output", default=".data/live-check/basic.json")`
       to the existing CLI parser. Replace the final invocation with:
 
 ```python
@@ -276,16 +286,16 @@ args = parser.parse_args()
 asyncio.run(run(args.thinking_controls, args.output))
 ```
 
-- [ ] Run `uv run pytest backend/tests/test_smoke.py backend/tests/test_smoke_report.py -q`,
+- [x] Run `uv run pytest backend/tests/test_smoke.py backend/tests/test_smoke_report.py -q`,
       `uv run pytest -q`, and `uv run ruff check backend`.
       Expected: the four new tests pass; the existing 29 backend tests remain green.
-- [ ] Commit only the smoke runner and its new tests:
+- [x] Commit only the smoke runner and its new tests:
       `git add backend/smoke.py backend/tests/test_smoke.py`, then
       `git commit -m "fix: retain failed live probe usage and require grounded outputs"`.
 
 ## Checkpoint 3: outgoing thinking-control contracts
 
-- [ ] Add this test to `backend/tests/test_models.py`. It reuses the existing
+- [x] Add this test to `backend/tests/test_models.py`. It reuses the existing
       `completion` helper and existing imports.
 
 ```python
@@ -320,16 +330,16 @@ This characterizes existing behavior and should pass immediately; do not manufac
 a failure by changing working code. The deliberately small `Delta` response here
 tests transport fields only, not the compiler's real brief schema.
 
-- [ ] Extend the existing default-controls-off test with:
+- [x] Extend the existing default-controls-off test with:
 
 ```python
 assert "chat_template_kwargs" not in requests[0]
 assert "reasoning_budget" not in requests[0]
 ```
 
-- [ ] Run `uv run pytest backend/tests/test_models.py -q` and `uv run ruff check backend`.
+- [x] Run `uv run pytest backend/tests/test_models.py -q` and `uv run ruff check backend`.
       Expected: 6 model tests pass, no network calls, no secrets in output.
-- [ ] Commit: `git add backend/tests/test_models.py`, then
+- [x] Commit: `git add backend/tests/test_models.py`, then
       `git commit -m "test: characterize optional Nemotron thinking controls"`.
 
 ## Checkpoint 4: actual live qualification

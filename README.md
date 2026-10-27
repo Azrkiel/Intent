@@ -79,14 +79,41 @@ uses a deterministic rendering of the ledger instead of another Ultra pass.
 ### Day-one smoke test
 
 ```powershell
-uv run python -m backend.smoke
+uv run python -m backend.smoke --output .data/live-check/basic.json
 # After the basic requests work, test optional thinking controls:
-uv run python -m backend.smoke --thinking-controls
+uv run python -m backend.smoke --thinking-controls --output .data/live-check/controls.json
 ```
 
-This compares extraction on Nano and Lightning and makes a Super critic request,
-logging validity, latency, tokens and estimated cost. It does not run automatically
-or use credentials from another application.
+This compares extraction on Nano and Lightning and makes a Super critic request.
+Each extractor must produce at least one confirmed requirement backed by an exact
+source quote. The Super critic must return a contradiction question with nonempty,
+valid ledger targets and divergence greater than 1. These are protocol checks;
+they do not establish model quality or a measured ambiguity catch rate.
+
+Each run saves one redacted JSON report with the requested thinking-control setting,
+per-probe pass/failure status, grounded-item counts and per-call tokens, latency and
+estimated cost. Usage survives failed validation and JSON repair. Reports exclude
+credentials, raw responses and exception text. A missing key writes a failed report
+without making requests; any failed probe exits with code 1. Reports stay local in
+the ignored `.data/live-check/` directory. The check does not run automatically or
+use credentials from another application.
+
+**Qualification status (2026-10-26, America/New_York):** both CLI configurations
+were attempted and exited with code 1 (`missing_credentials`). No provider requests
+were made: recorded usage is empty, estimated spend is $0, and provider latency and
+output validity are unmeasured. The configured Nano/Super model IDs are listed above;
+the alternate extractor is `nvidia/Nemotron-3_5-Lightning`. Offline HTTP contract tests
+cover controls omitted by default, Nano thinking off when controls are requested,
+Super's requested 2048-token budget and Ultra's requested 6144-token budget. They
+verify outgoing fields only. Provider acceptance and actual thinking behaviour remain
+unverified; `SEND_THINKING_CONTROLS=false` remains the compatibility default.
+
+Live qualification remains pending: configure `NEBIUS_API_KEY` in `.env`, rerun both
+commands, then complete a new live browser conversation through playback approval,
+Ultra compilation and Super verification. Audit every brief line against its cited
+source, verify all confirmed decisions remain, and check corrections, failure/retry
+and session restoration. Save the session export and `CLAUDE.md` locally under
+`.data/live-check/`. No live session or model-quality pass is claimed.
 
 ## Claude Code handoff
 
