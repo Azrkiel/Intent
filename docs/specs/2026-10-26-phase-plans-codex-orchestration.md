@@ -1,7 +1,13 @@
 # Draft: visual phase plans and Codex orchestration
 
-Status: revised design for review; no runtime implementation is included.
+Status: revised design with a file-level implementation plan for review; no runtime
+implementation is included.
 Date: 2026-10-26 (America/New_York).
+
+Next artifact: [implementation plan](../plans/2026-10-26-phase-plans-codex-orchestration.md),
+covering bounded planning passes, repository ownership, tests, small commits and
+user acceptance gates for all five delivery phases. Runtime implementation has not
+started; the first checkpoint is planning contracts and persistence.
 
 ## Goal
 
@@ -275,8 +281,9 @@ an explicit runtime and functional acceptance evidence.
    missing Nebius key still blocks actual Nemotron evidence; simulation stays
    labeled. A Codex login is independent of that key.
 
-The implementation plan will map these slices to repository files, bounded model
-passes, tests and small commits after this design is approved.
+The linked implementation plan maps these slices to repository files, bounded
+model passes, tests and small commits. Its checklist records pending work, not
+implementation or qualification evidence.
 
 ## Account-isolation probe (2026-10-26)
 
