@@ -6,6 +6,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
+from .planning.contracts import PlanningState
+
 ItemType = Literal[
     "goal",
     "user",
@@ -183,6 +185,7 @@ class Session(Contract):
     warnings: list[str] = Field(default_factory=list)
     usage: list[Usage] = Field(default_factory=list)
     build: Build = Field(default_factory=Build)
+    planning: PlanningState = Field(default_factory=PlanningState)
 
 
 class Gate(Contract):
