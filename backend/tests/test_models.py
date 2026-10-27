@@ -34,7 +34,7 @@ async def test_live_model_repairs_json_once_and_tracks_both_calls():
         base_url="https://test.invalid/v1",
         http_client=httpx.AsyncClient(transport=httpx.MockTransport(handle)),
     )
-    provider = LiveModels(Settings(), client=client)
+    provider = LiveModels(Settings(send_thinking_controls=False), client=client)
     session = Session()
     result = await provider.call(session, "extractor", Delta, "Extract evidence.", {"text": "hello"})
     assert result.add == []
@@ -42,6 +42,8 @@ async def test_live_model_repairs_json_once_and_tracks_both_calls():
     assert "validation" in requests[1]["messages"][-1]["content"].lower()
     assert len(session.usage) == 2
     assert requests[0]["model"] == "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"
+    assert "chat_template_kwargs" not in requests[0]
+    assert "reasoning_budget" not in requests[0]
     await client.close()
 
 
@@ -54,8 +56,12 @@ async def test_live_model_never_silently_uses_demo_after_two_invalid_outputs():
             transport=httpx.MockTransport(lambda request: httpx.Response(200, json=completion("bad")))
         ),
     )
+    session = Session()
     with pytest.raises(ModelError, match="valid JSON"):
-        await LiveModels(Settings(), client=client).call(Session(), "extractor", Delta, "Extract.", {})
+        await LiveModels(Settings(), client=client).call(session, "extractor", Delta, "Extract.", {})
+    assert len(session.usage) == 2
+    assert sum(item.input_tokens for item in session.usage) == 40
+    assert sum(item.output_tokens for item in session.usage) == 20
     await client.close()
 
 
@@ -63,3 +69,36 @@ async def test_live_budget_rejects_calls_before_request():
     provider = LiveModels(Settings(session_budget_usd=0.000001))
     with pytest.raises(ModelError, match="budget"):
         await provider.call(Session(), "compiler", Delta, "Compile.", {})
+
+
+@pytest.mark.parametrize(
+    "role,enabled,budget",
+    [
+        ("extractor", False, None),
+        ("critic:contradictions", True, 2048),
+        ("compiler", True, 6144),
+    ],
+)
+async def test_requested_thinking_controls_are_sent(role, enabled, budget):
+    requests = []
+
+    def handle(request):
+        requests.append(json.loads(request.content))
+        return httpx.Response(200, json=completion('{"add": []}'))
+
+    client = AsyncOpenAI(
+        api_key="test",
+        base_url="https://test.invalid/v1",
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handle)),
+    )
+    provider = LiveModels(Settings(send_thinking_controls=True), client=client)
+    try:
+        await provider.call(Session(), role, Delta, "Return the test JSON contract.", {})
+        body = requests[0]
+        assert body["chat_template_kwargs"] == {"enable_thinking": enabled}
+        if budget is None:
+            assert "reasoning_budget" not in body
+        else:
+            assert body["reasoning_budget"] == budget
+    finally:
+        await client.close()
