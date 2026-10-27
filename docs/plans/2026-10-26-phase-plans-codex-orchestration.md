@@ -2,8 +2,8 @@
 
 Date: 2026-10-26 (America/New_York).
 Status: Phases 1 and 2 accepted by the user on 2026-10-27 (America/New_York).
-Phase 3 is implemented and verified offline; awaiting user phase acceptance.
-Phases 4-5 remain pending.
+Phase 3 was accepted by the user on 2026-10-27. Phase 4 is implemented and
+verified offline; its acceptance remains pending. Phase 5 has not started.
 Source: [design](../specs/2026-10-26-phase-plans-codex-orchestration.md).
 
 **Goal:** Turn approved, cited requirements into synchronized design and engineering
@@ -501,60 +501,62 @@ codex app-server generate-json-schema --out .data/codex-schema
   Commit: `feat: verify scoped worker changes and stage phase integration`.
 - [x] Present a fake two-worker phase with one dependency, one conflict case,
   and one out-of-scope failure.
-- [ ] Obtain user Phase 3 acceptance before Phase 4.
+- [x] Obtain user Phase 3 acceptance before Phase 4 (2026-10-27).
 
 ## Phase 4: evidence, phase review, corrections, and restart gates
 
 ### 4.1 Explicit state transitions and acceptance identity
 
-- [ ] Add `backend/tests/test_phase_review.py` and `test_execution_recovery.py`.
+- [x] Add `backend/tests/test_phase_review.py` and `test_execution_recovery.py`.
   Exercise every permitted transition and reject all other state pairs. Include
   stale-browser acceptance, rejected phase, incomplete checks, duplicate acceptance,
   correction during dispatch, limits, server restart, and an unknown active turn.
-- [ ] Implement `review.py` with distinct plan, run, and phase states. Plan:
+- [x] Implement `review.py` with distinct plan, run, and phase states. Plan:
   `draft -> planning -> review_ready -> approved`; correction -> `stale`.
   Package: `queued -> running -> verifying`; verified evidence contributes to phase
   review. Phase: `running -> verifying -> awaiting_phase_review -> accepted`.
   Failure/limit/uncertainty -> `blocked`; explicit cancel -> `cancelled`.
   Repairs create a new attempt and invalidate prior review evidence.
-- [ ] Define immutable `PhaseReview` identity from plan hash, phase ID, staging
+- [x] Define immutable `PhaseReview` identity from plan hash, phase ID, staging
   commit, package attempt IDs, check results/artifact hashes, and open decisions.
   Accept/reject requests include that identity. Reject stale evidence even when the
   plan hash is unchanged. Acceptance requires all required checks and artifacts,
   no unresolved blocking decisions, and a successful promotion of the reviewed
   staging commit. The scheduler also rechecks current requirements approval.
-- [ ] Add `POST /api/sessions/{id}/execution/phases/{phase_id}/review` with
+- [x] Add `POST /api/sessions/{id}/execution/phases/{phase_id}/review` with
   `decision: accept|reject`, plan identity, evidence hash, and optional review notes.
   Rejection preserves staging/worktrees and keeps successors blocked. Acceptance
   makes the next phase eligible but does not silently launch it.
-- [ ] Reconcile durable runs during lifespan startup before dispatch is enabled.
+- [x] Reconcile durable runs during lifespan startup before dispatch is enabled.
   Unlike the old HTML builder's restart recovery, an existing Codex thread must
   be inspected. Persisted `running` is not proof of an active or completed turn.
   Cancellation and correction remain effective when Codex interruption fails.
-- [ ] Run `uv run pytest -q` and `uv run ruff check backend`.
+- [x] Run `uv run pytest -q` and `uv run ruff check backend`.
   Commit: `feat: require current phase evidence and explicit user acceptance`.
 
 ### 4.2 Execution UI and phase-four acceptance
 
-- [ ] Add `frontend/lib/execution.ts` and failing `execution.test.ts` selectors
+- [x] Add `frontend/lib/execution.ts` and failing `execution.test.ts` selectors
   for phase eligibility, permission request identity, stale evidence, cancellation,
   account limits, restart uncertainty, and accepted-phase versus completed-turn state.
-- [ ] Add `ExecutionPanel` with worker/package progress, owned paths, bounded
+- [x] Add `ExecutionPanel` with worker/package progress, owned paths, bounded
   logs, model selection/default, account availability, permission requests, cancel,
   changed files/diff, trusted check results, artifact links, unresolved decisions,
   and accept/reject actions. Explain why the next phase is blocked. Show Codex
   usage separately from Nemotron estimated dollars and never invent a dollar cap.
-- [ ] Poll durable execution state; suppress stale responses by session/run/hash.
+- [x] Poll durable execution state; suppress stale responses by session/run/hash.
   Restore the panel after reload. Show an explicit next-phase start action only
   after acceptance. Corrections clear approval and dispatch eligibility at once.
-- [ ] Run `npm test`, `npm run typecheck`, `npm run build`,
+- [x] Run `npm test`, `npm run typecheck`, `npm run build`,
   `uv run pytest -q`, `uv run ruff check backend`, and `npm run eval:demo`.
   Browser-check simulated permissions, cancellation, failed checks, reject/repair,
   acceptance, next-phase blocking, correction, and reload. Label simulation in UI.
   Commit: `feat: show Codex phase evidence permissions and user review gates`.
-- [ ] Present the simulated end-to-end review flow. Require Phase 4 acceptance
+- [x] Present the simulated end-to-end review flow. Require Phase 4 acceptance
   before real generation qualification. No generated backend/deployment claim follows
   from source files or an HTML preview alone.
+
+- [ ] Obtain user Phase 4 acceptance before starting Phase 5 qualification.
 
 ## Phase 5: real Nemotron and Codex qualification
 
@@ -599,6 +601,29 @@ uv run python -m backend.qualify_codex --output .data/live-check/codex.json
 
 ## Verification and requirement coverage
 
+Phase 4 evidence (2026-10-27): 217 backend tests passed, one Windows symbolic-link
+test skipped, and the existing Starlette/httpx warning remained. Ruff, 15 frontend
+tests, TypeScript checking, the production build and 16/16 scripted demo evaluations
+passed. `c93b6cf` adds immutable review identity, migration with retained attempt
+history, acceptance/rejection, reviewed-commit promotion and startup reconciliation.
+`a87f42d` adds the execution panel and selectors for current evidence and permissions.
+
+Backend regressions cover same-plan stale staging/attempt/check evidence, duplicate
+acceptance, rejection requiring fresh repair attempts, failed checks, correction,
+lost promotion replies, moved refs, cancelled turns, legacy phase-three evidence
+and unknown running turns. A two-phase fake-server test completes and accepts both
+phases without rerunning prior packages. Successors pin their base to the preceding
+reviewed commit even if the accepted ref moves externally.
+
+Production-browser simulation covered permission decline, active cancellation,
+failed checks, rejection and repair, acceptance, next-phase blocking, requirements
+correction and reload. The restart uncertainty screen used an explicitly labeled
+interrupted-dispatch fixture; actual history reconciliation used backend subprocess
+tests. Desktop and mobile layouts were inspected. Observations and screenshots are
+ignored under `.data/phase-four-check/`. All simulation remained local with zero
+provider requests. Temporary servers and the browser tab were closed. Phase 4
+acceptance remains pending; no Phase 5 qualification has started.
+
 Phase 3 evidence (2026-10-27): 197 backend tests passed, with one symbolic-link test
 skipped because Windows denied symbolic-link creation. Both Windows junction tests
 passed, including an escape through Git object metadata. Ruff and all 16 scripted
@@ -610,7 +635,7 @@ and an out-of-scope failure. Successful phases stopped at `awaiting_phase_review
 failure cases remained blocked. Worktrees were preserved and accepted project trees
 remained unchanged. Reports and generated repositories remain ignored under
 `.data/phase-three-check/`. No provider requests or real account-backed generation
-were made. Phase 3 acceptance is pending; Phases 4-5 have not started.
+were made. The user accepted Phase 3 on 2026-10-27; Phase 4 follows below.
 
 Checkpoints on `codex/phase-three`: `cfdecbf` hardens owned roots and separate
 worktrees; `2de8de1` adds transactional scheduling and bounded concurrency;
@@ -628,7 +653,7 @@ filters, config overrides, unsafe links and external object stores are rejected;
 checkout materialization reads raw blobs rather than executing filters. Worker
 test edits and summaries remain changed code/claims. Textual exclusions and open
 decisions are retained for review; Git inspection is not semantic or application
-correctness evidence. No phase acceptance or accepted-branch promotion is exposed.
+correctness evidence. Phase 4 adds explicit phase acceptance and accepted-ref promotion.
 
 Phase 2 evidence (2026-10-27): 156 backend tests, Ruff, and 16/16 existing scripted
 evaluations passed. A separate synthetic lifecycle run exercised artifact creation,

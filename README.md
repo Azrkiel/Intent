@@ -216,6 +216,11 @@ Observed Codex token counts are retained separately from Nemotron dollar estimat
 | `POST` | Exact approved plan identity plus `package_id` and optional `model`; claim one eligible package |
 | `GET` | Durable runs and phases, staged evidence, usage, permissions, changed paths, and labeled worker claims |
 | `POST /phases/{phase_id}/start` | Exact approved plan identity and optional `model`; explicitly start the current phase scheduler |
+| `POST /phases/{phase_id}/review` | Exact plan identity, `evidence_hash`, `decision: accept\|reject`, optional `notes`; accept only the reviewed staging commit |
+| `POST /phases/{phase_id}/repair` | Exact plan identity, current `attempt`, `evidence_hash` (nullable before review), optional `model`; preserve old work and start fresh package attempts |
+| `POST /phases/{phase_id}/cancel` | Exact plan identity; stop phase dispatch and preserve work |
+| `POST /phases/{phase_id}/reconcile` | Exact plan identity and nullable `evidence_hash`; inspect an uncertain promotion or resume known completed work; never reopen rejected evidence |
+| `GET /phases/{phase_id}/artifacts/{path}?evidence_hash=...` | Download bytes from the immutable reviewed Git commit after checking their SHA-256 hash |
 | `POST /{run_id}/verify` | Exact approved plan identity; inspect a completed package and stage its verified snapshot |
 | `POST /{run_id}/approvals/{request_id}` | `generation` plus `accept`, `decline`, or `cancel`; reject stale/expired/replayed decisions |
 | `POST /{run_id}/cancel` | Empty JSON body; stop the owned worker and preserve changes |
@@ -229,10 +234,21 @@ versions cannot. A dependent package starts from its prerequisite's integrated
 staging commit. Worker completion alone never makes a dependency eligible.
 
 The scheduler runs only the current phase and stops at `awaiting_phase_review`.
-It never advances to a successor phase or updates the accepted project branch.
-Phase acceptance, explicit repair attempts and execution/review UI remain Phase 4
-work. Duplicate attempts and uncertain restart/integration outcomes remain blocked;
-there is no automatic replacement worker. A failure or cancellation stops affected
+The **Codex execution** panel restores progress, permissions, logs, diffs, trusted
+checks and artifact downloads. Acceptance and rejection name an immutable review
+hash covering the exact plan, phase attempt, staging commit, package attempt IDs,
+check results, artifact hashes and unresolved decisions. Acceptance advances
+`refs/heads/accepted` with a compare-and-swap operation; the management checkout
+stays at its existing tree. Generated source remains in retained worktrees.
+Acceptance enables an explicit next-phase start and never launches it automatically.
+Rejection requires new repair attempts; prior reviews and changes remain retained.
+
+Startup inspects saved Codex thread/turn history before enabling dispatch. A known
+completed turn can return to verification; a running, missing or unknown turn stays
+blocked for explicit reconciliation. An uncertain promotion is never replayed;
+explicit reconciliation checks the saved review and actual accepted ref. Uncertain
+integration still blocks repair and requires inspection of retained work. Cancelled
+turns can be inspected without resuming them. A failure or cancellation stops affected
 workers and preserves their worktrees. New utterances invalidate runs and phase
 evidence and clear plan approval.
 
@@ -272,7 +288,24 @@ commit, an integration conflict and an out-of-scope failure. Successful phases
 stopped for review; conflict/scope cases stayed blocked. Every worktree was retained
 and accepted project trees remained unchanged. Reports stay ignored under
 `.data/phase-three-check/`. These are offline integration checks with no provider
-requests; Phase 3 user acceptance remains pending.
+requests. The user accepted Phase 3 on 2026-10-27.
+
+**Phase 4 offline evidence (2026-10-27):** 217 backend tests passed, with one
+Windows symbolic-link skip and the existing Starlette/httpx warning. Ruff,
+15 frontend tests, TypeScript checking, the production build and all 16 scripted
+demo evaluations passed. Real temporary Git repositories and fake app-server
+processes cover stale review identities, rejected evidence, retained repairs,
+compare-and-swap promotion, lost promotion replies, restart history inspection,
+failed interruption and successor phases pinned to reviewed commits.
+
+Production-browser simulation covered permission decline, active cancellation,
+failed trusted checks, rejection/repair, acceptance, explicit next-phase blocking,
+correction and reload. A labeled interrupted-dispatch fixture also showed restart
+uncertainty with repair and successor dispatch disabled. Desktop and mobile layouts
+were inspected. Screenshots and observations remain ignored under
+`.data/phase-four-check/`. No provider requests or real account-backed qualification
+were performed. Checkpoints: `c93b6cf` (backend gates) and `a87f42d` (execution UI).
+Phase 4 acceptance remains pending; Phase 5 has not started.
 
 ## Claude Code handoff
 
