@@ -18,6 +18,7 @@ class Run(BaseModel):
     owned_paths: list[str] = Field(default_factory=list, max_length=20)
     interfaces: list[str] = Field(default_factory=list, max_length=20)
     integrated_commit: str | None = None
+    evidence: dict = Field(default_factory=dict)
     created_at: float = Field(default_factory=time.time)
     deadline: float = Field(default_factory=lambda: time.time() + 300)
     project: str | None = None
@@ -42,3 +43,22 @@ class Run(BaseModel):
 
     def public(self):
         return self.model_dump(mode="json", exclude={"account_fingerprint", "profile"})
+
+
+class PhaseExecution(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    session_id: str
+    plan: PlanApproval
+    phase_id: str
+    status: Literal["running", "verifying", "awaiting_phase_review", "blocked", "cancelled"] = "running"
+    base_commit: str | None = None
+    staging_commit: str | None = None
+    staging_worktree: str | None = None
+    integration_intent: str | None = None
+    evidence: dict = Field(default_factory=dict)
+    error: str | None = None
+
+    @property
+    def branch(self):
+        return f"refs/heads/intent/{self.plan.content_hash}/{self.phase_id}"

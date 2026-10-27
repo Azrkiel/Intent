@@ -150,3 +150,14 @@ async def test_failure_interrupts_other_worker_and_stale_approval_cannot_dispatc
     with pytest.raises(ValueError, match="approved"):
         executor.start(session, identity_, "P1-W2")
     await executor.close()
+
+
+def test_readers_of_integrated_interface_can_share_capacity_but_writers_conflict(tmp_path):
+    session, document, store, scheduler = setup(tmp_path)
+    first = Run(session_id=session.id, plan=identity(document), package_id="P1-W1")
+    scheduler.claim(first, ["ui"], ["read:shared@v1"])
+    other = first.model_copy(update={"id": "second", "package_id": "P1-W2"})
+    with pytest.raises(ValueError, match="conflict"):
+        scheduler.claim(other, ["api"], ["write:shared@v1"])
+    scheduler.claim(other, ["api"], ["read:shared@v1"])
+    assert len(store.list(session.id)) == 2

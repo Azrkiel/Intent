@@ -144,8 +144,9 @@ async def test_cancellation_during_change_inventory_cannot_turn_into_success(tmp
     changed = executor.worktrees.changed_paths
 
     async def pause(*args):
-        entered.set()
-        await release.wait()
+        if args[0].is_relative_to(executor.worktrees.workers):
+            entered.set()
+            await release.wait()
         return await changed(*args)
 
     executor.worktrees.changed_paths = pause

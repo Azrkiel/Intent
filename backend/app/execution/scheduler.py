@@ -3,6 +3,23 @@
 from ..planning.validation import safe_path
 
 
+def interface_conflict(left, right):
+    def parse(value):
+        mode, _, ref = value.partition(":")
+        if mode not in {"read", "write"}:
+            return "write", value, None
+        name, _, version = ref.partition("@")
+        return mode, name, version
+
+    for a in left:
+        am, an, av = parse(a)
+        for b in right:
+            bm, bn, bv = parse(b)
+            if an == bn and (am != "read" or bm != "read" or av != bv):
+                return True
+    return False
+
+
 class Scheduler:
     def __init__(self, runs, *, capacity=1, global_capacity=2):
         if not 1 <= capacity <= global_capacity <= 2:

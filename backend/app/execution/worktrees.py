@@ -1,4 +1,6 @@
 import asyncio
+import configparser
+import hashlib
 import os
 import re
 import shutil
@@ -7,6 +9,12 @@ from pathlib import Path
 
 from ..codex.transport import child_environment
 from ..planning.validation import safe_path
+
+
+class GitFailure(ValueError):
+    def __init__(self, exit_code):
+        super().__init__("Owned Git operation failed; generated diagnostics withheld")
+        self.exit_code = exit_code
 
 
 class Worktrees:
@@ -49,11 +57,12 @@ class Worktrees:
             self.checked(self.workers / run_id, self.workers),
         )
 
-    async def git(self, cwd: Path, *args: str) -> str:
-        return (await self.git_bytes(cwd, *args)).decode("utf-8", errors="strict")
+    async def git(self, cwd: Path, *args: str, input_data: bytes | None = None) -> str:
+        return (await self.git_bytes(cwd, *args, input_data=input_data)).decode("utf-8", errors="strict")
 
-    async def git_bytes(self, cwd: Path, *args: str) -> bytes:
+    async def git_bytes(self, cwd: Path, *args: str, input_data: bytes | None = None) -> bytes:
         self.no_links(cwd)
+        self.check_policy(cwd)
         executable = shutil.which("git")
         if not executable:
             raise ValueError("Git executable is unavailable")
@@ -72,7 +81,11 @@ class Worktrees:
                 "-c",
                 "core.autocrlf=false",
                 "-c",
+                "core.longpaths=true",
+                "-c",
                 "core.quotePath=false",
+                "-c",
+                "core.attributesFile=" + os.devnull,
                 "-c",
                 "diff.external=",
                 "-c",
@@ -84,6 +97,7 @@ class Worktrees:
                 *args,
                 cwd=cwd,
                 env=env,
+                stdin=asyncio.subprocess.PIPE if input_data is not None else asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -99,6 +113,10 @@ class Worktrees:
             return bytes(data)
 
         try:
+            if input_data is not None:
+                process.stdin.write(input_data)
+                await asyncio.wait_for(process.stdin.drain(), 15)
+                process.stdin.close()
             output, _ = await asyncio.wait_for(asyncio.gather(read(process.stdout), read(process.stderr)), 15)
             await asyncio.wait_for(process.wait(), 5)
         except TimeoutError as error:
@@ -107,12 +125,82 @@ class Worktrees:
             if process.returncode is None:
                 process.kill()
                 await process.wait()
-        if process.returncode or len(output) > 2_000_000:
-            raise ValueError("Owned Git operation failed or exceeded its output bound")
+        if process.returncode:
+            raise GitFailure(process.returncode)
         return output
+
+    def check_policy(self, cwd: Path):
+        cwd = cwd.resolve()
+        if cwd.is_relative_to(self.projects):
+            parts = cwd.relative_to(self.projects).parts
+            if not parts:
+                raise ValueError("Git policy requires an owned project")
+            common = self.projects / parts[0] / ".git"
+        elif cwd.is_relative_to(self.workers):
+            metadata = cwd / ".git"
+            self.no_links(metadata)
+            text = metadata.read_text(encoding="utf-8").strip()
+            if not text.startswith("gitdir: "):
+                raise ValueError("Git policy requires owned worktree metadata")
+            gitdir = Path(text[8:])
+            if not gitdir.is_absolute():
+                gitdir = cwd / gitdir
+            self.no_links(gitdir)
+            common_file = gitdir / "commondir"
+            self.no_links(common_file)
+            common = (gitdir / common_file.read_text(encoding="utf-8").strip()).resolve()
+            if common.name != ".git" or not common.is_relative_to(self.projects):
+                raise ValueError("Git policy rejects external common directories")
+        else:
+            raise ValueError("Git policy rejects paths outside owned roots")
+        self.no_links(common)
+        config = common / "config"
+        self.no_links(config)
+        if config.exists():
+            parser = configparser.RawConfigParser()
+            try:
+                parser.read_string(config.read_text(encoding="utf-8"))
+            except (configparser.Error, UnicodeError) as error:
+                raise ValueError("Git policy rejects malformed repository configuration") from error
+            allowed = {
+                "repositoryformatversion",
+                "filemode",
+                "bare",
+                "logallrefupdates",
+                "symlinks",
+                "ignorecase",
+            }
+            if (
+                parser.defaults()
+                or set(parser.sections()) != {"core"}
+                or not set(parser["core"]) <= allowed
+                or parser["core"].get("bare") != "false"
+            ):
+                raise ValueError(
+                    "Git policy rejects repository filters, includes, tools and config overrides"
+                )
+        for path in (common / "info/attributes", common / "objects/info/alternates"):
+            self.no_links(path)
+            if path.exists():
+                raise ValueError("Git policy rejects repository attributes and external object stores")
+        pending, count = [common], 0
+        while pending:
+            directory = pending.pop()
+            if not directory.exists():
+                continue
+            for entry in directory.iterdir():
+                count += 1
+                if count > 16384:
+                    raise ValueError("Git metadata inspection exceeds its policy bound")
+                if entry.is_symlink() or getattr(entry, "is_junction", lambda: False)():
+                    raise ValueError("Git metadata policy rejects symlinks and junctions")
+                if entry.is_dir():
+                    pending.append(entry)
 
     async def owned_project(self, session_id: str) -> Path:
         project, _ = self.paths(session_id, "ownership-check")
+        if project == Path(__file__).resolve().parents[3]:
+            raise ValueError("The Intent source checkout cannot be a generated project")
         self.no_links(project / ".git")
         marker = project / ".git" / "intent-owner"
         self.no_links(marker)
@@ -141,26 +229,80 @@ class Worktrees:
                 project, "commit", "--quiet", "--allow-empty", "-m", "Initialize owned Intent project"
             )
         await self.owned_project(session_id)
-        if await self.git(project, "status", "--porcelain=v1", "--untracked-files=all"):
+        if await self.changed_paths(project):
             raise ValueError("Owned project must be clean; preserve dirty or untracked work")
         if base_commit is not None and not re.fullmatch(r"[0-9a-f]{40}", base_commit):
             raise ValueError("Worker base must be an exact commit")
         base = (
             await self.git(project, "rev-parse", "--verify", (base_commit or "HEAD") + "^{commit}")
         ).strip()
-        await self.git(project, "worktree", "add", "--quiet", "--detach", str(checkout), base)
+        await self.git(
+            project, "worktree", "add", "--quiet", "--detach", "--no-checkout", str(checkout), base
+        )
+        # Materialize raw blobs ourselves: checkout/smudge filters are never executed.
+        for record in (await self.git(project, "ls-tree", "-r", "-z", base)).split("\0"):
+            if not record:
+                continue
+            info, path = record.split("\t", 1)
+            mode, kind, oid = info.split()
+            safe_path(path)
+            if kind != "blob" or mode not in {"100644", "100755"}:
+                raise ValueError("Git policy rejects symlinks and submodules in checkout trees")
+            target = self.checked(checkout / path, checkout)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(await self.git_bytes(project, "cat-file", "blob", oid))
+            if os.name != "nt" and mode == "100755":
+                target.chmod(0o755)
+        await self.git(checkout, "read-tree", base)
         return base
 
     async def changed_paths(self, checkout: Path, base_commit: str | None = None) -> list[str]:
-        raw = await self.git(
-            checkout, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames"
-        )
-        changed = {record[3:] for record in raw.split("\0") if record}
+        tracked = {}
+        for record in (await self.git(checkout, "ls-tree", "-r", "-z", "HEAD")).split("\0"):
+            if record:
+                info, path = record.split("\t", 1)
+                mode, kind, oid = info.split()
+                if kind != "blob" or mode not in {"100644", "100755"}:
+                    raise ValueError("Git policy rejects symlinks and submodules")
+                tracked[path] = (mode, oid)
+        changed = set()
+        candidates = set(tracked) | {
+            p for p in (await self.git(checkout, "ls-files", "--others", "--cached", "-z")).split("\0") if p
+        }
+        if len(candidates) > 1024:
+            raise ValueError("Worker change inventory exceeds its bound")
+        for path in candidates:
+            safe_path(path)
+            full = self.checked(checkout / path, checkout)
+            if not full.exists():
+                changed.add(path)
+                continue
+            if not full.is_file() or full.stat().st_size > 2_000_000:
+                raise ValueError("Unsupported or oversized worker artifact")
+            data = full.read_bytes()
+            oid = hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
+            mode = (
+                ("100755" if full.stat().st_mode & 0o111 else "100644")
+                if os.name != "nt"
+                else tracked.get(path, ("100644",))[0]
+            )
+            if tracked.get(path) != (mode, oid):
+                changed.add(path)
         if base_commit:
             committed = await self.git(
-                checkout, "diff", "--name-only", "-z", "--no-renames", base_commit, "HEAD"
+                checkout,
+                "diff",
+                "--name-only",
+                "-z",
+                "--no-renames",
+                "--no-ext-diff",
+                "--no-textconv",
+                base_commit,
+                "HEAD",
             )
             changed.update(path for path in committed.split("\0") if path)
+        others = await self.git(checkout, "ls-files", "--others", "-z")
+        changed.update(path for path in others.split("\0") if path)
         if len(changed) > 1024:
             raise ValueError("Worker change inventory exceeds its bound")
         return sorted(changed)

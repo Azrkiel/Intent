@@ -12,9 +12,10 @@ from ..domain import gate_for
 from ..planning.export import COMMON_RULES
 from ..planning.render import render_package
 from ..planning.validation import safe_path, validate_plan
-from .contracts import Run
+from .contracts import PhaseExecution, Run
 from .scheduler import Scheduler
 from .store import ExecutionStore
+from .verification import VerificationFailure, Verifier, protected, redact
 from .worktrees import Worktrees
 
 
@@ -26,11 +27,13 @@ class Executor:
             self.runs, capacity=settings.codex_max_workers, global_capacity=settings.codex_global_max_workers
         )
         self.worktrees = Worktrees(settings.codex_project_root, settings.codex_worktree_root)
+        self.verifier = Verifier(self.worktrees)
         self.factory = factory or self.default_client
         self.profile = str(
             Path(settings.codex_home or os.environ.get("CODEX_HOME", Path.home() / ".codex")).resolve()
         )
         self.tasks, self.clients = {}, {}
+        self.phase_tasks = {}
         self.locks = defaultdict(asyncio.Lock)
 
     async def default_client(self, run):
@@ -71,7 +74,7 @@ class Executor:
         if package is None:
             raise ValueError("Package is attempted, dependent, or in an ineligible phase")
         for path in package.owned_paths:
-            if path.split("/")[0].casefold() in {".git", "agents.md", "claude.md"}:
+            if protected(path):
                 raise ValueError("Execution control files cannot be worker-owned paths")
         run = Run(
             session_id=session.id,
@@ -82,12 +85,201 @@ class Executor:
             deadline=time.time() + self.settings.codex_timeout_seconds,
         )
         run.project, run.worktree = map(str, self.worktrees.paths(session.id, run.id))
+        try:
+            phase = self.runs.phase(session.id, identity.content_hash, package_id.split("-W")[0])
+            if phase.status != "running" or phase.integration_intent:
+                raise ValueError("Phase is blocked, already reviewing, or has uncertain integration")
+            run.base_commit = phase.staging_commit
+        except KeyError:
+            pass
         self.scheduler.claim(
-            run, package.owned_paths, [i.name for i in [*package.produces, *package.consumes]]
+            run,
+            package.owned_paths,
+            [f"write:{i.name}@{i.version}" for i in package.produces]
+            + [f"read:{i.name}@{i.version}" for i in package.consumes],
         )
         # Durable ownership precedes every filesystem/process side effect.
         self.tasks[run.id] = asyncio.create_task(self.execute(run.id))
         return run
+
+    def start_phase(self, session, identity, phase_id, model=None):
+        document = self.guard(session, identity)
+        eligible = self.scheduler.eligible(session.id, document, phase_id)
+        existing = [p for p in self.runs.phases(session.id) if p.plan == identity and p.phase_id == phase_id]
+        if existing or not eligible:
+            raise ValueError("Phase already attempted or has no eligible packages; reconcile before resuming")
+        phase = self.runs.ensure_phase(
+            PhaseExecution(session_id=session.id, plan=identity, phase_id=phase_id)
+        )
+        if phase.id in self.phase_tasks:
+            raise ValueError("Phase is already running")
+        self.phase_tasks[phase.id] = asyncio.create_task(self.drive_phase(phase, model))
+        return phase
+
+    async def drive_phase(self, phase, model):
+        try:
+            while True:
+                document = self.guard(self.sessions.get(phase.session_id), phase.plan)
+                current = self.runs.phase(phase.session_id, phase.plan.content_hash, phase.phase_id)
+                if current.status != "running" or current.integration_intent:
+                    raise ValueError("Phase is blocked or requires reconciliation")
+                records = [r for r in self.runs.list(phase.session_id) if r.plan == phase.plan]
+                if any(r.status in {"blocked", "cancelled"} for r in records):
+                    raise ValueError("Phase worker failed; review and repair are required")
+                for run in records:
+                    if run.status == "verifying" and self.tasks.get(run.id) and self.tasks[run.id].done():
+                        await self.verify_run(phase.session_id, run.id)
+                records = [r for r in self.runs.list(phase.session_id) if r.plan == phase.plan]
+                packages = next(p.packages for p in document.phases if p.id == phase.phase_id)
+                if len([r for r in records if r.status == "integrated"]) == len(packages):
+
+                    def ready(p):
+                        if p.status != "running" or p.integration_intent:
+                            raise ValueError("Phase changed during verification")
+                        p.status = "awaiting_phase_review"
+
+                    self.runs.patch_phase(phase, ready)
+                    return
+                active = [r for r in records if r.status in {"queued", "running", "verifying"}]
+                available = min(self.scheduler.capacity, self.scheduler.global_capacity) - len(active)
+                for package in self.scheduler.eligible(phase.session_id, document, phase.phase_id)[
+                    :available
+                ]:
+                    self.start(self.sessions.get(phase.session_id), phase.plan, package.id, model)
+                pending = [
+                    task
+                    for id, task in self.tasks.items()
+                    if not task.done() and self.runs.get(id).session_id == phase.session_id
+                ]
+                if not pending:
+                    if any(
+                        r.status == "verifying" and self.tasks.get(r.id) and self.tasks[r.id].done()
+                        for r in self.runs.list(phase.session_id)
+                        if r.plan == phase.plan
+                    ):
+                        continue
+                    raise ValueError("No dispatchable packages; phase requires review")
+                await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+        except asyncio.CancelledError:
+            self.block_phase(phase, "Phase interrupted; preserve staging and reconcile before continuing")
+            await self.stop_phase_workers(phase)
+            raise
+        except Exception:
+            self.block_phase(phase, "Phase blocked; inspect package evidence and retained worktrees")
+            await self.stop_phase_workers(phase)
+
+    async def stop_phase_workers(self, phase):
+        for run in self.runs.list(phase.session_id):
+            if run.plan == phase.plan and run.status in {"queued", "running", "verifying"}:
+                await self.cancel(phase.session_id, run.id)
+                self.set(run.id, status="blocked", error="Phase controller stopped; preserve work for review")
+
+    def block_phase(self, phase, message):
+        def block(p):
+            p.status, p.error = "blocked", message
+
+        return self.runs.patch_phase(phase, block)
+
+    async def verify_run(self, session_id, run_id):
+        run = self.owned(session_id, run_id)
+        phase_id = run.package_id.split("-W")[0]
+        async with self.locks["phase:" + session_id + run.plan.content_hash + phase_id]:
+            run = self.check(run_id)
+            if run.status == "integrated":
+                return run
+            if run.status != "verifying" or (run_id in self.tasks and not self.tasks[run_id].done()):
+                raise ValueError("Only a completed worker awaiting verification can be inspected")
+            phase = self.runs.ensure_phase(
+                PhaseExecution(session_id=session_id, plan=run.plan, phase_id=phase_id)
+            )
+            try:
+                document = self.guard(self.sessions.get(session_id), run.plan)
+                package = next(p for ph in document.phases for p in ph.packages if p.id == run.package_id)
+                evidence = await self.verifier.inspect(run, package)
+                self.set(run_id, evidence=evidence.model_dump(), changed_paths=evidence.changed_paths)
+                self.check(run_id)
+
+                def reserve(p):
+                    if p.status != "running" or p.integration_intent:
+                        raise ValueError("Phase integration is blocked or uncertain")
+                    if p.base_commit is None:
+                        p.base_commit = p.staging_commit = run.base_commit
+                    p.integration_intent = run_id
+
+                phase = self.runs.patch_phase(phase, reserve)
+                project = await self.worktrees.owned_project(session_id)
+                accepted = (await self.worktrees.git(project, "rev-parse", "HEAD")).strip()
+                if accepted != phase.base_commit:
+                    raise ValueError("Accepted project base changed; preserve worker and staging changes")
+                commit = await self.verifier.integrate(run, evidence, phase.staging_commit)
+                # Validate the aggregate in a new retained staging checkout before publishing the staging ref.
+                stage_id = "stage-" + run.id
+                await self.worktrees.create(session_id, stage_id, base_commit=commit)
+                _, stage_path = self.worktrees.paths(session_id, stage_id)
+                included = {
+                    r.package_id
+                    for r in self.runs.list(session_id)
+                    if r.plan == run.plan and r.status == "integrated"
+                } | {run.package_id}
+                aggregate = package.model_copy(deep=True)
+                done = [p for ph in document.phases for p in ph.packages if p.id in included]
+                aggregate.owned_paths = [path for p in done for path in p.owned_paths]
+                aggregate.artifacts = sorted({a for p in done for a in p.artifacts})
+                aggregate.tasks = [t for p in done for t in p.tasks]
+                aggregate.choices = [s for p in done for s in p.choices]
+                stage_run = run.model_copy(
+                    update={"id": stage_id, "worktree": str(stage_path), "base_commit": phase.base_commit}
+                )
+                aggregate_evidence = await self.verifier.inspect(stage_run, aggregate)
+                self.check(run_id)
+                current = self.runs.phase(session_id, run.plan.content_hash, phase_id)
+                if current.integration_intent != run_id or current.status != "running":
+                    raise ValueError("Phase changed before staging integration")
+                # CAS protects against unknown ref movement. Never touch the accepted project branch.
+                prior = phase.staging_commit if phase.staging_worktree else "0" * 40
+                await self.worktrees.git(project, "update-ref", phase.branch, commit, prior)
+                self.check(run_id)
+
+                def finish(p):
+                    if p.integration_intent != run_id or p.status != "running":
+                        raise ValueError("Phase changed during staging integration")
+                    p.staging_commit, p.staging_worktree = commit, str(stage_path)
+                    p.evidence = aggregate_evidence.model_dump() | {
+                        "package_attempt_ids": sorted(
+                            r.id
+                            for r in self.runs.list(session_id)
+                            if r.package_id in included and r.plan == run.plan
+                        )
+                    }
+                    p.integration_intent = None
+
+                self.runs.patch_phase(phase, finish)
+                return self.set(run_id, status="integrated", integrated_commit=commit)
+            except asyncio.CancelledError:
+                self.block_phase(
+                    phase, "Verification interrupted; reconcile retained staging before retrying"
+                )
+                self.set(run_id, status="blocked", error="Verification interrupted; preserve work for review")
+                await self.stop_peers(run_id)
+                raise
+            except Exception as error:
+                current_run = self.runs.get(run_id)
+                if current_run.cancel_requested:
+                    self.block_phase(phase, "Verification interrupted by cancellation or plan change")
+                    return current_run
+                fields = {
+                    "status": "blocked",
+                    "error": str(error)[:500]
+                    if isinstance(error, ValueError)
+                    else "Package verification or integration failed",
+                }
+                if isinstance(error, VerificationFailure) and error.evidence:
+                    fields["evidence"] = error.evidence.model_dump()
+                    fields["changed_paths"] = error.evidence.changed_paths
+                self.set(run_id, **fields)
+                self.block_phase(phase, "Package verification/integration failed; preserve work for review")
+                await self.stop_peers(run_id)
+                return self.runs.get(run_id)
 
     def check(self, run_id):
         run = self.runs.get(run_id)
@@ -184,7 +376,7 @@ class Executor:
                     }
                     self.set(run_id, token_usage=usage)
                 elif event["method"] == "item/agentMessage/delta":
-                    text = str(event["params"].get("delta", ""))[:2000]
+                    text = redact(str(event["params"].get("delta", "")))[:2000]
 
                     def log(current):
                         current.logs = (current.logs + [text])[-64:]
@@ -317,6 +509,8 @@ class Executor:
         return self.runs.get(run_id)
 
     async def invalidate(self, session_id):
+        for phase in self.runs.phases(session_id):
+            self.block_phase(phase, "Plan changed; phase evidence is stale")
         for run in self.runs.list(session_id):
             if run.status in {"queued", "running", "verifying", "blocked"} and not run.stale:
                 await self.cancel(session_id, run.id, stale=True)
@@ -341,6 +535,10 @@ class Executor:
         return self.runs.get(run_id)
 
     async def close(self):
+        for task in self.phase_tasks.values():
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*self.phase_tasks.values(), return_exceptions=True)
         for task in self.tasks.values():
             if not task.done():
                 task.cancel()
