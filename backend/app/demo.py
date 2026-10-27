@@ -90,6 +90,10 @@ class DemoModels:
         pass
 
     async def call(self, session, role, schema, instruction, payload):
+        if role.startswith("planner:"):
+            from .planning.demo import demo_response
+
+            return schema.model_validate(demo_response(session, role, payload))
         if role == "baseline":
             return Critique(candidates=self.critique(session)[:3])
         if role == "extractor":

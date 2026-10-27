@@ -4,6 +4,7 @@ from contextlib import closing, contextmanager
 from pathlib import Path
 
 from .domain import Session
+from .planning.contracts import PlanDocument
 
 
 class Store:
@@ -16,6 +17,38 @@ class Store:
                 "CREATE TABLE IF NOT EXISTS sessions "
                 "(id TEXT PRIMARY KEY, state TEXT NOT NULL, updated_at TEXT DEFAULT CURRENT_TIMESTAMP)"
             )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS plans (session_id TEXT NOT NULL, plan_id TEXT NOT NULL, "
+                "revision INTEGER NOT NULL, content_hash TEXT NOT NULL, content TEXT NOT NULL, "
+                "PRIMARY KEY(session_id, plan_id, revision))"
+            )
+
+    def save_plan(self, session_id: str, plan: PlanDocument):
+        payload = plan.model_dump_json(round_trip=True)
+        with self.connect() as db:
+            row = db.execute(
+                "SELECT content_hash,content FROM plans WHERE session_id=? AND plan_id=? AND revision=?",
+                (session_id, plan.id, plan.revision),
+            ).fetchone()
+            if row:
+                if row != (plan.content_hash, payload):
+                    raise ValueError("Plan revisions are immutable")
+                return
+            db.execute("INSERT INTO plans VALUES(?,?,?,?,?)",
+                       (session_id, plan.id, plan.revision, plan.content_hash, payload))
+
+    def get_plan(self, session_id: str, plan_id: str, revision: int) -> PlanDocument:
+        with self.connect() as db:
+            row = db.execute(
+                "SELECT content_hash,content FROM plans WHERE session_id=? AND plan_id=? AND revision=?",
+                (session_id, plan_id, revision),
+            ).fetchone()
+        if row is None:
+            raise KeyError(plan_id)
+        plan = PlanDocument.model_validate_json(row[1])
+        if plan.content_hash != row[0]:
+            raise ValueError("Plan content hash does not match")
+        return plan
 
     @contextmanager
     def connect(self):
@@ -53,7 +86,18 @@ class Store:
             rows = db.execute("SELECT state FROM sessions").fetchall()
         for (raw,) in rows:
             session = Session.model_validate_json(raw)
+            changed = False
             if session.build.status == "running":
                 session.build.status = "failed"
                 session.build.logs.append("Server restarted. Start a new build to retry.")
+                changed = True
+            if session.planning.status == "planning":
+                session.planning.status = "blocked"
+                session.planning.approval = None
+                if session.planning.attempts:
+                    session.planning.attempts[-1].error = (
+                        "Server restarted. Sections and usage were preserved."
+                    )
+                changed = True
+            if changed:
                 self.save(session)

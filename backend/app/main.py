@@ -13,7 +13,11 @@ from .builder import run_build, safe_index
 from .demo import DemoModels
 from .domain import Build, Session, gate_for, public_session
 from .engine import Engine
+from .execution.routes import execution_router
+from .execution.worker import Executor
 from .models import LiveModels, ModelError
+from .planning.routes import planning_router
+from .planning.service import PlanningService
 from .settings import Settings
 from .store import Store
 
@@ -33,26 +37,31 @@ class Approval(BaseModel):
     revision: int = Field(ge=0)
 
 
-def create_app(settings: Settings | None = None):
+def create_app(settings: Settings | None = None, *, codex_factory=None):
     settings = settings or Settings()
     store = Store(settings.database_path)
     models = DemoModels() if settings.mode == "demo" else LiveModels(settings)
     engine = Engine(store, models)
+    planner = PlanningService(store, models, settings)
+    executor = Executor(settings, store, codex_factory)
     locks = defaultdict(asyncio.Lock)
     jobs: set[asyncio.Task] = set()
 
     @asynccontextmanager
     async def lifespan(app):
         store.recover()
+        executor.runs.recover()
         yield
         for task in jobs:
             task.cancel()
         await asyncio.gather(*jobs, return_exceptions=True)
+        await executor.close()
         await models.close()
 
     app = FastAPI(title="Prompt Caller", lifespan=lifespan)
     app.state.engine = engine
     app.state.store = store
+    app.state.executor = executor
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver"])
     app.add_middleware(
         CORSMiddleware,
@@ -106,6 +115,9 @@ def create_app(settings: Settings | None = None):
             "models_configured": bool(settings.nebius_api_key and settings.nebius_api_key.get_secret_value()),
             "build_enabled": settings.allow_claude_build,
             "agent": "Claude Code",
+            "planning_enabled": True,
+            "execution_enabled": False,
+            "codex_api_enabled": settings.allow_codex_execution,
         }
 
     @app.get("/api/sessions")
@@ -133,6 +145,7 @@ def create_app(settings: Settings | None = None):
                     yield 'data: {"type":"error","message":"A build is running."}\n\n'
                     return
                 try:
+                    await executor.invalidate(id)
                     async for event in engine.turn(session, utterance.text):
                         yield "data: " + json.dumps(event, ensure_ascii=False) + "\n\n"
                 finally:
@@ -198,6 +211,8 @@ def create_app(settings: Settings | None = None):
         async with locks[id]:
             session = load(id)
             guard_edit(session)
+            if any(run.status in {"queued", "running"} for run in executor.runs.list(id)):
+                raise HTTPException(409, "A Codex worker is running")
             if (
                 not session.brief
                 or session.approved_revision != session.revision
@@ -245,6 +260,8 @@ def create_app(settings: Settings | None = None):
             },
         )
 
+    app.include_router(planning_router(store, planner, locks, load, guard_edit))
+    app.include_router(execution_router(executor, locks, load))
     return app
 
 

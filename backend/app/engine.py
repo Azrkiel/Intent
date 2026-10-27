@@ -72,6 +72,9 @@ class Engine:
     async def turn(self, session: Session, text: str):
         session.revision += 1
         session.approved_revision = None
+        if session.planning.attempts:
+            session.planning.status = "stale"
+            session.planning.approval = None
         session.playback_revision = None
         session.playback = None
         session.brief = None

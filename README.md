@@ -147,6 +147,93 @@ fidelity, live latency/spend, microphone behaviour and authenticated app generat
 still need separate checks. Generated apps remain self-contained HTML and do not
 run a backend or synchronize across devices.
 
+## Visual phase plans and instruction bundles
+
+After approving the current requirements playback, open **Phase plan** (or
+**Plan phases** from the compiled brief) and choose **Generate phase plan**.
+Validated outline, wireframe, and phase sections appear progressively. Switch
+between **Vision & wireframes** and **Engineering & work packages** to inspect
+the same revision. Proposed choices and unresolved questions remain explicit.
+
+Choose **Approve this revision**, then **Export instruction bundle**. The ZIP
+contains the canonical `plan.json`, a hashed manifest, cited specification, vision,
+wireframes, architecture, shared `AGENTS.md`/compatible `CLAUDE.md`, and detailed
+phase and work-package packets. Approval binds the plan ID, revision, content hash,
+and requirements revision. A new utterance clears approval and preserves the old
+plan for inspection. Draft, failed, or stale plans cannot export.
+
+Planning uses Super through the existing model adapter and session budget. It does
+not consume another Ultra compiler pass. An attempt has an outline pass, up to
+three screen passes, up to four phase passes, and one semantic verification pass;
+each allows the existing single JSON repair. Defaults allow two attempts per
+session, with all reservations and response usage preserved across failure,
+correction, interruption, and restart. `PLANNING_MAX_ATTEMPTS` (1–2) and
+`PLANNING_MAX_PASSES` (1–9) can lower these limits. Each phase holds at most two
+packages and each package at most three ordered leaf tasks. Exceeding a bound
+blocks the plan rather than silently dropping work.
+
+**Phase 1 status (2026-10-27, America/New_York):** offline implementation and demo
+browser verification are complete; user phase acceptance is pending. The suite
+passes 109 backend tests, Ruff, 9 frontend tests, TypeScript checking, the production
+build, and 16/16 existing scripted evaluations. Additional HTTP fixtures exercise
+the live model adapter without making provider requests. The browser check covered
+both views, approval, export, reload, and correction invalidation.
+
+Demo planning is a generic, labeled synthetic fixture, not a custom model-generated
+implementation contract or evidence of semantic quality. Actual Nemotron planning
+qualification remains pending. The Phase 1 UI exports plans; the Phase 2 backend
+API described below adds a single-worker lifecycle. The
+[implementation plan](docs/plans/2026-10-26-phase-plans-codex-orchestration.md)
+puts dependency scheduling and review UI in later phases. The existing HTML builder remains
+available separately.
+
+## Codex single-package execution API
+
+Phase 2 is implemented and verified offline against synthetic app-server processes
+using the installed CLI 0.164.0 schema. It adds initialization, account/model/policy
+checks, streamed events, durable permission requests, interruption, owned Git
+worktrees, and restart reconciliation. Successful turns stop at `verifying`.
+They do not integrate changes, accept a phase, or start dependent work.
+
+The API is disabled by default. Actual use requires `PROMPT_CALLER_MODE=live`,
+explicit `ALLOW_CODEX_EXECUTION=true`, current requirements and plan approval,
+and an existing Codex-managed ChatGPT login. Demo sessions and synthetic plans
+cannot dispatch. Keep authentication in Codex; do not copy tokens into Intent or
+exports. Optional `CODEX_HOME` selects an existing separately qualified profile.
+`CODEX_COMMAND` selects the local executable. Project/worktree roots and worker/
+approval deadlines are documented in `.env.example`.
+
+Workers use `workspace-write`, user approval routing, disabled automatic child
+agents, and restricted network access. The initial executor conservatively blocks
+inherited custom providers, hooks, plugins, MCP servers, and enabled skills until
+the selected profile is separately qualified. It preserves an explicit model or
+the configured/default available model and never switches billing or accounts.
+Observed Codex token counts are retained separately from Nemotron dollar estimates.
+
+| Route under `/api/sessions/{id}/execution` | Behavior |
+| --- | --- |
+| `POST` | Exact approved plan identity plus `package_id` and optional `model`; claim one initial package |
+| `GET` | Durable run state, IDs, observed usage, permissions, changed paths, and worker claims |
+| `POST /{run_id}/approvals/{request_id}` | `generation` plus `accept`, `decline`, or `cancel`; reject stale/expired/replayed decisions |
+| `POST /{run_id}/cancel` | Empty JSON body; stop the owned worker and preserve changes |
+| `POST /{run_id}/reconcile` | Empty JSON body; inspect known IDs before reconnecting; uncertain outcomes remain blocked |
+
+There is one executor slot. A recorded package cannot be silently dispatched twice,
+and blocked/verifying work reserves the slot for review. The initial path creates
+one new project/worktree; reusing an existing project, repair attempts, dependent
+packages, two-worker scheduling, integration, and phase acceptance follow in Phases
+3–4. Permission and execution controls currently use the API; their UI follows in
+Phase 4. New utterances invalidate active runs and clear plan approval.
+
+**Offline evidence (2026-10-27):** 156 backend tests, Ruff, and 16/16 scripted
+evaluations pass. Tests use real local subprocesses and temporary Git repositories,
+including Windows descendant cleanup after parent exit, cancellation, stale
+permissions, out-of-scope changes, and uncertain dispatch. A saved synthetic
+six-scenario run under ignored `.data/phase-two-check/` preserves every worktree.
+No real account-backed generation or provider request was made. Actual login,
+effective sandbox/policy compatibility, and generation qualification remain Phase 5
+work; the earlier account-isolation probe does not establish those results.
+
 ## Claude Code handoff
 
 After approving and compiling the brief, set `ALLOW_CLAUDE_BUILD=true` and restart.

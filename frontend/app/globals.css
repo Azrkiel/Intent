@@ -14,6 +14,155 @@
   --sans: "DM Sans", system-ui, -apple-system, sans-serif;
   --serif: "Lora", Georgia, serif;
 }
+
+.plan-panel {
+  padding: 30px;
+  min-width: 0;
+}
+.plan-intro h3 {
+  font: 500 27px/1.35 var(--serif);
+  margin: 10px 0;
+}
+.plan-intro p,
+.plan-footer p {
+  color: var(--text);
+  line-height: 1.7;
+  max-width: 70ch;
+}
+.plan-badges,
+.plan-actions,
+.plan-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.plan-badges {
+  margin: 18px 0;
+}
+.plan-badges span {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 6px 9px;
+  font-size: 11px;
+}
+.plan-actions {
+  margin: 22px 0 15px;
+}
+.plan-actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.plan-notice,
+.plan-error {
+  padding: 12px 15px;
+  background: var(--green-soft);
+  border-radius: 6px;
+  line-height: 1.6;
+  margin: 12px 0;
+}
+.plan-error {
+  background: #fff0e9;
+  color: #843c28;
+}
+.plan-phases {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  list-style: none;
+  padding: 0;
+  margin: 25px 0;
+  gap: 10px;
+}
+.plan-phases li {
+  display: flex;
+  gap: 12px;
+  padding: 16px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.plan-phase-number {
+  font: 12px var(--mono);
+  color: var(--green);
+}
+.plan-phases strong {
+  display: block;
+  font-weight: 550;
+}
+.plan-phases small {
+  display: block;
+  margin-top: 5px;
+  color: var(--text);
+}
+.plan-tabs {
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+}
+.plan-tabs button {
+  padding: 10px 13px;
+  border-radius: 6px;
+}
+.plan-tabs button[aria-pressed="true"] {
+  background: var(--green-soft);
+  color: var(--green);
+  font-weight: 600;
+}
+.plan-caption {
+  font: 10px/1.7 var(--mono);
+  overflow-wrap: anywhere;
+  margin: 15px 0 10px;
+  color: var(--text);
+}
+.plan-document {
+  margin: 0;
+  padding: 22px;
+  background: #f6f8f3;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font: 12px/1.8 var(--mono);
+  overflow: auto;
+  max-height: 65vh;
+  white-space: pre;
+}
+.plan-empty {
+  padding: 55px 25px;
+  text-align: center;
+  color: var(--text);
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  margin-top: 25px;
+}
+.plan-empty h4 {
+  font: 500 22px var(--serif);
+  margin: 15px 0 10px;
+  color: var(--ink);
+}
+.plan-empty p {
+  max-width: 45ch;
+  margin: auto;
+  line-height: 1.7;
+}
+.plan-footer {
+  border-top: 1px solid var(--line);
+  margin-top: 25px;
+  padding-top: 15px;
+  font-size: 11px;
+}
+.plan-footer span {
+  font-family: var(--mono);
+}
+.plan-footer p {
+  margin-top: 10px;
+}
+@media (max-width: 700px) {
+  .plan-panel {
+    padding: 20px 14px;
+  }
+  .plan-document {
+    padding: 14px;
+  }
+}
 * {
   box-sizing: border-box;
 }
