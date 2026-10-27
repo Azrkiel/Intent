@@ -1,0 +1,100 @@
+{
+  "cli_version": "0.164.0",
+  "methods": {
+    "initialize": {
+      "required": [
+        "clientInfo"
+      ],
+      "fields": [
+        "capabilities",
+        "clientInfo"
+      ]
+    },
+    "thread/start": {
+      "required": [],
+      "fields": [
+        "approvalPolicy",
+        "approvalsReviewer",
+        "baseInstructions",
+        "config",
+        "cwd",
+        "developerInstructions",
+        "ephemeral",
+        "model",
+        "modelProvider",
+        "personality",
+        "sandbox",
+        "serviceName",
+        "serviceTier",
+        "sessionStartSource",
+        "threadSource"
+      ]
+    },
+    "turn/start": {
+      "required": [
+        "input",
+        "threadId"
+      ],
+      "fields": [
+        "approvalPolicy",
+        "approvalsReviewer",
+        "clientUserMessageId",
+        "cwd",
+        "disabledPluginIds",
+        "effort",
+        "input",
+        "model",
+        "outputSchema",
+        "parentTurnId",
+        "personality",
+        "rootTurnId",
+        "sandboxPolicy",
+        "serviceTier",
+        "serviceTierForTurn",
+        "summary",
+        "threadId",
+        "toolOutput",
+        "turnTrigger"
+      ]
+    },
+    "thread/read": {
+      "required": [
+        "threadId"
+      ],
+      "fields": [
+        "includeTurns",
+        "threadId"
+      ]
+    },
+    "thread/resume": {
+      "required": [
+        "threadId"
+      ],
+      "fields": [
+        "approvalPolicy",
+        "approvalsReviewer",
+        "baseInstructions",
+        "config",
+        "cwd",
+        "developerInstructions",
+        "excludeTurns",
+        "model",
+        "modelProvider",
+        "personality",
+        "sandbox",
+        "serviceTier",
+        "threadId"
+      ]
+    },
+    "turn/interrupt": {
+      "required": [
+        "threadId",
+        "turnId"
+      ],
+      "fields": [
+        "threadId",
+        "turnId"
+      ]
+    }
+  }
+}
