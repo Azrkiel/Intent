@@ -3,7 +3,8 @@
 Date: 2026-10-26 (America/New_York).
 Status: Phases 1 and 2 accepted by the user on 2026-10-27 (America/New_York).
 Phases 3 and 4 were accepted by the user on 2026-10-27. Phase 4 is implemented
-and verified offline. Phase 5 has not started.
+and verified offline. Phase 5 qualification tooling is implemented and tested
+offline; live checks remain blocked by missing prerequisites.
 Source: [design](../specs/2026-10-26-phase-plans-codex-orchestration.md).
 
 **Goal:** Turn approved, cited requirements into synchronized design and engineering
@@ -562,11 +563,11 @@ codex app-server generate-json-schema --out .data/codex-schema
 
 ### 5.1 Explicit qualification commands and redacted reports
 
-- [ ] Add offline tests for `backend/qualify_planning.py` and
+- [x] Add offline tests for `backend/qualify_planning.py` and
   `backend/qualify_codex.py`. Reports must retain failure usage but exclude keys,
   auth payloads, transcript bodies, local account identifiers, and raw exceptions.
   Missing prerequisites produce explicit failed/incomplete reports without requests.
-- [ ] Implement module entry points with these exact CLI contracts:
+- [x] Implement module entry points with these exact CLI contracts:
 
 ```powershell
 uv run python -m backend.qualify_planning --output .data/live-check/planning.json
@@ -587,17 +588,33 @@ uv run python -m backend.qualify_codex --output .data/live-check/codex.json
   cancellation, reload/restart reconciliation, phase acceptance, and a correction.
   Keep all generated projects and reports ignored. One successful app is integration
   evidence, not a measured model-quality or general correctness claim.
-- [ ] Keep multiple-account concurrent inference explicitly unverified unless two
+- [x] Keep multiple-account concurrent inference explicitly unverified unless two
   distinct authenticated accounts are actually tested. The prior empty-profile
   isolation probe is supporting evidence only; account rotation is not a scheduler
   fallback. A single-account qualification is sufficient for initial local support.
-- [ ] Update `README.md` with dated, redacted results and exact remaining limits.
+- [x] Update `README.md` with dated, redacted results and exact remaining limits.
   Run relevant backend checks for qualifier code and `git diff --check` for docs.
   Commit qualifier code and tests as `test: add explicit planning and Codex qualification reports`;
   commit observed documentation separately as `docs: record planning and Codex qualification results`.
 - [ ] Present actual evidence and remaining failures for Phase 5 acceptance.
   Missing credentials leave live qualification pending while preserving completed
   offline work. Never substitute fixture evidence for a live pass.
+
+Phase 5 observed prerequisite checks (2026-10-27): the separate basic smoke and
+planning commands exited 1 with `missing_credentials`; Codex exited 1 with
+`execution_disabled`. There were zero model requests and no recorded usage.
+No profile, sandbox or real generation pass is inferred. The new CLIs preserve
+existing session allowances and approval gates. `--session-id` selects an existing
+approved live session; `--phase-id` explicitly selects an execution phase. Existing
+phase attempts are inspected without replay. Stop the app server before using
+these direct-store commands. README documents the manual audit and interactive
+permission flow. Overall reports remain incomplete pending that audit.
+
+Checkpoint `e4e5973` adds the qualifier modules and 12 offline tests. Fresh full
+verification: 229 backend tests passed, one Windows symlink test skipped and the
+existing dependency warning remained. Ruff, 15 frontend tests, type checking,
+production build and 16/16 demo evaluations passed. A dedicated demo-database
+server started, served its health/session endpoints and shut down cleanly.
 
 ## Verification and requirement coverage
 

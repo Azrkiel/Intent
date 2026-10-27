@@ -305,7 +305,90 @@ uncertainty with repair and successor dispatch disabled. Desktop and mobile layo
 were inspected. Screenshots and observations remain ignored under
 `.data/phase-four-check/`. No provider requests or real account-backed qualification
 were performed. Checkpoints: `c93b6cf` (backend gates) and `a87f42d` (execution UI).
-The user accepted Phase 4 on 2026-10-27. Phase 5 has not started.
+The user accepted Phase 4 on 2026-10-27. Phase 5 qualification tooling is now
+implemented; actual provider qualification remains incomplete.
+
+### Phase 5 qualification commands
+
+Run these from the repository root. They use only this server's configured key
+and Codex profile. They never enable execution, change billing, sign in, approve
+requirements or plans, accept phases, or create replacement sessions.
+
+```powershell
+uv run python -m backend.smoke --output .data/live-check/basic.json
+uv run python -m backend.qualify_planning --output .data/live-check/planning.json
+uv run python -m backend.qualify_codex --output .data/live-check/codex.json
+```
+
+The commands announce model requests before making them. Without a key, planning
+writes `missing_credentials`; without the explicit execution flag, Codex writes
+`execution_disabled`. Neither path makes model requests. When execution is enabled,
+the Codex command first checks the existing managed ChatGPT account, profile policy,
+model inventory and limits without starting a model turn. An incompatible profile
+produces `profile_unavailable`; it is never replaced or silently reconfigured.
+
+For an actual planning attempt, first create a live conversation and explicitly
+approve its requirements in the app. Stop the app server before using these CLIs:
+they access its SQLite store directly and must not run alongside its orchestrator.
+Pass that existing session ID; its budget, reserved passes and two-attempt allowance
+remain in effect. Use a separate output directory for each session so saved artifacts
+from earlier probes cannot be mistaken for the current result.
+
+```powershell
+uv run python -m backend.qualify_planning --session-id 'YOUR_LIVE_SESSION_ID' --output .data/live-check/probe-1/planning.json
+```
+
+This writes `planning-human.md` and `planning-engineering.md` beside the report.
+The plan stops at review. Restart the app, inspect both views and approve the exact
+plan revision. Stop the server and rerun the same command to export
+`planning-bundle.zip` without repeating model calls. Product content is confined to
+these local artifacts and the session store; it is excluded from the redacted report.
+
+For execution, use an approved live plan compatible with `git-inspection-only-v1`.
+After configuring execution explicitly and stopping the server, select a phase:
+
+```powershell
+uv run python -m backend.qualify_codex --session-id 'YOUR_LIVE_SESSION_ID' --phase-id P1 --output .data/live-check/probe-1/codex.json
+```
+
+It dispatches that phase once through the existing executor, or inspects its saved
+outcome if already attempted. It never automatically repairs, resumes, accepts or
+redispatches an existing phase. Pending permission requests are not granted by this
+CLI and can time out; use the app's normal execution flow for interactive permission
+review. Restart the app to inspect evidence and accept the exact review before
+explicitly starting a successor. For the live audit, use a first phase with one
+package, then a successor with two independent packages. Two workers require the
+existing explicit concurrency configuration and a qualified compatible profile.
+
+Reports retain per-response planning tokens, estimated dollars and latency, including
+failed planning attempts, plus observed Codex tokens separately. String fields are
+allowlisted; unknown model names are redacted. Reports exclude credentials, auth
+payloads, transcript bodies, account identifiers, paths and exception text. Requested
+thinking controls are recorded; provider-side behavior and multiple-account inference
+remain `unverified`. CLI exit 0 means its automated checks passed, not Phase 5
+acceptance. The report always keeps overall `passed` false; record the manual audit
+and Phase 5 acceptance separately. Missing prerequisites and failed automated checks
+exit 1.
+
+**Observed results (2026-10-27, America/New_York):** the separate basic smoke and
+planning commands exited 1 with `missing_credentials`; the Codex command exited 1
+with `execution_disabled`. All three made zero model requests, recorded no usage
+and incurred no model spend. The managed account and effective sandbox were not
+probed because execution was disabled. Reports remain ignored under
+`.data/live-check/`. Offline qualifier tests cover missing prerequisites, retained
+failure usage, redaction, approval gates, cleanup failures, actual Git verification
+through a fake app-server, and inspection without duplicate dispatch.
+
+Fresh verification at checkpoint `e4e5973`: 229 backend tests passed (12 qualifier
+tests), one Windows symbolic-link test skipped, and the existing Starlette/httpx
+warning remained. Ruff, 15 frontend tests, TypeScript checking, the production build
+and 16/16 scripted demo evaluations passed. A separate loopback server started,
+returned healthy demo configuration and an empty session list from a dedicated
+database, and shut down cleanly. These checks made no model requests.
+
+Live planning fidelity, exported packet audit, real Codex generation, cancellation,
+reload/restart reconciliation, acceptance and correction remain pending. No live
+model-quality result or Phase 5 acceptance is claimed.
 
 ## Claude Code handoff
 
@@ -432,7 +515,7 @@ the user is still speaking and instant Nano filler acknowledgments are not imple
 the current pipeline starts after the user sends the final transcript.
 
 Excluded: phone calls, barge-in, accounts, multi-project memory, post-build feedback,
-Codex support, deployment, billing UI and pricing strategy. Post-build iteration,
+deployment, billing UI and pricing strategy. Post-build iteration,
 multi-project memory and alternate agent adapters remain roadmap items.
 
 This server is designed for one trusted local user and one orchestrator process.
