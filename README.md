@@ -305,7 +305,7 @@ uncertainty with repair and successor dispatch disabled. Desktop and mobile layo
 were inspected. Screenshots and observations remain ignored under
 `.data/phase-four-check/`. No provider requests or real account-backed qualification
 were performed. Checkpoints: `c93b6cf` (backend gates) and `a87f42d` (execution UI).
-Phase 4 acceptance remains pending; Phase 5 has not started.
+The user accepted Phase 4 on 2026-10-27. Phase 5 has not started.
 
 ## Claude Code handoff
 

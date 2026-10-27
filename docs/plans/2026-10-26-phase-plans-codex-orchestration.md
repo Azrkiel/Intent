@@ -2,8 +2,8 @@
 
 Date: 2026-10-26 (America/New_York).
 Status: Phases 1 and 2 accepted by the user on 2026-10-27 (America/New_York).
-Phase 3 was accepted by the user on 2026-10-27. Phase 4 is implemented and
-verified offline; its acceptance remains pending. Phase 5 has not started.
+Phases 3 and 4 were accepted by the user on 2026-10-27. Phase 4 is implemented
+and verified offline. Phase 5 has not started.
 Source: [design](../specs/2026-10-26-phase-plans-codex-orchestration.md).
 
 **Goal:** Turn approved, cited requirements into synchronized design and engineering
@@ -556,7 +556,7 @@ codex app-server generate-json-schema --out .data/codex-schema
   before real generation qualification. No generated backend/deployment claim follows
   from source files or an HTML preview alone.
 
-- [ ] Obtain user Phase 4 acceptance before starting Phase 5 qualification.
+- [x] Obtain user Phase 4 acceptance before starting Phase 5 qualification (2026-10-27).
 
 ## Phase 5: real Nemotron and Codex qualification
 
@@ -621,8 +621,8 @@ correction and reload. The restart uncertainty screen used an explicitly labeled
 interrupted-dispatch fixture; actual history reconciliation used backend subprocess
 tests. Desktop and mobile layouts were inspected. Observations and screenshots are
 ignored under `.data/phase-four-check/`. All simulation remained local with zero
-provider requests. Temporary servers and the browser tab were closed. Phase 4
-acceptance remains pending; no Phase 5 qualification has started.
+provider requests. Temporary servers and the browser tab were closed. The user
+accepted Phase 4 on 2026-10-27; no Phase 5 qualification has started.
 
 Phase 3 evidence (2026-10-27): 197 backend tests passed, with one symbolic-link test
 skipped because Windows denied symbolic-link creation. Both Windows junction tests

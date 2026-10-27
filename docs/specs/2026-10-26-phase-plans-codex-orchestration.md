@@ -1,12 +1,12 @@
 # Draft: visual phase plans and Codex orchestration
 
-Status: Phases 1-3 are accepted (Phase 3 accepted on 2026-10-27). Phase 4 adds
+Status: Phases 1-4 are accepted (Phase 4 accepted on 2026-10-27). Phase 4 adds
 immutable review identities, explicit acceptance, retained repair attempts,
 accepted-ref promotion, startup history inspection and an execution panel.
 Offline verification passed: 217 backend tests, 15 frontend tests, Ruff, type
 checking, production build and 16/16 scripted demo evaluations, plus labeled
-browser simulation. Phase 4 acceptance and actual provider qualification remain
-pending; detailed evidence and limits are in the implementation plan.
+browser simulation. Actual provider qualification remains pending; detailed
+evidence and limits are in the implementation plan.
 Date: 2026-10-26 (America/New_York).
 
 Next artifact: [implementation plan](../plans/2026-10-26-phase-plans-codex-orchestration.md),
