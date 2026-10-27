@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { api, consumeEvents } from "@/lib/stream";
 import { PlanPanel } from "@/components/plan-panel";
+import { ExecutionPanel } from "@/components/execution-panel";
 import {
   recognitionConstructor,
   speak,
@@ -65,7 +66,7 @@ const SLOT_LABELS: Record<Slot, string> = {
   "success-criterion": "Success criterion",
 };
 type Summary = { id: string; title: string; mode: "demo" | "live" };
-type View = "clarify" | "brief" | "plan" | "build";
+type View = "clarify" | "brief" | "plan" | "execution" | "build";
 
 function Mark({ small = false }: { small?: boolean }) {
   return (
@@ -490,6 +491,14 @@ export default function Home() {
           Phase plan
         </button>
         <button
+          className={`sidebar-link ${view === "execution" ? "active" : ""}`}
+          onClick={() => setView("execution")}
+          disabled={!hasTurns}
+        >
+          <Terminal size={16} />
+          Codex execution
+        </button>
+        <button
           className={`sidebar-link ${view === "build" ? "active" : ""}`}
           onClick={() => setView("build")}
           disabled={!hasTurns}
@@ -681,7 +690,9 @@ export default function Home() {
                         ? "Your build brief"
                         : view === "plan"
                           ? "Your phase plan"
-                          : "The build workspace"}
+                          : view === "execution"
+                            ? "Your phase execution"
+                            : "The build workspace"}
                   </h2>
                 </div>
                 {view === "clarify" ? (
@@ -995,6 +1006,15 @@ export default function Home() {
                   busy={busy}
                   setBusy={setBusy}
                   onSession={remember}
+                  modeMismatch={modeMismatch}
+                />
+              )}
+
+              {view === "execution" && session && (
+                <ExecutionPanel
+                  key={`${session.id}:${session.revision}`}
+                  session={session}
+                  busy={busy}
                   modeMismatch={modeMismatch}
                 />
               )}

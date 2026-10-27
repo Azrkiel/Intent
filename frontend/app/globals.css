@@ -15,6 +15,138 @@
   --serif: "Lora", Georgia, serif;
 }
 
+.execution-panel {
+  padding: 30px;
+  min-width: 0;
+}
+.execution-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.execution-phase {
+  margin: 24px 0;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.execution-phase h3 {
+  font: 500 23px/1.4 var(--serif);
+  margin: 7px 0 13px;
+}
+.execution-panel h4 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.execution-panel p,
+.execution-panel li {
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.execution-panel ul {
+  padding-left: 18px;
+}
+.execution-panel summary {
+  cursor: pointer;
+  font-size: 12px;
+  padding: 12px 0;
+}
+.execution-worker {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 16px;
+  margin: 16px 0;
+}
+.execution-status {
+  font: 11px var(--mono);
+  padding: 6px 9px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+.execution-status.accepted,
+.execution-status.integrated {
+  color: var(--green);
+  background: var(--green-soft);
+}
+.execution-status.blocked,
+.execution-status.cancelled {
+  color: #843c28;
+  background: #fff0e9;
+}
+.execution-code {
+  font: 11px/1.7 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 340px;
+  overflow: auto;
+  background: #263b30;
+  color: #edf4eb;
+  padding: 15px;
+  border-radius: 6px;
+}
+.execution-hash {
+  display: block;
+  font: 10px/1.8 var(--mono);
+  overflow-wrap: anywhere;
+  margin: 6px 0;
+}
+.execution-label {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0;
+  color: var(--text);
+  font-size: 12px;
+}
+.execution-label input,
+.execution-label textarea {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 13px var(--sans);
+}
+.execution-label textarea {
+  min-height: 75px;
+  resize: vertical;
+}
+.execution-permission,
+.execution-review {
+  padding: 15px;
+  margin: 15px 0;
+  border: 1px solid var(--sage);
+  border-radius: 7px;
+  background: var(--paper);
+}
+.execution-evidence a {
+  color: var(--green);
+  text-decoration: underline;
+}
+.execution-panel button:focus-visible,
+.execution-panel summary:focus-visible,
+.execution-panel input:focus-visible,
+.execution-panel textarea:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
+}
+@media (max-width: 700px) {
+  .execution-panel {
+    padding: 17px;
+  }
+  .execution-phase {
+    padding: 14px;
+  }
+}
+
 .plan-panel {
   padding: 30px;
   min-width: 0;
