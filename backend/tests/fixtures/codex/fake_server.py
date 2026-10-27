@@ -116,6 +116,10 @@ for line in sys.stdin:
                 ],
                 "nextCursor": None,
             }
+        elif method == "mcpServerStatus/list":
+            result = {"data": [], "nextCursor": None}
+        elif method == "skills/list":
+            result = {"data": [{"cwd": str(Path.cwd()), "skills": [], "errors": []}]}
         elif method == "thread/start":
             assert params["sandbox"] == "workspace-write"
             assert params["approvalPolicy"] == "on-request"
