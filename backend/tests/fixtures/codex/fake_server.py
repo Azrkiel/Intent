@@ -27,6 +27,18 @@ def event(method, params):
 
 
 def complete(status="completed"):
+    usage = {
+        "inputTokens": 12,
+        "outputTokens": 5,
+        "totalTokens": 17,
+        "cachedInputTokens": 0,
+        "reasoningOutputTokens": 0,
+        "cacheWriteInputTokens": 0,
+    }
+    event(
+        "thread/tokenUsage/updated",
+        {"threadId": thread_id, "turnId": turn_id, "tokenUsage": {"total": usage, "last": usage}},
+    )
     event("turn/completed", {"threadId": thread_id, "turn": {"id": turn_id, "status": status, "items": []}})
 
 
@@ -102,7 +114,7 @@ for line in sys.stdin:
         elif method == "config/read":
             result = {
                 "config": {
-                    "model": "synthetic-default",
+                    "model": None if scenario == "implicit_model" else "synthetic-default",
                     "model_provider": "openai",
                     "mcp_servers": {"external": {}} if scenario == "unsafe_config" else {},
                 },
@@ -111,7 +123,7 @@ for line in sys.stdin:
         elif method == "model/list":
             result = {
                 "data": [
-                    {"id": "synthetic-default", "model": "synthetic-default"},
+                    {"id": "synthetic-default", "model": "synthetic-default", "isDefault": True},
                     {"id": "synthetic-selected", "model": "synthetic-selected"},
                 ],
                 "nextCursor": None,
@@ -121,9 +133,11 @@ for line in sys.stdin:
         elif method == "skills/list":
             result = {"data": [{"cwd": str(Path.cwd()), "skills": [], "errors": []}]}
         elif method == "thread/start":
+            assert scenario != "reconcile_only"
             assert params["sandbox"] == "workspace-write"
             assert params["approvalPolicy"] == "on-request"
             assert params["approvalsReviewer"] == "user"
+            assert params["config"]["features.multi_agent"] is False
             thread = {
                 "id": thread_id,
                 "cwd": params["cwd"],
@@ -149,6 +163,7 @@ for line in sys.stdin:
                 }
             }
         elif method == "turn/start":
+            assert scenario != "reconcile_only"
             if scenario == "lost_start":
                 sys.exit(2)
             result = {"turn": {"id": turn_id, "status": "inProgress", "items": []}}
@@ -182,6 +197,8 @@ for line in sys.stdin:
             elif scenario == "hang":
                 continue
             else:
+                if scenario == "outside":
+                    Path("outside.txt").write_text("Synthetic out-of-scope change")
                 if scenario == "artifact":
                     Path("contracts").mkdir(exist_ok=True)
                     Path("contracts/result.txt").write_text("Synthetic artifact")

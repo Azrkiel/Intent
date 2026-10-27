@@ -70,18 +70,20 @@ class Client:
             for entry in skills.get("data", [])
         ):
             raise CodexError("Inherited skills require a separately qualified Codex profile")
-        available, cursor = set(), None
+        available, defaults, cursor = set(), set(), None
         for _ in range(5):
             page = await self.transport.request(
                 "model/list", {"limit": 100, **({"cursor": cursor} if cursor else {})}
             )
             available.update(x["model"] for x in page.get("data", []))
+            defaults.update(x["model"] for x in page.get("data", []) if x.get("isDefault"))
             cursor = page.get("nextCursor")
             if not cursor:
                 break
         if cursor:
             raise CodexError("Codex model inventory exceeds the supported bound")
-        self.selected_model = model or config.get("model")
+        implicit_default = next(iter(defaults)) if len(defaults) == 1 else None
+        self.selected_model = model or config.get("model") or implicit_default
         if not self.selected_model or self.selected_model not in available:
             raise CodexError("The selected or configured model is unavailable; choose an available model")
         limits = await self.transport.request("account/rateLimits/read", {})

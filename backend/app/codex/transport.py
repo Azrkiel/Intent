@@ -33,7 +33,9 @@ def child_environment() -> dict[str, str]:
 
 
 class Transport:
-    def __init__(self, argv: list[str], *, cwd=None, timeout=15.0, max_frame=1_000_000, queue_size=256):
+    def __init__(
+        self, argv: list[str], *, cwd=None, timeout=15.0, max_frame=1_000_000, queue_size=256, home=None
+    ):
         self.argv, self.cwd, self.timeout, self.max_frame = argv, cwd, timeout, max_frame
         self.generation = str(uuid4())
         self.process = None
@@ -48,15 +50,19 @@ class Transport:
         self.tasks = []
         self.stderr_bytes = 0
         self.job = None
+        self.home = home
 
     async def start(self):
         if self.process:
             raise CodexError("This transport has already started")
         try:
+            env = child_environment()
+            if self.home:
+                env["CODEX_HOME"] = self.home
             self.process = await asyncio.create_subprocess_exec(
                 *self.argv,
                 cwd=self.cwd,
-                env=child_environment(),
+                env=env,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -178,29 +184,17 @@ class Transport:
         self.fail("Codex connection closed")
         if self.job:
             self.job.close()
-        if self.process and self.process.returncode is None:
-            if os.name == "nt":
-                killer = await asyncio.create_subprocess_exec(
-                    "taskkill",
-                    "/PID",
-                    str(self.process.pid),
-                    "/T",
-                    "/F",
-                    stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL,
-                )
-                try:
-                    await asyncio.wait_for(killer.wait(), 5)
-                except TimeoutError:
-                    killer.kill()
-                    await killer.wait()
-            else:
+        if self.process:
+            if os.name != "nt":
                 try:
                     os.killpg(self.process.pid, signal.SIGKILL)
                 except ProcessLookupError:
                     pass
             if self.process.returncode is None:
-                self.process.kill()
+                try:
+                    self.process.kill()
+                except ProcessLookupError:
+                    pass
             await asyncio.wait_for(self.process.wait(), 5)
         for task in self.tasks:
             task.cancel()

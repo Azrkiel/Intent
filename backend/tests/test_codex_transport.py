@@ -73,7 +73,7 @@ async def test_close_terminates_owned_child_process(tmp_path, parent_exits):
     import ctypes
     from ctypes import wintypes
 
-    transport = await connect()
+    transport = await connect(timeout=1)
     path = tmp_path / "child.pid"
     if parent_exits:
         with pytest.raises(CodexError):

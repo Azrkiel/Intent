@@ -27,6 +27,8 @@ async def test_preserves_default_or_explicit_model_and_filters_foreign_events(tm
         turn = await connection.start_turn(thread, "Synthetic task packet", str(tmp_path))
         assert (await connection.next_event(thread, turn))["method"] == "item/agentMessage/delta"
         result = await connection.next_event(thread, turn)
+        assert result["method"] == "thread/tokenUsage/updated"
+        result = await connection.next_event(thread, turn)
         assert result["params"]["turn"]["status"] == "completed"
     finally:
         await connection.close()
@@ -51,6 +53,32 @@ async def test_unavailable_model_is_not_substituted(tmp_path):
         await connection.close()
 
 
+async def test_implicit_codex_default_is_preserved_without_model_override(tmp_path):
+    connection = await client("implicit_model")
+    try:
+        await connection.qualify(str(tmp_path))
+        assert connection.selected_model == "synthetic-default"
+        assert await connection.start_thread(str(tmp_path)) == "synthetic-thread"
+    finally:
+        await connection.close()
+
+
+async def test_expired_permission_is_not_granted(tmp_path):
+    import time
+
+    connection = await client("approval")
+    try:
+        await connection.qualify(str(tmp_path))
+        thread = await connection.start_thread(str(tmp_path))
+        turn = await connection.start_turn(thread, "Synthetic", str(tmp_path))
+        request = connection.approval(await connection.next_event(thread, turn), thread, turn)
+        request.expires_at = time.time() - 1
+        with pytest.raises(CodexError):
+            await connection.decide(request, "accept", generation=request.generation)
+    finally:
+        await connection.close()
+
+
 @pytest.mark.parametrize("decision,status", [("accept", "completed"), ("decline", "interrupted")])
 async def test_approval_identity_deadlines_and_replay(tmp_path, decision, status):
     connection = await client("approval")
@@ -65,6 +93,7 @@ async def test_approval_identity_deadlines_and_replay(tmp_path, decision, status
         await connection.decide(approval, decision, generation=connection.transport.generation)
         with pytest.raises(CodexError):
             await connection.decide(approval, decision, generation=connection.transport.generation)
+        assert (await connection.next_event(thread, turn))["method"] == "thread/tokenUsage/updated"
         assert (await connection.next_event(thread, turn))["params"]["turn"]["status"] == status
     finally:
         await connection.close()
