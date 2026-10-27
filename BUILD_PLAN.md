@@ -2,6 +2,10 @@
 
 Working branch: `feat/prompt-caller`. Target: a local, single-user vertical slice.
 
+The first slice is implemented in `c49e2ca`. The next milestone is
+[live Nemotron validation](docs/plans/2026-10-26-live-nemotron-validation.md).
+Keep subsequent work in small, verified commits as specified in [AGENTS.md](AGENTS.md).
+
 1. Evidence and state: Pydantic contracts, quoted ledger deltas, ranking, readiness,
    traceability, and SQLite persistence. Verify source protection and fail-closed gates.
 2. Narrow model passes: Nano extraction/playback, six parallel Super critics,
