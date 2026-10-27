@@ -81,3 +81,26 @@ async def test_correction_interrupts_execution_and_stops_stale_permission_replie
             json={"generation": saved.generation, "decision": "accept"},
         )
         assert response.status_code == 409
+
+
+async def test_phase_start_api_exposes_durable_staging_and_does_not_accept_next_phase(tmp_path):
+    from backend.tests.test_execution_verification import scoped_fixture
+
+    session, document, executor = scoped_fixture(tmp_path, "scoped_artifact")
+    app = create_app(executor.settings, codex_factory=executor.factory)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as client,
+    ):
+        base = f"/api/sessions/{session.id}/execution"
+        request = session.planning.approval.model_dump()
+        assert (await client.post(base + "/phases/P2/start", json=request)).status_code == 409
+        result = await client.post(base + "/phases/P1/start", json=request)
+        assert result.status_code == 200, result.text
+        await app.state.executor.phase_tasks[result.json()["id"]]
+        detail = (await client.get(base)).json()
+        assert detail["phases"][0]["status"] == "awaiting_phase_review"
+        assert detail["phase_acceptance_enabled"]
+        assert (await client.post(base + "/phases/P1/start", json=request)).status_code == 409
+        assert (await client.post(base + "/phases/P2/start", json=request)).status_code == 409
+        assert all(r["evidence"]["checks"] for r in detail["runs"])

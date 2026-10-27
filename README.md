@@ -173,7 +173,7 @@ packages and each package at most three ordered leaf tasks. Exceeding a bound
 blocks the plan rather than silently dropping work.
 
 **Phase 1 status (2026-10-27, America/New_York):** offline implementation and demo
-browser verification are complete; user phase acceptance is pending. The suite
+browser verification are complete; the user accepted Phase 1 on 2026-10-27. The suite
 passes 109 backend tests, Ruff, 9 frontend tests, TypeScript checking, the production
 build, and 16/16 existing scripted evaluations. Additional HTTP fixtures exercise
 the live model adapter without making provider requests. The browser check covered
@@ -181,19 +181,20 @@ both views, approval, export, reload, and correction invalidation.
 
 Demo planning is a generic, labeled synthetic fixture, not a custom model-generated
 implementation contract or evidence of semantic quality. Actual Nemotron planning
-qualification remains pending. The Phase 1 UI exports plans; the Phase 2 backend
-API described below adds a single-worker lifecycle. The
+qualification remains pending. The Phase 1 UI exports plans; the backend API
+described below adds worker execution and phase staging. The
 [implementation plan](docs/plans/2026-10-26-phase-plans-codex-orchestration.md)
-puts dependency scheduling and review UI in later phases. The existing HTML builder remains
+records scheduling in Phase 3 and the review UI in Phase 4. The existing HTML builder remains
 available separately.
 
-## Codex single-package execution API
+## Codex execution and phase staging API
 
 Phase 2 is implemented and verified offline against synthetic app-server processes
 using the installed CLI 0.164.0 schema. It adds initialization, account/model/policy
 checks, streamed events, durable permission requests, interruption, owned Git
-worktrees, and restart reconciliation. Successful turns stop at `verifying`.
-They do not integrate changes, accept a phase, or start dependent work.
+worktrees, and restart reconciliation. Phase 2 was accepted on 2026-10-27.
+Individual successful turns stop at `verifying`. Phase 3 adds a scheduler that
+inspects those changes and integrates them into a separate staging branch.
 
 The API is disabled by default. Actual use requires `PROMPT_CALLER_MODE=live`,
 explicit `ALLOW_CODEX_EXECUTION=true`, current requirements and plan approval,
@@ -212,20 +213,64 @@ Observed Codex token counts are retained separately from Nemotron dollar estimat
 
 | Route under `/api/sessions/{id}/execution` | Behavior |
 | --- | --- |
-| `POST` | Exact approved plan identity plus `package_id` and optional `model`; claim one initial package |
-| `GET` | Durable run state, IDs, observed usage, permissions, changed paths, and worker claims |
+| `POST` | Exact approved plan identity plus `package_id` and optional `model`; claim one eligible package |
+| `GET` | Durable runs and phases, staged evidence, usage, permissions, changed paths, and labeled worker claims |
+| `POST /phases/{phase_id}/start` | Exact approved plan identity and optional `model`; explicitly start the current phase scheduler |
+| `POST /phases/{phase_id}/review` | Exact plan identity, `evidence_hash`, `decision: accept\|reject`, optional `notes`; accept only the reviewed staging commit |
+| `POST /phases/{phase_id}/repair` | Exact plan identity, current `attempt`, `evidence_hash` (nullable before review), optional `model`; preserve old work and start fresh package attempts |
+| `POST /phases/{phase_id}/cancel` | Exact plan identity; stop phase dispatch and preserve work |
+| `POST /phases/{phase_id}/reconcile` | Exact plan identity and nullable `evidence_hash`; inspect an uncertain promotion or resume known completed work; never reopen rejected evidence |
+| `GET /phases/{phase_id}/artifacts/{path}?evidence_hash=...` | Download bytes from the immutable reviewed Git commit after checking their SHA-256 hash |
+| `POST /{run_id}/verify` | Exact approved plan identity; inspect a completed package and stage its verified snapshot |
 | `POST /{run_id}/approvals/{request_id}` | `generation` plus `accept`, `decline`, or `cancel`; reject stale/expired/replayed decisions |
 | `POST /{run_id}/cancel` | Empty JSON body; stop the owned worker and preserve changes |
 | `POST /{run_id}/reconcile` | Empty JSON body; inspect known IDs before reconnecting; uncertain outcomes remain blocked |
 
-There is one executor slot. A recorded package cannot be silently dispatched twice,
-and blocked/verifying work reserves the slot for review. The initial path creates
-one new project/worktree; reusing an existing project, repair attempts, dependent
-packages, two-worker scheduling, integration, and phase acceptance follow in Phases
-3–4. Permission and execution controls currently use the API; their UI follows in
-Phase 4. New utterances invalidate active runs and clear plan approval.
+`CODEX_MAX_WORKERS` defaults to 1 and permits at most 2. It must fit
+`CODEX_GLOBAL_MAX_WORKERS` (default 2, maximum 2). Transactional package claims
+enforce capacity, path ownership, interface compatibility and one active phase.
+Compatible readers may share an integrated interface; producers and conflicting
+versions cannot. A dependent package starts from its prerequisite's integrated
+staging commit. Worker completion alone never makes a dependency eligible.
 
-**Offline evidence (2026-10-27):** 156 backend tests, Ruff, and 16/16 scripted
+The scheduler runs only the current phase and stops at `awaiting_phase_review`.
+The **Codex execution** panel restores progress, permissions, logs, diffs, trusted
+checks and artifact downloads. Acceptance and rejection name an immutable review
+hash covering the exact plan, phase attempt, staging commit, package attempt IDs,
+check results, artifact hashes and unresolved decisions. Acceptance advances
+`refs/heads/accepted` with a compare-and-swap operation; the management checkout
+stays at its existing tree. Generated source remains in retained worktrees.
+Acceptance enables an explicit next-phase start and never launches it automatically.
+Rejection requires new repair attempts; prior reviews and changes remain retained.
+
+Startup inspects saved Codex thread/turn history before enabling dispatch. A known
+completed turn can return to verification; a running, missing or unknown turn stays
+blocked for explicit reconciliation. An uncertain promotion is never replayed;
+explicit reconciliation checks the saved review and actual accepted ref. Uncertain
+integration still blocks repair and requires inspection of retained work. Cancelled
+turns can be inspected without resuming them. A failure or cancellation stops affected
+workers and preserves their worktrees. New utterances invalidate runs and phase
+evidence and clear plan approval.
+
+Verification reads actual committed, modified, deleted, renamed, binary and
+untracked files, including ignored files. Ownership violations, protected control
+files, unsafe filesystem links, missing artifacts, stale bases and staging conflicts
+block integration. Evidence retains artifact SHA-256 hashes, changed paths, bounded
+redacted diffs, check provenance and unresolved decisions. Worker summaries and
+worker-edited tests remain claims and changed code, not independent test evidence.
+
+The initial trusted policy is **`git-inspection-only-v1`**. Its only accepted
+proposed command is the exact argv `['git', 'diff', '--check']`, resolved against
+the inspected base and snapshot with external diff/text conversion disabled.
+Commands use a sanitized environment, a 15-second deadline and a 2 MB output bound;
+inspection limits files to 2 MB each and 16 MB total. Generated tests, package
+scripts, installs and arbitrary shell commands have no approved sandbox runner and
+therefore block verification. Git filters/hooks/config overrides and filesystem
+links in owned Git metadata are rejected. Worktrees are materialized from raw blobs
+without checkout filters. Passing this policy proves scoped artifacts and Git
+checks, not application correctness or semantic compliance with textual exclusions.
+
+**Phase 2 offline evidence (2026-10-27):** 156 backend tests, Ruff, and 16/16 scripted
 evaluations pass. Tests use real local subprocesses and temporary Git repositories,
 including Windows descendant cleanup after parent exit, cancellation, stale
 permissions, out-of-scope changes, and uncertain dispatch. A saved synthetic
@@ -233,6 +278,117 @@ six-scenario run under ignored `.data/phase-two-check/` preserves every worktree
 No real account-backed generation or provider request was made. Actual login,
 effective sandbox/policy compatibility, and generation qualification remain Phase 5
 work; the earlier account-isolation probe does not establish those results.
+
+**Phase 3 offline evidence (2026-10-27):** 197 backend tests, Ruff and 16/16 demo
+evaluations passed. One symbolic-link test was skipped because of Windows
+permissions; both Windows junction regressions passed. The existing Starlette/httpx
+deprecation warning remains. A separate fake app-server run exercised two
+independent workers, a dependent worker starting from its prerequisite's staged
+commit, an integration conflict and an out-of-scope failure. Successful phases
+stopped for review; conflict/scope cases stayed blocked. Every worktree was retained
+and accepted project trees remained unchanged. Reports stay ignored under
+`.data/phase-three-check/`. These are offline integration checks with no provider
+requests. The user accepted Phase 3 on 2026-10-27.
+
+**Phase 4 offline evidence (2026-10-27):** 217 backend tests passed, with one
+Windows symbolic-link skip and the existing Starlette/httpx warning. Ruff,
+15 frontend tests, TypeScript checking, the production build and all 16 scripted
+demo evaluations passed. Real temporary Git repositories and fake app-server
+processes cover stale review identities, rejected evidence, retained repairs,
+compare-and-swap promotion, lost promotion replies, restart history inspection,
+failed interruption and successor phases pinned to reviewed commits.
+
+Production-browser simulation covered permission decline, active cancellation,
+failed trusted checks, rejection/repair, acceptance, explicit next-phase blocking,
+correction and reload. A labeled interrupted-dispatch fixture also showed restart
+uncertainty with repair and successor dispatch disabled. Desktop and mobile layouts
+were inspected. Screenshots and observations remain ignored under
+`.data/phase-four-check/`. No provider requests or real account-backed qualification
+were performed. Checkpoints: `c93b6cf` (backend gates) and `a87f42d` (execution UI).
+The user accepted Phase 4 on 2026-10-27. Phase 5 qualification tooling is now
+implemented; actual provider qualification remains incomplete.
+
+### Phase 5 qualification commands
+
+Run these from the repository root. They use only this server's configured key
+and Codex profile. They never enable execution, change billing, sign in, approve
+requirements or plans, accept phases, or create replacement sessions.
+
+```powershell
+uv run python -m backend.smoke --output .data/live-check/basic.json
+uv run python -m backend.qualify_planning --output .data/live-check/planning.json
+uv run python -m backend.qualify_codex --output .data/live-check/codex.json
+```
+
+The commands announce model requests before making them. Without a key, planning
+writes `missing_credentials`; without the explicit execution flag, Codex writes
+`execution_disabled`. Neither path makes model requests. When execution is enabled,
+the Codex command first checks the existing managed ChatGPT account, profile policy,
+model inventory and limits without starting a model turn. An incompatible profile
+produces `profile_unavailable`; it is never replaced or silently reconfigured.
+
+For an actual planning attempt, first create a live conversation and explicitly
+approve its requirements in the app. Stop the app server before using these CLIs:
+they access its SQLite store directly and must not run alongside its orchestrator.
+Pass that existing session ID; its budget, reserved passes and two-attempt allowance
+remain in effect. Use a separate output directory for each session so saved artifacts
+from earlier probes cannot be mistaken for the current result.
+
+```powershell
+uv run python -m backend.qualify_planning --session-id 'YOUR_LIVE_SESSION_ID' --output .data/live-check/probe-1/planning.json
+```
+
+This writes `planning-human.md` and `planning-engineering.md` beside the report.
+The plan stops at review. Restart the app, inspect both views and approve the exact
+plan revision. Stop the server and rerun the same command to export
+`planning-bundle.zip` without repeating model calls. Product content is confined to
+these local artifacts and the session store; it is excluded from the redacted report.
+
+For execution, use an approved live plan compatible with `git-inspection-only-v1`.
+After configuring execution explicitly and stopping the server, select a phase:
+
+```powershell
+uv run python -m backend.qualify_codex --session-id 'YOUR_LIVE_SESSION_ID' --phase-id P1 --output .data/live-check/probe-1/codex.json
+```
+
+It dispatches that phase once through the existing executor, or inspects its saved
+outcome if already attempted. It never automatically repairs, resumes, accepts or
+redispatches an existing phase. Pending permission requests are not granted by this
+CLI and can time out; use the app's normal execution flow for interactive permission
+review. Restart the app to inspect evidence and accept the exact review before
+explicitly starting a successor. For the live audit, use a first phase with one
+package, then a successor with two independent packages. Two workers require the
+existing explicit concurrency configuration and a qualified compatible profile.
+
+Reports retain per-response planning tokens, estimated dollars and latency, including
+failed planning attempts, plus observed Codex tokens separately. String fields are
+allowlisted; unknown model names are redacted. Reports exclude credentials, auth
+payloads, transcript bodies, account identifiers, paths and exception text. Requested
+thinking controls are recorded; provider-side behavior and multiple-account inference
+remain `unverified`. CLI exit 0 means its automated checks passed, not Phase 5
+acceptance. The report always keeps overall `passed` false; record the manual audit
+and Phase 5 acceptance separately. Missing prerequisites and failed automated checks
+exit 1.
+
+**Observed results (2026-10-27, America/New_York):** the separate basic smoke and
+planning commands exited 1 with `missing_credentials`; the Codex command exited 1
+with `execution_disabled`. All three made zero model requests, recorded no usage
+and incurred no model spend. The managed account and effective sandbox were not
+probed because execution was disabled. Reports remain ignored under
+`.data/live-check/`. Offline qualifier tests cover missing prerequisites, retained
+failure usage, redaction, approval gates, cleanup failures, actual Git verification
+through a fake app-server, and inspection without duplicate dispatch.
+
+Fresh verification at checkpoint `e4e5973`: 229 backend tests passed (12 qualifier
+tests), one Windows symbolic-link test skipped, and the existing Starlette/httpx
+warning remained. Ruff, 15 frontend tests, TypeScript checking, the production build
+and 16/16 scripted demo evaluations passed. A separate loopback server started,
+returned healthy demo configuration and an empty session list from a dedicated
+database, and shut down cleanly. These checks made no model requests.
+
+Live planning fidelity, exported packet audit, real Codex generation, cancellation,
+reload/restart reconciliation, acceptance and correction remain pending. No live
+model-quality result or Phase 5 acceptance is claimed.
 
 ## Claude Code handoff
 
@@ -359,7 +515,7 @@ the user is still speaking and instant Nano filler acknowledgments are not imple
 the current pipeline starts after the user sends the final transcript.
 
 Excluded: phone calls, barge-in, accounts, multi-project memory, post-build feedback,
-Codex support, deployment, billing UI and pricing strategy. Post-build iteration,
+deployment, billing UI and pricing strategy. Post-build iteration,
 multi-project memory and alternate agent adapters remain roadmap items.
 
 This server is designed for one trusted local user and one orchestrator process.

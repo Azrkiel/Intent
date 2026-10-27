@@ -1,15 +1,20 @@
 # Draft: visual phase plans and Codex orchestration
 
-Status: Phase 1 planning, synchronized views and export are accepted. Phase 2
-transport and single-package execution API are implemented and verified offline;
-user Phase 2 review and actual provider qualification remain pending. Dependency
-scheduling, integration and the execution/review UI are not implemented.
+Status: Phases 1-4 are accepted (Phase 4 accepted on 2026-10-27). Phase 4 adds
+immutable review identities, explicit acceptance, retained repair attempts,
+accepted-ref promotion, startup history inspection and an execution panel.
+Offline verification passed: 217 backend tests, 15 frontend tests, Ruff, type
+checking, production build and 16/16 scripted demo evaluations, plus labeled
+browser simulation. Actual provider qualification remains pending; detailed
+evidence and limits are in the implementation plan.
 Date: 2026-10-26 (America/New_York).
 
 Next artifact: [implementation plan](../plans/2026-10-26-phase-plans-codex-orchestration.md),
 covering bounded planning passes, repository ownership, tests, small commits and
-user acceptance gates for all five delivery phases. Runtime implementation has not
-started for Phases 3-5; Phase 1 and Phase 2 evidence are recorded in the implementation plan.
+user acceptance gates for all five delivery phases. Phase 5 qualification commands
+and offline tests are implemented. Live checks remain incomplete: the configured
+planning key is absent and Codex execution is disabled. Detailed evidence and
+remaining manual audits are recorded in the implementation plan and README.
 
 ## Goal
 

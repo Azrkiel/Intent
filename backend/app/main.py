@@ -50,7 +50,7 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
     @asynccontextmanager
     async def lifespan(app):
         store.recover()
-        executor.runs.recover()
+        await executor.recover()
         yield
         for task in jobs:
             task.cancel()
