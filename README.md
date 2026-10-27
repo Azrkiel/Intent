@@ -173,7 +173,7 @@ packages and each package at most three ordered leaf tasks. Exceeding a bound
 blocks the plan rather than silently dropping work.
 
 **Phase 1 status (2026-10-27, America/New_York):** offline implementation and demo
-browser verification are complete; user phase acceptance is pending. The suite
+browser verification are complete; the user accepted Phase 1 on 2026-10-27. The suite
 passes 109 backend tests, Ruff, 9 frontend tests, TypeScript checking, the production
 build, and 16/16 existing scripted evaluations. Additional HTTP fixtures exercise
 the live model adapter without making provider requests. The browser check covered
@@ -181,19 +181,20 @@ both views, approval, export, reload, and correction invalidation.
 
 Demo planning is a generic, labeled synthetic fixture, not a custom model-generated
 implementation contract or evidence of semantic quality. Actual Nemotron planning
-qualification remains pending. The Phase 1 UI exports plans; the Phase 2 backend
-API described below adds a single-worker lifecycle. The
+qualification remains pending. The Phase 1 UI exports plans; the backend API
+described below adds worker execution and phase staging. The
 [implementation plan](docs/plans/2026-10-26-phase-plans-codex-orchestration.md)
-puts dependency scheduling and review UI in later phases. The existing HTML builder remains
+records scheduling in Phase 3 and the review UI in Phase 4. The existing HTML builder remains
 available separately.
 
-## Codex single-package execution API
+## Codex execution and phase staging API
 
 Phase 2 is implemented and verified offline against synthetic app-server processes
 using the installed CLI 0.164.0 schema. It adds initialization, account/model/policy
 checks, streamed events, durable permission requests, interruption, owned Git
-worktrees, and restart reconciliation. Successful turns stop at `verifying`.
-They do not integrate changes, accept a phase, or start dependent work.
+worktrees, and restart reconciliation. Phase 2 was accepted on 2026-10-27.
+Individual successful turns stop at `verifying`. Phase 3 adds a scheduler that
+inspects those changes and integrates them into a separate staging branch.
 
 The API is disabled by default. Actual use requires `PROMPT_CALLER_MODE=live`,
 explicit `ALLOW_CODEX_EXECUTION=true`, current requirements and plan approval,
@@ -212,20 +213,48 @@ Observed Codex token counts are retained separately from Nemotron dollar estimat
 
 | Route under `/api/sessions/{id}/execution` | Behavior |
 | --- | --- |
-| `POST` | Exact approved plan identity plus `package_id` and optional `model`; claim one initial package |
-| `GET` | Durable run state, IDs, observed usage, permissions, changed paths, and worker claims |
+| `POST` | Exact approved plan identity plus `package_id` and optional `model`; claim one eligible package |
+| `GET` | Durable runs and phases, staged evidence, usage, permissions, changed paths, and labeled worker claims |
+| `POST /phases/{phase_id}/start` | Exact approved plan identity and optional `model`; explicitly start the current phase scheduler |
+| `POST /{run_id}/verify` | Exact approved plan identity; inspect a completed package and stage its verified snapshot |
 | `POST /{run_id}/approvals/{request_id}` | `generation` plus `accept`, `decline`, or `cancel`; reject stale/expired/replayed decisions |
 | `POST /{run_id}/cancel` | Empty JSON body; stop the owned worker and preserve changes |
 | `POST /{run_id}/reconcile` | Empty JSON body; inspect known IDs before reconnecting; uncertain outcomes remain blocked |
 
-There is one executor slot. A recorded package cannot be silently dispatched twice,
-and blocked/verifying work reserves the slot for review. The initial path creates
-one new project/worktree; reusing an existing project, repair attempts, dependent
-packages, two-worker scheduling, integration, and phase acceptance follow in Phases
-3–4. Permission and execution controls currently use the API; their UI follows in
-Phase 4. New utterances invalidate active runs and clear plan approval.
+`CODEX_MAX_WORKERS` defaults to 1 and permits at most 2. It must fit
+`CODEX_GLOBAL_MAX_WORKERS` (default 2, maximum 2). Transactional package claims
+enforce capacity, path ownership, interface compatibility and one active phase.
+Compatible readers may share an integrated interface; producers and conflicting
+versions cannot. A dependent package starts from its prerequisite's integrated
+staging commit. Worker completion alone never makes a dependency eligible.
 
-**Offline evidence (2026-10-27):** 156 backend tests, Ruff, and 16/16 scripted
+The scheduler runs only the current phase and stops at `awaiting_phase_review`.
+It never advances to a successor phase or updates the accepted project branch.
+Phase acceptance, explicit repair attempts and execution/review UI remain Phase 4
+work. Duplicate attempts and uncertain restart/integration outcomes remain blocked;
+there is no automatic replacement worker. A failure or cancellation stops affected
+workers and preserves their worktrees. New utterances invalidate runs and phase
+evidence and clear plan approval.
+
+Verification reads actual committed, modified, deleted, renamed, binary and
+untracked files, including ignored files. Ownership violations, protected control
+files, unsafe filesystem links, missing artifacts, stale bases and staging conflicts
+block integration. Evidence retains artifact SHA-256 hashes, changed paths, bounded
+redacted diffs, check provenance and unresolved decisions. Worker summaries and
+worker-edited tests remain claims and changed code, not independent test evidence.
+
+The initial trusted policy is **`git-inspection-only-v1`**. Its only accepted
+proposed command is the exact argv `['git', 'diff', '--check']`, resolved against
+the inspected base and snapshot with external diff/text conversion disabled.
+Commands use a sanitized environment, a 15-second deadline and a 2 MB output bound;
+inspection limits files to 2 MB each and 16 MB total. Generated tests, package
+scripts, installs and arbitrary shell commands have no approved sandbox runner and
+therefore block verification. Git filters/hooks/config overrides and filesystem
+links in owned Git metadata are rejected. Worktrees are materialized from raw blobs
+without checkout filters. Passing this policy proves scoped artifacts and Git
+checks, not application correctness or semantic compliance with textual exclusions.
+
+**Phase 2 offline evidence (2026-10-27):** 156 backend tests, Ruff, and 16/16 scripted
 evaluations pass. Tests use real local subprocesses and temporary Git repositories,
 including Windows descendant cleanup after parent exit, cancellation, stale
 permissions, out-of-scope changes, and uncertain dispatch. A saved synthetic
@@ -233,6 +262,17 @@ six-scenario run under ignored `.data/phase-two-check/` preserves every worktree
 No real account-backed generation or provider request was made. Actual login,
 effective sandbox/policy compatibility, and generation qualification remain Phase 5
 work; the earlier account-isolation probe does not establish those results.
+
+**Phase 3 offline evidence (2026-10-27):** 197 backend tests, Ruff and 16/16 demo
+evaluations passed. One symbolic-link test was skipped because of Windows
+permissions; both Windows junction regressions passed. The existing Starlette/httpx
+deprecation warning remains. A separate fake app-server run exercised two
+independent workers, a dependent worker starting from its prerequisite's staged
+commit, an integration conflict and an out-of-scope failure. Successful phases
+stopped for review; conflict/scope cases stayed blocked. Every worktree was retained
+and accepted project trees remained unchanged. Reports stay ignored under
+`.data/phase-three-check/`. These are offline integration checks with no provider
+requests; Phase 3 user acceptance remains pending.
 
 ## Claude Code handoff
 

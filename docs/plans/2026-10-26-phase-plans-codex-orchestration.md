@@ -1,9 +1,9 @@
 # Implementation plan: visual phase plans and local Codex orchestration
 
 Date: 2026-10-26 (America/New_York).
-Status: Phase 1 accepted by the user on 2026-10-27 (America/New_York).
-Phase 2 is implemented and verified offline; awaiting user phase acceptance.
-Phases 3-5 remain pending.
+Status: Phases 1 and 2 accepted by the user on 2026-10-27 (America/New_York).
+Phase 3 is implemented and verified offline; awaiting user phase acceptance.
+Phases 4-5 remain pending.
 Source: [design](../specs/2026-10-26-phase-plans-codex-orchestration.md).
 
 **Goal:** Turn approved, cited requirements into synchronized design and engineering
@@ -443,64 +443,65 @@ codex app-server generate-json-schema --out .data/codex-schema
 - [x] Run `uv run pytest -q` and `uv run ruff check backend`. Exercise one synthetic
   package with the fake server; no credentials required.
   Commit: `feat: persist and execute one Codex work package with safe recovery`.
-- [ ] Present fake-server lifecycle and restart evidence for Phase 2 review.
+- [x] Present fake-server lifecycle and restart evidence for Phase 2 review.
   Real-account smoke remains a separately labeled Phase 5 check.
 
 ## Phase 3: worktree isolation, scheduling, and integration
 
 ### 3.1 Owned Git roots and worktree lifecycle
 
-- [ ] Extend `backend/tests/test_execution_worktrees.py` using temporary real Git
+- [x] Extend `backend/tests/test_execution_worktrees.py` using temporary real Git
   repositories. Cover empty initial project commits, independent worktrees,
   dirty/untracked files, conflicts, missing Git, symlinks/reparse points, and unsafe
   paths. Configure test identity locally within each temporary repository.
-- [ ] Harden `worktrees.py` with argv-based Git calls and validated app-owned
+- [x] Harden `worktrees.py` with argv-based Git calls and validated app-owned
   roots. Persist ownership before creation and resolve every path under its root.
   Preserve failed/cancelled/stale worktrees; cleanup never discards unreviewed work.
   Never reuse or reset the Intent source checkout as a generated-project worktree.
-- [ ] Run `uv run pytest backend/tests/test_execution_worktrees.py -q`,
+- [x] Run `uv run pytest backend/tests/test_execution_worktrees.py -q`,
   `uv run pytest -q`, and `uv run ruff check backend`.
   Commit: `feat: isolate generated-project workers in owned Git worktrees`.
 
 ### 3.2 Dependency scheduler and two-worker limit
 
-- [ ] Add `backend/tests/test_execution_scheduler.py`. Failing cases: dependent
+- [x] Add `backend/tests/test_execution_scheduler.py`. Failing cases: dependent
   package before integration, ancestor/descendant path overlap, interface producer
   pending, two simultaneous dispatch claims, configured/global capacity limits,
   stale approvals, exhausted account allowance, and duplicate resume dispatch.
-- [ ] Implement deterministic selection by phase/package ID after prerequisites
+- [x] Implement deterministic selection by phase/package ID after prerequisites
   are integrated. Acquire transactional claims before launching; combine owned
   path and interface conflict checks with available capacity. One phase is active
   at a time. Never dispatch a successor phase from a worker completion callback.
-- [ ] Start with one worker, then enable two after tests pass. A failure stops new
+- [x] Start with one worker, then enable two after tests pass. A failure stops new
   dispatch for the phase; interrupt affected active workers, preserve every patch,
   and require repair/review. Workers cannot recursively schedule more agents.
-- [ ] Run `uv run pytest backend/tests/test_execution_scheduler.py -q`,
+- [x] Run `uv run pytest backend/tests/test_execution_scheduler.py -q`,
   `uv run pytest -q`, and `uv run ruff check backend`.
   Commit: `feat: schedule dependency-safe Codex packages with bounded concurrency`.
 
 ### 3.3 Scope inspection, trusted checks, and controlled integration
 
-- [ ] Add `backend/tests/test_execution_verification.py`. Include renamed/deleted/
+- [x] Add `backend/tests/test_execution_verification.py`. Include renamed/deleted/
   untracked files, binary changes, symlink escapes, unexpected tracked artifacts,
   forged worker summaries, failing checks, stale base revisions, and merge conflicts.
-- [ ] Inspect actual Git changes against package ownership, exclusions, and
+- [x] Inspect actual Git changes against package ownership, exclusions, and
   protected instruction/control files. Treat worker-edited tests as changed code,
   not independent evidence. Verify approved acceptance artifacts and record their
   hashes. Out-of-scope changes block integration and remain available for review.
-- [ ] Package verification commands remain reviewable data. Run only a trusted,
+- [x] Package verification commands remain reviewable data. Run only a trusted,
   approved argv allowlist with explicit cwd, environment, output limits, deadlines,
   and sandbox policy. Never send model text through a shell or auto-install/run a
   generated project's arbitrary scripts outside the execution policy.
-- [ ] Collect exit codes, bounded redacted logs, artifact inventory, diff, actual
+- [x] Collect exit codes, bounded redacted logs, artifact inventory, diff, actual
   changed paths, unresolved decisions, and command provenance. Integrate serially
   into an app-owned phase staging branch; block conflicts and rerun aggregate
   acceptance there. Only integrated prerequisites unblock dependent packages.
   Do not update the accepted project branch until user phase acceptance.
-- [ ] Run `uv run pytest -q` and `uv run ruff check backend`.
+- [x] Run `uv run pytest -q` and `uv run ruff check backend`.
   Commit: `feat: verify scoped worker changes and stage phase integration`.
-- [ ] Present a fake two-worker phase with one dependency, one conflict case,
-  and one out-of-scope failure. Request Phase 3 acceptance before Phase 4.
+- [x] Present a fake two-worker phase with one dependency, one conflict case,
+  and one out-of-scope failure.
+- [ ] Obtain user Phase 3 acceptance before Phase 4.
 
 ## Phase 4: evidence, phase review, corrections, and restart gates
 
@@ -597,6 +598,37 @@ uv run python -m backend.qualify_codex --output .data/live-check/codex.json
   offline work. Never substitute fixture evidence for a live pass.
 
 ## Verification and requirement coverage
+
+Phase 3 evidence (2026-10-27): 197 backend tests passed, with one symbolic-link test
+skipped because Windows denied symbolic-link creation. Both Windows junction tests
+passed, including an escape through Git object metadata. Ruff and all 16 scripted
+demo evaluations passed. The existing Starlette/httpx deprecation warning remains.
+
+A separate fake app-server simulation exercised two independent workers, a dependent
+worker starting from its prerequisite's integrated commit, an integration conflict,
+and an out-of-scope failure. Successful phases stopped at `awaiting_phase_review`;
+failure cases remained blocked. Worktrees were preserved and accepted project trees
+remained unchanged. Reports and generated repositories remain ignored under
+`.data/phase-three-check/`. No provider requests or real account-backed generation
+were made. Phase 3 acceptance is pending; Phases 4-5 have not started.
+
+Checkpoints on `codex/phase-three`: `cfdecbf` hardens owned roots and separate
+worktrees; `2de8de1` adds transactional scheduling and bounded concurrency;
+`4534116` adds actual change inspection, artifact hashes, aggregate staging checks,
+phase-start/verification APIs, durable integration intent and restart blocking.
+Additional regressions cover shared interface readers, cancellation during
+verification, changing artifact bytes, stale accepted bases, long Windows paths,
+repository-defined Git filters and junctions inside Git metadata.
+
+The initial trusted policy is deliberately restricted to `git-inspection-only-v1`:
+only the exact proposed argv `["git", "diff", "--check"]` is supported. It resolves
+to bounded, sanitized Git inspection of the saved base/snapshot. Other proposed
+commands block until a separately qualified sandbox runner exists. Repository
+filters, config overrides, unsafe links and external object stores are rejected;
+checkout materialization reads raw blobs rather than executing filters. Worker
+test edits and summaries remain changed code/claims. Textual exclusions and open
+decisions are retained for review; Git inspection is not semantic or application
+correctness evidence. No phase acceptance or accepted-branch promotion is exposed.
 
 Phase 2 evidence (2026-10-27): 156 backend tests, Ruff, and 16/16 existing scripted
 evaluations passed. A separate synthetic lifecycle run exercised artifact creation,
