@@ -181,10 +181,58 @@ both views, approval, export, reload, and correction invalidation.
 
 Demo planning is a generic, labeled synthetic fixture, not a custom model-generated
 implementation contract or evidence of semantic quality. Actual Nemotron planning
-qualification remains pending. Codex dispatch is unavailable in Phase 1; the
+qualification remains pending. The Phase 1 UI exports plans; the Phase 2 backend
+API described below adds a single-worker lifecycle. The
 [implementation plan](docs/plans/2026-10-26-phase-plans-codex-orchestration.md)
-puts transport and execution in later phases. The existing HTML builder remains
+puts dependency scheduling and review UI in later phases. The existing HTML builder remains
 available separately.
+
+## Codex single-package execution API
+
+Phase 2 is implemented and verified offline against synthetic app-server processes
+using the installed CLI 0.164.0 schema. It adds initialization, account/model/policy
+checks, streamed events, durable permission requests, interruption, owned Git
+worktrees, and restart reconciliation. Successful turns stop at `verifying`.
+They do not integrate changes, accept a phase, or start dependent work.
+
+The API is disabled by default. Actual use requires `PROMPT_CALLER_MODE=live`,
+explicit `ALLOW_CODEX_EXECUTION=true`, current requirements and plan approval,
+and an existing Codex-managed ChatGPT login. Demo sessions and synthetic plans
+cannot dispatch. Keep authentication in Codex; do not copy tokens into Intent or
+exports. Optional `CODEX_HOME` selects an existing separately qualified profile.
+`CODEX_COMMAND` selects the local executable. Project/worktree roots and worker/
+approval deadlines are documented in `.env.example`.
+
+Workers use `workspace-write`, user approval routing, disabled automatic child
+agents, and restricted network access. The initial executor conservatively blocks
+inherited custom providers, hooks, plugins, MCP servers, and enabled skills until
+the selected profile is separately qualified. It preserves an explicit model or
+the configured/default available model and never switches billing or accounts.
+Observed Codex token counts are retained separately from Nemotron dollar estimates.
+
+| Route under `/api/sessions/{id}/execution` | Behavior |
+| --- | --- |
+| `POST` | Exact approved plan identity plus `package_id` and optional `model`; claim one initial package |
+| `GET` | Durable run state, IDs, observed usage, permissions, changed paths, and worker claims |
+| `POST /{run_id}/approvals/{request_id}` | `generation` plus `accept`, `decline`, or `cancel`; reject stale/expired/replayed decisions |
+| `POST /{run_id}/cancel` | Empty JSON body; stop the owned worker and preserve changes |
+| `POST /{run_id}/reconcile` | Empty JSON body; inspect known IDs before reconnecting; uncertain outcomes remain blocked |
+
+There is one executor slot. A recorded package cannot be silently dispatched twice,
+and blocked/verifying work reserves the slot for review. The initial path creates
+one new project/worktree; reusing an existing project, repair attempts, dependent
+packages, two-worker scheduling, integration, and phase acceptance follow in Phases
+3–4. Permission and execution controls currently use the API; their UI follows in
+Phase 4. New utterances invalidate active runs and clear plan approval.
+
+**Offline evidence (2026-10-27):** 156 backend tests, Ruff, and 16/16 scripted
+evaluations pass. Tests use real local subprocesses and temporary Git repositories,
+including Windows descendant cleanup after parent exit, cancellation, stale
+permissions, out-of-scope changes, and uncertain dispatch. A saved synthetic
+six-scenario run under ignored `.data/phase-two-check/` preserves every worktree.
+No real account-backed generation or provider request was made. Actual login,
+effective sandbox/policy compatibility, and generation qualification remain Phase 5
+work; the earlier account-isolation probe does not establish those results.
 
 ## Claude Code handoff
 

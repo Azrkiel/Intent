@@ -1,8 +1,9 @@
 # Implementation plan: visual phase plans and local Codex orchestration
 
 Date: 2026-10-26 (America/New_York).
-Status: Phase 1 implemented and verified on 2026-10-27 (America/New_York);
-awaiting user phase acceptance. Phases 2-5 remain pending.
+Status: Phase 1 accepted by the user on 2026-10-27 (America/New_York).
+Phase 2 is implemented and verified offline; awaiting user phase acceptance.
+Phases 3-5 remain pending.
 Source: [design](../specs/2026-10-26-phase-plans-codex-orchestration.md).
 
 **Goal:** Turn approved, cited requirements into synchronized design and engineering
@@ -343,7 +344,7 @@ registry inside the router.
   Run backend checks after shared API changes. Browser-check a demo: partial
   progress, synchronized views, approval, ZIP download, reload, and a correction.
   Commit: `feat: add progressive plan review and instruction bundle export UI`.
-- [ ] Present the generated fixture bundle and UI evidence for user review.
+- [x] Present the generated fixture bundle and UI evidence for user review.
   Phase 1 acceptance requires complete consistent exports, visible unresolved
   choices, retained failure usage, and no execution path for partial/stale output.
   Stop before Phase 2 until the user accepts Phase 1.
@@ -352,7 +353,7 @@ registry inside the router.
 
 ### 2.1 Version-qualified stdio protocol
 
-- [ ] Generate schemas from the installed CLI into ignored local storage:
+- [x] Generate schemas from the installed CLI into ignored local storage:
 
 ```powershell
 codex --version
@@ -362,84 +363,84 @@ codex app-server generate-json-schema --out .data/codex-schema
   Expect version output and schema files. Use these schemas to make a minimal,
   synthetic checked-in fixture subset; do not commit `.data/` or account reports.
   Requalify on CLI upgrades instead of assuming online examples match the binary.
-- [ ] Add `backend/tests/fixtures/codex/fake_server.py` and
+- [x] Add `backend/tests/fixtures/codex/fake_server.py` and
   `backend/tests/test_codex_transport.py`. Drive a real local subprocess that
   simulates split JSONL chunks, out-of-order replies, notifications before a
   response, server requests, stderr noise, malformed/oversized frames, timeout,
   EOF, process death, cancellation, and shutdown of owned descendants on Windows.
-- [ ] Implement `codex/protocol.py` and `transport.py`: argv-based subprocess,
+- [x] Implement `codex/protocol.py` and `transport.py`: argv-based subprocess,
   independent stdout/stderr readers, bounded frames/logs/queues, request-ID futures,
   serialized writes, cleanup deadlines, and failure of all pending futures on
   connection loss. Requests use `id/method/params`; notifications omit `id`.
   Follow installed framing; do not prepend an unsupported JSON-RPC envelope field.
-- [ ] Initialize exactly once per connection, then send `initialized`:
+- [x] Initialize exactly once per connection, then send `initialized`:
 
 ```json
 {"id":1,"method":"initialize","params":{"clientInfo":{"name":"intent","title":"Intent","version":"0.1.0"}}}
 {"method":"initialized"}
 ```
 
-- [ ] Run `uv run pytest backend/tests/test_codex_transport.py -q`,
+- [x] Run `uv run pytest backend/tests/test_codex_transport.py -q`,
   `uv run pytest -q`, and `uv run ruff check backend`.
   Commit: `feat: add version-qualified Codex app-server stdio transport`.
 
 ### 2.2 Account state, event routing, approvals, and reconciliation
 
-- [ ] Add `backend/tests/test_codex_client.py`. Test account missing/API-key/
+- [x] Add `backend/tests/test_codex_client.py`. Test account missing/API-key/
   ChatGPT states, retained configured model, exact explicit model, unavailable
   model, supported approvals, denied/expired/unknown approvals, cross-thread event
   rejection, completed/failed/interrupted turns, account limits, and reconnect.
-- [ ] Implement the client with installed methods: `account/read`, `model/list`,
+- [x] Implement the client with installed methods: `account/read`, `model/list`,
   `thread/start`, `thread/read`, `thread/resume`, `turn/start`, and `turn/interrupt`.
   Preserve the selected model; omit a model override when none is selected.
   Require the intended ChatGPT-backed account before subscription execution.
   Send only redacted account status to the UI; credentials remain Codex-managed.
-- [ ] Correlate every notification and server request to connection generation,
+- [x] Correlate every notification and server request to connection generation,
   thread, turn, item, and durable run. Persist permission requests with a deadline;
   forward them to the user and send only supported schema-valid decisions. Unknown
   permission methods block the run. Stale or duplicate replies never grant access.
-- [ ] Worker defaults use the installed supported workspace-write sandbox and
+- [x] Worker defaults use the installed supported workspace-write sandbox and
   user approval policy. No bypass flags. No model-created child workers. Sanitize
   child environment so Nebius keys, API billing overrides, and Intent secrets are
   not forwarded. Qualify inherited Codex settings/MCP tools against the intended
   execution policy before starting a worker; block unsupported policy combinations.
-- [ ] Reconnect reads known thread/turn state before resuming. An interrupted turn
+- [x] Reconnect reads known thread/turn state before resuming. An interrupted turn
   is not completed. Neither a lost response nor an empty thread read justifies an
   automatic replacement `turn/start`. Account refresh must not trigger sign-out,
   limit redemption, purchases, profile rotation, or billing-mode changes.
-- [ ] Run `uv run pytest backend/tests/test_codex_client.py -q`,
+- [x] Run `uv run pytest backend/tests/test_codex_client.py -q`,
   `uv run pytest -q`, and `uv run ruff check backend`.
   Commit: `feat: route Codex lifecycle events and user permission approvals`.
 
 ### 2.3 Durable single-package execution
 
-- [ ] Add `backend/tests/test_execution_store.py`, `test_codex_worker.py`,
+- [x] Add `backend/tests/test_execution_store.py`, `test_codex_worker.py`,
   `test_execution_worktrees.py`, and `test_execution_api.py`. Cover crashes before/after external side effects,
   completed-turn replay, scope violations, cancellation, restart, and stale hash.
-- [ ] Persist run ID, package ID, plan/hash/requirements revision, account profile
+- [x] Persist run ID, package ID, plan/hash/requirements revision, account profile
   reference, configured model, worktree/base commit, connection generation,
   thread/turn IDs, dispatch intent, state, permission requests, and evidence in
   `execution/store.py`. Transactional claims must be unique for active package
   attempts. Explicit repair attempts have new IDs and retain old evidence.
-- [ ] Persist dispatch intent before `thread/start` and `turn/start`; persist
+- [x] Persist dispatch intent before `thread/start` and `turn/start`; persist
   returned IDs immediately. A crash between sending a request and saving its
   response is uncertain external state: block reconciliation, preserve its
   worktree, and never automatically create another worker for that attempt.
-- [ ] Add the initial `execution/worktrees.py` implementation before wiring the
+- [x] Add the initial `execution/worktrees.py` implementation before wiring the
   worker: validate app-owned roots, initialize an empty project with a local Git
   identity and initial commit, persist worktree ownership, and create one worktree
   using argv-based Git commands. Test creation, separate checkout identity, failed
   creation, and retained changes on cancellation. Phase 3 extends these invariants
   to multiple workers and adversarial filesystem cases.
-- [ ] Implement one worker using that app-owned Git root and separate worktree.
+- [x] Implement one worker using that app-owned Git root and separate worktree.
   Explicitly supply common rules plus the assigned packet as data; policy comes
   from Intent. Record worker-reported artifacts/tests/decisions as claims. A
   successful turn moves to `verifying`, never directly to `accepted`.
-- [ ] Add `POST /api/sessions/{id}/execution` with exact approved plan identity,
+- [x] Add `POST /api/sessions/{id}/execution` with exact approved plan identity,
   `GET /api/sessions/{id}/execution`, `POST .../execution/{run_id}/cancel`, and
   `POST .../execution/{run_id}/approvals/{request_id}`. Server-side policy enforces
   the feature flag, current approval, model/account eligibility, and run ownership.
-- [ ] Run `uv run pytest -q` and `uv run ruff check backend`. Exercise one synthetic
+- [x] Run `uv run pytest -q` and `uv run ruff check backend`. Exercise one synthetic
   package with the fake server; no credentials required.
   Commit: `feat: persist and execute one Codex work package with safe recovery`.
 - [ ] Present fake-server lifecycle and restart evidence for Phase 2 review.
@@ -596,6 +597,21 @@ uv run python -m backend.qualify_codex --output .data/live-check/codex.json
   offline work. Never substitute fixture evidence for a live pass.
 
 ## Verification and requirement coverage
+
+Phase 2 evidence (2026-10-27): 156 backend tests, Ruff, and 16/16 existing scripted
+evaluations passed. A separate synthetic lifecycle run exercised artifact creation,
+failed turns, lost `turn/start` replies, out-of-scope changes, permission approval,
+and cancellation. All six runs preserved their owned worktrees. Successful turns
+stopped at `verifying`; no phase was accepted and no dependency was dispatched.
+Reports and generated projects remain ignored under `.data/phase-two-check/`.
+
+Checkpoints: `79c72fc` stdio transport and Windows job ownership, `077e034` account,
+policy, approvals and reconciliation client; `ea51ee4` adds
+transactional claims, owned repositories/worktrees, API routes, cancellation,
+correction invalidation, profile binding, observed token usage, and recovery.
+The CLI schema was generated locally from 0.164.0. No real account-backed model
+request was made. UI execution/permissions and integration remain later phases;
+the Phase 2 API is disabled by default and requires a compatible signed-in profile.
 
 Phase 1 evidence (2026-10-27): 109 backend tests, Ruff, 9 frontend tests,
 TypeScript checking, production build, and 16/16 scripted evaluations passed.
