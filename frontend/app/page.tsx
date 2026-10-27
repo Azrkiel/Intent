@@ -31,6 +31,7 @@ import {
   X,
 } from "lucide-react";
 import { api, consumeEvents } from "@/lib/stream";
+import { PlanPanel } from "@/components/plan-panel";
 import {
   recognitionConstructor,
   speak,
@@ -64,7 +65,7 @@ const SLOT_LABELS: Record<Slot, string> = {
   "success-criterion": "Success criterion",
 };
 type Summary = { id: string; title: string; mode: "demo" | "live" };
-type View = "clarify" | "brief" | "build";
+type View = "clarify" | "brief" | "plan" | "build";
 
 function Mark({ small = false }: { small?: boolean }) {
   return (
@@ -481,6 +482,14 @@ export default function Home() {
           Build brief{session?.brief && <span className="tiny-dot" />}
         </button>
         <button
+          className={`sidebar-link ${view === "plan" ? "active" : ""}`}
+          onClick={() => setView("plan")}
+          disabled={!hasTurns}
+        >
+          <GitBranch size={16} />
+          Phase plan
+        </button>
+        <button
           className={`sidebar-link ${view === "build" ? "active" : ""}`}
           onClick={() => setView("build")}
           disabled={!hasTurns}
@@ -670,7 +679,9 @@ export default function Home() {
                       ? "The conversation"
                       : view === "brief"
                         ? "Your build brief"
-                        : "The build workspace"}
+                        : view === "plan"
+                          ? "Your phase plan"
+                          : "The build workspace"}
                   </h2>
                 </div>
                 {view === "clarify" ? (
@@ -977,6 +988,17 @@ export default function Home() {
                 </>
               )}
 
+              {view === "plan" && session && (
+                <PlanPanel
+                  key={`${session.id}:${session.revision}`}
+                  session={session}
+                  busy={busy}
+                  setBusy={setBusy}
+                  onSession={remember}
+                  modeMismatch={modeMismatch}
+                />
+              )}
+
               {view === "brief" && (
                 <div className="brief-content">
                   {!session?.playback && !session?.brief ? (
@@ -1062,6 +1084,13 @@ export default function Home() {
                               <Download size={14} />
                               Export brief
                             </a>
+                            <button
+                              className="text-button"
+                              onClick={() => setView("plan")}
+                            >
+                              <GitBranch size={14} />
+                              Plan phases
+                            </button>
                           </div>
                           <div className="comparison">
                             <div>

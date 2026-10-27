@@ -1,3 +1,5 @@
+import type { PlanningState } from "./planning";
+
 export type Slot =
   "goal" | "core-flow" | "data" | "access" | "non-goals" | "success-criterion";
 export type Lens =
@@ -74,11 +76,14 @@ export interface Session {
     latency_ms: number;
   }[];
   build: Build;
+  planning: PlanningState;
 }
 export interface Health {
   mode: "demo" | "live";
   models_configured: boolean;
   build_enabled: boolean;
+  planning_enabled: boolean;
+  execution_enabled: boolean;
 }
 export type StreamEvent = {
   type: string;
@@ -87,4 +92,9 @@ export type StreamEvent = {
   lens?: Lens;
   count?: number;
   failed?: boolean;
+  session_id?: string;
+  requirements_revision?: number;
+  attempt_revision?: number;
+  section_version?: number;
+  planning?: PlanningState;
 };
