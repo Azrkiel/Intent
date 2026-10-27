@@ -14,6 +14,7 @@ class Run(BaseModel):
     session_id: str
     plan: PlanApproval
     package_id: str
+    phase_attempt: int = Field(default=1, ge=1)
     status: Literal["queued", "running", "verifying", "integrated", "blocked", "cancelled"] = "queued"
     owned_paths: list[str] = Field(default_factory=list, max_length=20)
     interfaces: list[str] = Field(default_factory=list, max_length=20)
@@ -51,7 +52,15 @@ class PhaseExecution(BaseModel):
     session_id: str
     plan: PlanApproval
     phase_id: str
-    status: Literal["running", "verifying", "awaiting_phase_review", "blocked", "cancelled"] = "running"
+    status: Literal["running", "verifying", "awaiting_phase_review", "accepted", "blocked", "cancelled"] = (
+        "running"
+    )
+    attempt: int = Field(default=1, ge=1)
+    stale: bool = False
+    review_hash: str | None = None
+    promotion_intent: str | None = None
+    decision: Literal["accept", "reject"] | None = None
+    review_notes: str = ""
     base_commit: str | None = None
     staging_commit: str | None = None
     staging_worktree: str | None = None
@@ -61,4 +70,18 @@ class PhaseExecution(BaseModel):
 
     @property
     def branch(self):
-        return f"refs/heads/intent/{self.plan.content_hash}/{self.phase_id}"
+        suffix = "" if self.attempt == 1 else f"-attempt-{self.attempt}"
+        return f"refs/heads/intent/{self.plan.content_hash}/{self.phase_id}{suffix}"
+
+
+class PhaseReview(BaseModel):
+    """The canonical payload is a string so nested evidence cannot be mutated."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    evidence_hash: str
+    payload_json: str
+
+    def public(self):
+        import json
+
+        return json.loads(self.payload_json) | {"evidence_hash": self.evidence_hash}

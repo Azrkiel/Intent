@@ -10,7 +10,7 @@ from backend.tests.planning_fixtures import package, phase
 from backend.tests.test_codex_worker import fixture
 
 
-def scoped_fixture(tmp_path, scenario="artifact", *, dependent=False):
+def scoped_fixture(tmp_path, scenario="artifact", *, dependent=False, successor=False):
     session, document, executor = fixture(tmp_path, scenario)
     document.id = "phase-three"
     packages = [package("contracts", "contracts"), package("api", "api", ["contracts"] if dependent else [])]
@@ -20,6 +20,14 @@ def scoped_fixture(tmp_path, scenario="artifact", *, dependent=False):
     for p in document.phases[0].packages:
         p.artifacts = [p.owned_paths[0] + "/result.txt"]
         p.tasks[0].checks = [Check(command=["git", "diff", "--check"], expected="No whitespace errors")]
+    if successor:
+        document.id = "phase-four"
+        package_ = document.phases[1].packages[0]
+        package_.owned_paths = ["ui"]
+        package_.artifacts = ["ui/result.txt"]
+        package_.tasks[0].checks = [
+            Check(command=["git", "diff", "--check"], expected="No whitespace errors")
+        ]
     identity = PlanApproval(
         plan_id=document.id,
         revision=document.revision,

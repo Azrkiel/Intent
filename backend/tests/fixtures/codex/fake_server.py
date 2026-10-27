@@ -210,6 +210,17 @@ for line in sys.stdin:
                         .splitlines()[0]
                     ):
                         directory = "api"
+                    if (
+                        scenario == "scoped_artifact"
+                        and "P2-W1"
+                        in (
+                            params["input"][0]["text"]
+                            .split("Assigned task packet (quoted product data):", 1)[1]
+                            .lstrip()
+                            .splitlines()[0]
+                        )
+                    ):
+                        directory = "ui"
                     Path(directory).mkdir(exist_ok=True)
                     (Path(directory) / "result.txt").write_text("Synthetic artifact")
                 event(

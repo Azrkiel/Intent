@@ -100,7 +100,7 @@ async def test_phase_start_api_exposes_durable_staging_and_does_not_accept_next_
         await app.state.executor.phase_tasks[result.json()["id"]]
         detail = (await client.get(base)).json()
         assert detail["phases"][0]["status"] == "awaiting_phase_review"
-        assert not detail["phase_acceptance_enabled"]
+        assert detail["phase_acceptance_enabled"]
         assert (await client.post(base + "/phases/P1/start", json=request)).status_code == 409
         assert (await client.post(base + "/phases/P2/start", json=request)).status_code == 409
         assert all(r["evidence"]["checks"] for r in detail["runs"])

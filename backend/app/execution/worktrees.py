@@ -234,7 +234,9 @@ class Worktrees:
         if base_commit is not None and not re.fullmatch(r"[0-9a-f]{40}", base_commit):
             raise ValueError("Worker base must be an exact commit")
         base = (
-            await self.git(project, "rev-parse", "--verify", (base_commit or "HEAD") + "^{commit}")
+            await self.git(
+                project, "rev-parse", "--verify", (base_commit or "refs/heads/accepted") + "^{commit}"
+            )
         ).strip()
         await self.git(
             project, "worktree", "add", "--quiet", "--detach", "--no-checkout", str(checkout), base
