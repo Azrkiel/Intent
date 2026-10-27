@@ -278,6 +278,21 @@ an explicit runtime and functional acceptance evidence.
 The implementation plan will map these slices to repository files, bounded model
 passes, tests and small commits after this design is approved.
 
+## Account-isolation probe (2026-10-26)
+
+With installed Codex CLI 0.164.0, three local app-server processes initialized and
+answered account-state requests concurrently: the existing ChatGPT login and two
+new, empty profiles with separate state directories and file-backed credential
+storage. Neither empty profile inherited the primary login. Signing out of one
+empty profile left the primary account state unchanged, and the primary auth file
+was unchanged. The probe made no model requests and stopped its owned processes.
+
+A second-account sign-in was opened, then cancelled because the user did not have
+a second account available. Two authenticated accounts and concurrent inference
+under different accounts remain untested. The successful isolation probe must not
+be reported as proof of that stronger capability. Redacted reports and diagnostic
+scripts remain local under the ignored `.data/multi-account-check/` directory.
+
 ## Official integration references and limits
 
 - [Codex authentication](https://learn.chatgpt.com/docs/auth): ChatGPT sign-in
