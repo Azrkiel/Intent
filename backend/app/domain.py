@@ -189,8 +189,10 @@ class Session(Contract):
 
     @model_validator(mode="after")
     def extension_session_binding(self):
-        if self.planning.extension and self.planning.extension.session_id != self.id:
-            raise ValueError("Planning extension belongs to a different session")
+        for field in ("extension", "requalification"):
+            grant = getattr(self.planning, field)
+            if grant and grant.session_id != self.id:
+                raise ValueError(f"Planning {field} belongs to a different session")
         return self
 
 
@@ -314,7 +316,7 @@ def trace_brief(session: Session, brief: Brief, rejected: list[int] | None = Non
 
 def public_session(session: Session) -> dict:
     return {
-        **session.model_dump(mode="json", exclude={"planning": {"extension"}}),
+        **session.model_dump(mode="json", exclude={"planning": {"extension", "requalification"}}),
         "gate": gate_for(session).model_dump(),
         "estimated_usd": round(sum(item.estimated_usd for item in session.usage), 6),
     }

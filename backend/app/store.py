@@ -69,17 +69,24 @@ class Store:
                 previous is None or state_hash(previous) != expected_state_hash
             ):
                 raise ValueError("Session changed; repeat preflight before planning")
-            if previous and previous.planning.extension:
-                old, new = previous.planning.extension, session.planning.extension
-                if (
-                    new is None
-                    or old.model_dump(exclude={"status"}) != new.model_dump(exclude={"status"})
-                    or (old.status != "granted" and old.status != new.status)
-                    or len(session.planning.attempts) < len(previous.planning.attempts)
+            if previous:
+                for field in ("extension", "requalification"):
+                    old, new = getattr(previous.planning, field), getattr(session.planning, field)
+                    if not old:
+                        continue
+                    if (
+                        new is None
+                        or old.model_dump(exclude={"status"}) != new.model_dump(exclude={"status"})
+                        or (old.status != "granted" and old.status != new.status)
+                        or len(session.planning.attempts) < len(previous.planning.attempts)
+                    ):
+                        raise ValueError(f"Planning {field} and consumed attempts cannot be replaced")
+                    if session.usage[:len(previous.usage)] != previous.usage:
+                        raise ValueError(f"Planning {field} usage history cannot be replaced")
+                if session.planning.requalification and (
+                    session.planning.attempts[:3] != previous.planning.attempts[:3]
                 ):
-                    raise ValueError("Planning extension and consumed attempts cannot be replaced")
-                if session.usage[:len(previous.usage)] != previous.usage:
-                    raise ValueError("Planning extension usage history cannot be replaced")
+                    raise ValueError("Planning requalification prior attempts cannot be replaced")
             db.execute(
                 "INSERT INTO sessions(id,state) VALUES(?,?) ON CONFLICT(id) DO UPDATE "
                 "SET state=excluded.state, updated_at=CURRENT_TIMESTAMP",
