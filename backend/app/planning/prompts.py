@@ -37,7 +37,8 @@ wireframes for exactly its declared states. Never add a screen or change its ref
 PHASE = (
     COMMON
     + """Detail only the requested accepted phase. Include at most two
-work packages, each with at most three ordered leaf tasks. Use globally unique package
+work packages. Copy phase.ref exactly; never append a suffix or invent a new phase ref.
+Each package has at most three ordered leaf tasks. Use globally unique package
 refs and explicit dependency refs. Earlier accepted packages are supplied for context.
 Include ownership paths, interfaces, preconditions, inputs/outputs, steps, acceptance,
 checks with command argv and expected results, artifacts, exclusions, and open choices.
@@ -46,6 +47,13 @@ Acceptance for a confirmed requirement must use status="confirmed" and include i
 check confirmed_ledger_ids against acceptance in this phase and earlier accepted phases.
 Carry applicable constraints/non-goals in package exclusions. Ownership is relative
 to the generated project. Shared interfaces require one producer and dependent consumers.
+When execution_policy is supplied, every task check command must exactly match one of
+its allowed_commands argv arrays. Do not use shell strings, chaining, placeholder commands,
+or unsupported test/install/script runners. Expected results must be concrete and contain
+no TODO, TBD, or placeholder text. Under git-inspection-only-v1 the only supported check
+is ["git", "diff", "--check"], which checks whitespace errors, not application behavior.
+Keep behavioral acceptance criteria explicit for human review; do not claim that this
+inspection proves functionality or grants permission to run additional commands.
 """
 )
 

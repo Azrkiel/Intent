@@ -1,7 +1,11 @@
 import asyncio
+from typing import Literal
 from uuid import uuid4
 
+from pydantic import create_model
+
 from ..domain import gate_for
+from ..execution.verification import POLICY, TRUSTED_COMMAND
 from ..models import ModelError
 from . import prompts
 from .allowance import attempt_limit, state_hash
@@ -125,7 +129,7 @@ class PlanningService:
                 draft = await self.call(
                     session,
                     f"planner:screen:{screen.ref}",
-                    ScreenProposal,
+                    create_model("RequestedScreen", __base__=ScreenProposal, ref=(Literal[screen.ref], ...)),
                     prompts.SCREEN,
                     {**context, "outline": outline.model_dump(), "screen": screen.model_dump()},
                 )
@@ -137,13 +141,22 @@ class PlanningService:
                 draft = await self.call(
                     session,
                     f"planner:phase:{phase.ref}",
-                    PhaseProposal,
+                    create_model("RequestedPhase", __base__=PhaseProposal, ref=(Literal[phase.ref], ...)),
                     prompts.PHASE,
                     {
                         **context,
                         "outline": outline.model_dump(),
                         "phase": phase.model_dump(),
                         "accepted_phases": [x.model_dump() for x in attempt.phases],
+                        "execution_policy": (
+                            {
+                                "name": POLICY,
+                                "allowed_commands": [list(TRUSTED_COMMAND)],
+                                "behavioral_tests_supported": False,
+                            }
+                            if self.settings.allow_codex_execution
+                            else None
+                        ),
                     },
                 )
                 check_citations(draft, session.ledger)
