@@ -105,6 +105,8 @@ class PlanningService:
         context = {
             "ledger": [x.model_dump(mode="json") for x in session.ledger],
             "requirements_revision": session.revision,
+            "confirmed_ledger_ids": [x.id for x in session.ledger if x.status == "confirmed"],
+            "unconfirmed_ledger_ids": [x.id for x in session.ledger if x.status != "confirmed"],
         }
         try:
             yield self.event(session, "plan_started")

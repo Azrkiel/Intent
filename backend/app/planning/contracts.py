@@ -8,7 +8,10 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, computed_f
 
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
 Ref = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9-]{0,39}$")]
-Diagram = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=12000)]
+Diagram = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=12000, pattern=r"^[\t\n\r -~]+$"),
+]
 Texts = Annotated[list[Text], Field(max_length=20)]
 
 

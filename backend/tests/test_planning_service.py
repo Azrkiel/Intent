@@ -38,6 +38,60 @@ async def test_generation_is_incremental_cached_and_does_not_use_compiler(setup)
     assert store.get(session.id).planning.active == active
 
 
+async def test_outline_receives_application_owned_coverage_checklists(setup):
+    from backend.app.domain import LedgerItem
+
+    store, session, _ = setup
+    session.ledger.append(
+        LedgerItem(
+            id="L7",
+            type="decision",
+            text="A still-open implementation choice",
+            status="open",
+            source=None,
+            slot=None,
+            turn=1,
+        )
+    )
+    store.save(session)
+
+    class Checklist(DemoModels):
+        checklist_received = False
+
+        async def call(self, current, role, schema, instruction, payload):
+            result = await super().call(current, role, schema, instruction, payload)
+            if role == "planner:outline":
+                self.checklist_received = payload.get("confirmed_ledger_ids") == [
+                    x.id for x in current.ledger if x.status == "confirmed"
+                ] and payload.get("unconfirmed_ledger_ids") == ["L7"]
+                if not self.checklist_received:
+                    result.specification.pop()
+            return result
+
+    provider = Checklist()
+    events = await collect(PlanningService(store, provider, Settings()), session)
+    assert events[-1]["type"] == "plan_ready"
+    assert provider.checklist_received
+    assert session.planning.approval is None
+
+
+async def test_proposal_citations_cannot_stand_in_for_confirmed_coverage(setup):
+    store, session, _ = setup
+
+    class UnconfirmedCoverage(DemoModels):
+        async def call(self, current, role, schema, instruction, payload):
+            result = await super().call(current, role, schema, instruction, payload)
+            if role == "planner:outline":
+                for statement in result.specification:
+                    statement.status = "proposal"
+            return result
+
+    events = await collect(PlanningService(store, UnconfirmedCoverage(), Settings()), session)
+    assert events[-1]["type"] == "plan_error"
+    assert session.planning.status == "blocked"
+    assert session.planning.active is None and session.planning.approval is None
+
+
 @pytest.mark.parametrize(
     "failure", ["planner:outline", "planner:screen:main", "planner:phase:foundation", "planner:verify"]
 )

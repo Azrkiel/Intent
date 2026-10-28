@@ -47,6 +47,42 @@ async def test_live_model_repairs_json_once_and_tracks_both_calls():
     await client.close()
 
 
+@pytest.mark.parametrize("repair_succeeds", [True, False])
+async def test_non_ascii_planning_diagram_uses_only_the_existing_repair(repair_succeeds):
+    from backend.app.planning.contracts import OutlineProposal
+    from backend.tests.planning_fixtures import outline
+
+    requests = []
+    valid = outline()
+    invalid = {**valid, "architecture": "[Input] \u2192 [Save]"}
+
+    def handle(request):
+        requests.append(json.loads(request.content))
+        payload = valid if repair_succeeds and len(requests) == 2 else invalid
+        return httpx.Response(200, json=completion(json.dumps(payload)))
+
+    client = AsyncOpenAI(
+        api_key="offline-test",
+        base_url="https://test.invalid/v1",
+        max_retries=0,
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handle)),
+    )
+    provider = LiveModels(Settings(), client=client)
+    session = Session()
+    try:
+        if repair_succeeds:
+            result = await provider.call(session, "planner:outline", OutlineProposal, "Plan the fixture.", {})
+            assert result.architecture.isascii()
+        else:
+            with pytest.raises(ModelError, match="after one repair"):
+                await provider.call(session, "planner:outline", OutlineProposal, "Plan the fixture.", {})
+        assert len(requests) == 2
+        assert "architecture" in requests[1]["messages"][-1]["content"]
+        assert len(session.usage) == 2
+    finally:
+        await provider.close()
+
+
 async def test_live_model_never_silently_uses_demo_after_two_invalid_outputs():
     client = AsyncOpenAI(
         api_key="test",
