@@ -574,8 +574,8 @@ The extension is consumed and all three attempts remain stored. Postflight
 confirmed exhaustion blocks before provider dispatch. No complete immutable plan,
 plan approval, bundle, or Codex model turn exists. The outline and screen are
 partial accepted sections, not a qualified plan. Evidence is ignored under
-`.data/live-check/2026-10-28/extension-attempt-3/`. No fourth attempt, reset, or
-replacement session was used. Offline checks passed; overall live planning and
+`.data/live-check/2026-10-28/extension-attempt-3/`. At that checkpoint, no fourth
+attempt, reset, or replacement session was used. Offline checks passed; live planning and
 Phase 5 remain failed/incomplete.
 
 **Offline request-contract follow-up (2026-10-28):** screen and phase requests now
@@ -585,7 +585,22 @@ enabled, phase requests also receive the trusted runner's actual command policy;
 whitespace inspection is not behavioral verification. Existing preflight and
 approval gates remain in place. These changes have offline regression coverage,
 not a fresh live pass. The [further qualification proposal](docs/plans/2026-10-28-fourth-attempt-requalification-proposal.md)
-requires a separate policy decision; no fourth attempt is currently allowed.
+was subsequently approved, implemented, and consumed as recorded below.
+
+**Fourth-attempt qualification (2026-10-28):** `af20dea` adds one separately
+audited grant while preserving the consumed original extension. Atomic preflight,
+issuance/reservation, historical hashes, private audit fields, correction/restart
+handling, and refusal of attempt 5 have 37 new regressions. Fresh checks passed
+377 backend tests, one existing skip/warning, Ruff, and all 16 labeled demo cases.
+
+The one approved fourth attempt **failed at the outline**: its repaired response
+violated the ASCII diagram schema at `architecture`. Two Super responses cost an
+estimated $0.00818940, bringing retained usage to 65 responses and $0.13261738.
+Both grants are consumed. Prior attempts/usage, approved requirements revision 3,
+and the compiled brief are unchanged; no active plan, plan approval, or Codex turn
+exists. Attempt 5 is blocked before provider dispatch. There is no automatic retry;
+live planning and Phase 5 remain failed/incomplete. Evidence stays ignored under
+`.data/live-check/2026-10-28/requalification-attempt-4/`.
 
 ## Claude Code handoff
 

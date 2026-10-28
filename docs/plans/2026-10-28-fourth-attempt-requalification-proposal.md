@@ -1,9 +1,15 @@
 # Proposal: one further live qualification attempt after request-contract fixes
 
 Date: 2026-10-28 (America/New_York).
-Status: proposed; neither a fourth attempt nor a new allowance has been authorized.
+Status: approved by the human on 2026-10-28, implemented at `af20dea`, and consumed
+by one failed fourth live attempt. No fifth attempt or generated-plan approval follows.
 
-## Decision requested
+The approval turn was exactly: "yea, that's fine". It followed the explanation that
+this is one new Nemotron planning attempt under the existing budget, stops on
+success/failure, and does not start Codex/Claude or approve the generated plan.
+Do not ask for this same policy approval again.
+
+## Approved decision
 
 Authorize implementing and consuming one new, separately audited qualification
 grant for the retained counter session and its already approved requirements
@@ -59,7 +65,7 @@ Ruff, and all 16 labeled demo evaluations. The full suite took 464.26 seconds.
 No frontend files changed. Before/after hashes of the retained live session match;
 no provider or Codex model request, new approval, or execution occurred.
 
-## Exact scope if approved
+## Approved implementation scope
 
 1. Add a separate qualification-grant record; do not modify, replace, or replenish
    the original extension. Bind it to the retained session, approved requirements
@@ -100,7 +106,44 @@ no provider or Codex model request, new approval, or execution occurred.
 
 Expected implementation files are `backend/app/planning/{contracts,allowance,service}.py`,
 `backend/app/store.py`, the local extension/operator command, and their tests.
-The current changes do not implement any part of this new allowance.
+The implementation adds the separate grant and `--requalify` operator mode;
+verification and observed live results are recorded below and in the current handoff.
+
+## Implementation verification and observed outcome
+
+Checkpoint `af20dea` adds the separate `PlanningRequalification`, shared allowance,
+atomic reservation, original-extension/history bindings, correction invalidation,
+store preservation, private API exclusions, and explicit operator `--requalify` mode.
+Its 37 regressions cover default exhaustion, valid fourth/refused fifth attempts,
+concurrent issuance/generation, stale state, database rollback, immutable history,
+correction/restart, budget/pass bounds, real-adapter single repair, and redaction.
+
+Fresh verification passed **377 backend tests**, one existing Windows symlink skip,
+and one existing Starlette/httpx warning in 380.89 seconds; Ruff, diff whitespace,
+and all 16 labeled demo evaluations passed. No frontend source changed.
+
+After verification and the code commit, the operator recorded the exact approved
+turn against the retained session and implementation commit. The original extension,
+attempts 1-3, and 63 prior usage records were preserved. One guarded production
+qualification attempt then ran with the existing key and OS trust bundle; no
+credential or account configuration was changed.
+
+The fourth attempt reserved only `planner:outline` and **failed after one repair**.
+Its final diagnostic was `string_pattern_mismatch` at `architecture`: the repaired
+diagram did not satisfy the ASCII schema. The first response used 4096 output tokens;
+raw output and finish reason were not saved, so truncation is not established.
+No outline, immutable plan, plan approval, bundle, or Codex turn was produced.
+
+Exactly two Super responses cost an estimated **$0.00818940**. The retained session
+now has 65 usage records and estimated cumulative spend **$0.13261738**. Both grants
+are consumed; approved requirements revision 3, the compiled brief, historical
+attempts, and prior usage are unchanged. Postflight confirmed the 4/4 limit and
+rejection of attempt 5 before a provider call or save. There is no automatic retry.
+
+Private evidence is ignored under `.data/live-check/2026-10-28/requalification-attempt-4/`.
+The driver must not be rerun. Further work can investigate diagram reliability
+offline; any later live allowance needs a new explicit policy decision. Overall
+live planning and Phase 5 remain failed/incomplete.
 
 ## Remaining qualifications
 
