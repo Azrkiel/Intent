@@ -37,7 +37,9 @@ Never export credentials, authentication state, or session transcripts.
 """
 
 
-def export_bundle(plan: PlanDocument, approval: PlanApproval | None, revision: int, ledger) -> bytes:
+def export_bundle(
+    plan: PlanDocument, approval: PlanApproval | None, revision: int, ledger, *, worker_limits=None,
+) -> bytes:
     expected = PlanApproval(
         plan_id=plan.id,
         revision=plan.revision,
@@ -87,6 +89,9 @@ def export_bundle(plan: PlanDocument, approval: PlanApproval | None, revision: i
                     indent=2,
                 )
             )
+    from .graph_export import graph_files
+
+    files.update(graph_files(plan, ledger, state="approved", worker_limits=worker_limits))
     members = {safe_path(name): value.encode("utf-8") for name, value in files.items()}
     if len({name.casefold() for name in members}) != len(members):
         raise ValueError("Archive path collision")
