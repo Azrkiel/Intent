@@ -32,6 +32,58 @@ async def test_failed_critic_keeps_the_gate_closed_and_preserves_ledger(tmp_path
     assert any("edges" in warning for warning in restored.warnings)
 
 
+@pytest.mark.parametrize("ranking_fails", [False, True])
+async def test_ranker_can_check_settled_answers_without_bypassing_failures(tmp_path, ranking_fails):
+    class ContextAware(DemoModels):
+        received_context = False
+
+        async def call(self, session, role, schema, instruction, payload):
+            if role.startswith("critic:"):
+                candidates = []
+                if role == "critic:identity":
+                    candidates = [
+                        Candidate(
+                            lens="identity",
+                            targets=[session.ledger[0].id],
+                            question="Should this already confirmed decision be changed?",
+                            options=["Keep the confirmed decision", "Choose a different decision"],
+                            code_diff="Keep the approved access guard versus replacing its policy",
+                            divergence=3,
+                            uncertainty=2,
+                            cost_to_change=3,
+                        )
+                    ]
+                return schema(candidates=candidates)
+            if role == "ranker":
+                self.received_context = (
+                    payload.get("ledger") == [item.model_dump() for item in session.ledger]
+                    and payload.get("already_asked") == []
+                    and "active_question" in payload
+                )
+                if ranking_fails:
+                    raise ModelError("Synthetic ranking failure")
+                return schema(
+                    scores=[
+                        {
+                            "id": payload["candidates"][0]["id"],
+                            "divergence": 1 if self.received_context else 3,
+                            "uncertainty": 2,
+                            "cost_to_change": 3,
+                        }
+                    ]
+                )
+            return await super().call(session, role, schema, instruction, payload)
+
+    store = Store(str(tmp_path / "sessions.db"))
+    session = ready_session()
+    provider = ContextAware()
+    async for _ in Engine(store, provider).analyze(session):
+        pass
+    assert provider.received_context
+    assert public_session(session)["gate"]["ready"] is (not ranking_fails)
+    assert session.analysis_complete is (not ranking_fails)
+
+
 def test_retry_analysis_reextracts_a_failed_user_correction(tmp_path):
     class OnceFailingExtractor(DemoModels):
         failed = False

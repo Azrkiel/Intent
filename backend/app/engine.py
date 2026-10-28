@@ -178,7 +178,7 @@ class Engine:
                     "ranker",
                     Ranking,
                     prompts.RANK,
-                    {"candidates": [q.model_dump(round_trip=True) for q in candidates]},
+                    {**context(session), "candidates": [q.model_dump(round_trip=True) for q in candidates]},
                 )
                 scores = {score.id: score for score in ranking.scores}
                 for question in candidates:
