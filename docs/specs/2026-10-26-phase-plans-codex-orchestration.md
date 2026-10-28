@@ -25,6 +25,38 @@ tests, type checking, production build, and 16/16 demo evaluations. Overall live
 planning and Phase 5 acceptance remain incomplete. Detailed
 evidence and remaining manual audits are recorded in the implementation plan and README.
 
+## Approved graph extension, 2026-10-28
+
+The user approved G0-G6 of the [graph design and review](../../.Codex/handoffs/2026-10-28-0843.md)
+with: "yes, I approve and continue with all of it". The extension retains the
+original five delivery phases and does not authorize another live planning attempt.
+
+Add a deterministic project-root graph beside the two text views, with complete
+field inspection, citations, search, accessible navigation, pending/stale states,
+and a self-contained human export. Existing work packages remain the subprojects
+and dispatch units. Source `PlanDocument` hashes and old approvals stay unchanged.
+
+Workers receive a separate `ancestor-context-v1` packet: controlled rules, flat
+root and assigned-phase context, the complete assigned package/task subtree,
+applicable exact sources, explicit shared inputs, and planned handoff fields.
+Dependencies do not grant access to sibling instructions. Publish selected UTF-8
+artifacts only from trusted integrated evidence at the nearest common ancestor.
+This packet boundary makes no claim of filesystem read isolation.
+
+Keep context reviews outside the immutable plan. Bind source identity, phase
+attempt, base commit, policy/instruction versions, configured worker limits,
+snapshot/body/document hashes, manifest, and exact dispatched bytes. Preparation
+and approval do not dispatch. Missing or changed inputs pause at
+`awaiting_context_review`; an explicit resume continues the same phase attempt.
+Reject unsupported checks, oversized packets and stale identities before external
+dispatch, and preserve historical bytes across instruction-policy changes.
+Plan approval, context approval, tool permissions and human phase acceptance remain
+separate. The live Phase 5 qualification status above is unchanged by this extension.
+The implemented extension passed 334 backend tests (one existing skip/warning),
+Ruff, 23 frontend tests, type checking, production build and 16/16 demo evaluations.
+The handoff records browser observations and the blocked from-disk viewer check;
+these are offline implementation results, not live provider qualification.
+
 ## Goal
 
 Turn clarified intent into a coherent design and a dependency-aware implementation

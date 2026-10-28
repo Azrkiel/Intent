@@ -152,8 +152,12 @@ run a backend or synchronize across devices.
 After approving the current requirements playback, open **Phase plan** (or
 **Plan phases** from the compiled brief) and choose **Generate phase plan**.
 Validated outline, wireframe, and phase sections appear progressively. Switch
-between **Vision & wireframes** and **Engineering & work packages** to inspect
-the same revision. Proposed choices and unresolved questions remain explicit.
+between **Project graph**, **Vision & wireframes**, and **Engineering & work
+packages** to inspect the same revision. The graph starts at the project root;
+use search, filters, the keyboard outline, and the node inspector to reach every
+scope, source quote, acceptance condition, proposed check, and planned handoff.
+Use **Fit** for the whole overview or **Center root** to return to the project
+intent and orchestration. Proposed choices and unresolved questions remain explicit.
 
 Choose **Approve this revision**, then **Export instruction bundle**. The ZIP
 contains the canonical `plan.json`, a hashed manifest, cited specification, vision,
@@ -161,6 +165,22 @@ wireframes, architecture, shared `AGENTS.md`/compatible `CLAUDE.md`, and detaile
 phase and work-package packets. Approval binds the plan ID, revision, content hash,
 and requirements revision. A new utterance clears approval and preserves the old
 plan for inspection. Draft, failed, or stale plans cannot export.
+
+The human ZIP also contains `graph/graph.json`, per-node JSON, and a self-contained
+`graph/index.html` viewer with no remote assets. Every member is manifest-hashed.
+This complete human archive is distinct from the scoped worker bundle. Partial
+attempts show accepted sections and pending nodes; rejected phase bodies never
+appear as validated graph content. Drawing or filtering the graph makes no model
+requests and does not change the plan hash or grant execution approval.
+
+Graph/context verification (2026-10-28): 334 backend tests passed with one existing
+Windows symlink skip and one existing deprecation warning; Ruff, 23 frontend tests,
+type checking, production build and all 16 labeled demo evaluations passed. Browser
+checks covered complete/blocked fixtures, identity, search, keyboard controls and
+mobile/desktop layout. The browser tool blocks `file://` navigation, so opening
+the exported viewer from disk with network disabled remains a manual check. No live
+provider call was made for this extension; original Phase 5 qualification remains
+incomplete. Checkpoints and limits are in the [current handoff](.Codex/handoffs/2026-10-28-0843.md).
 
 Planning uses Super through the existing model adapter and session budget. It does
 not consume another Ultra compiler pass. An attempt has an outline pass, up to
@@ -214,8 +234,12 @@ Observed Codex token counts are retained separately from Nemotron dollar estimat
 | Route under `/api/sessions/{id}/execution` | Behavior |
 | --- | --- |
 | `POST` | Exact approved plan identity plus `package_id` and optional `model`; claim one eligible package |
-| `GET` | Durable runs and phases, staged evidence, usage, permissions, changed paths, and labeled worker claims |
+| `GET` | Durable runs, phases and context reviews, staged evidence, usage, permissions, changed paths, and labeled worker claims |
+| `POST /contexts/prepare` | Exact approved plan identity, `package_id`, and explicit `publications` selections; save a packet without dispatching |
+| `POST /contexts/{context_hash}/approve` | Exact plan identity and `packet_hash`; approve the displayed immutable input |
+| `GET /contexts/{context_hash}/bundle` | Export the current approved scoped worker ZIP |
 | `POST /phases/{phase_id}/start` | Exact approved plan identity and optional `model`; explicitly start the current phase scheduler |
+| `POST /phases/{phase_id}/resume` | Exact plan identity and optional `model`; explicitly resume an `awaiting_context_review` phase after reviewing its eligible packets |
 | `POST /phases/{phase_id}/review` | Exact plan identity, `evidence_hash`, `decision: accept\|reject`, optional `notes`; accept only the reviewed staging commit |
 | `POST /phases/{phase_id}/repair` | Exact plan identity, current `attempt`, `evidence_hash` (nullable before review), optional `model`; preserve old work and start fresh package attempts |
 | `POST /phases/{phase_id}/cancel` | Exact plan identity; stop phase dispatch and preserve work |
@@ -232,6 +256,29 @@ enforce capacity, path ownership, interface compatibility and one active phase.
 Compatible readers may share an integrated interface; producers and conflicting
 versions cannot. A dependent package starts from its prerequisite's integrated
 staging commit. Worker completion alone never makes a dependency eligible.
+
+Before dispatch, prepare and review each eligible package's context in the
+**Codex execution** panel. `ancestor-context-v1` supplies controlled instructions,
+flat project-root and assigned-phase bodies, the complete assigned package and
+its ordered tasks, applicable exact source quotes, and a handoff template. Sibling
+and cousin task bodies are excluded. This restricts supplied documents; it does
+not isolate filesystem reads from other source files in the checkout.
+
+For each dependency, explicitly select the producer artifacts to publish. A shared
+snapshot binds the declared interface/version, selected UTF-8 artifact bytes and
+hashes, producing run, integrated commit, and trusted evidence. Missing or changed
+inputs block preparation. Cross-phase inputs also require prior phase acceptance.
+The input packet is limited to 262144 UTF-8 bytes; oversized packets fail without
+truncation. Unsupported or placeholder checks fail preflight before Codex starts.
+
+Context approval binds the plan, phase attempt, input base, instruction policy,
+configured worker limits, snapshot hashes, manifest, and exact dispatch text.
+Approval does not start a worker. Changed inputs require a fresh review. A started
+phase pauses at `awaiting_context_review` when its next eligible package lacks an
+approved packet; approve that packet and explicitly resume the same phase attempt.
+The executor persists and dispatches those exact bytes and checks their identity
+again on recovery and phase review. Historical packets remain readable after an
+instruction update, while incompatible or legacy contexts cannot resume execution.
 
 The scheduler runs only the current phase and stops at `awaiting_phase_review`.
 The **Codex execution** panel restores progress, permissions, logs, diffs, trusted

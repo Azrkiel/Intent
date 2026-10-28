@@ -794,6 +794,38 @@ is included. Fresh verification remains required for each future checkpoint.
 | Correction/restart/limits/cancellation preserve work | 2.3 dispatch intents; 3.2 failure handling; 4.1 recovery tests |
 | HTML preview limits and honest qualification | 4.2 UI boundaries; 5.1 separate offline/live reports and README |
 
+## Approved graph and ancestor-context extension, 2026-10-28
+
+The approved implementation contract and G0-G6 acceptance map are retained in the
+[original handoff](../../.Codex/handoffs/2026-10-28-0843.md). This extension keeps the
+five-phase qualification plan intact. Its graph, worker context and shared
+publication projections are deterministic and require no new inference or planning
+allowance. The failed retained live counter is not a source of complete plan data.
+
+| Requirement | Implementation |
+| --- | --- |
+| D1: entire plan and details | `planning/graph.py` source-field map; full graph/legacy human exports; selected-node inspector |
+| D2: central project root | Deterministic radial layout, root-centered camera, fit/pan/zoom and responsive graph panel |
+| D3: intent and orchestration | Root specification, architecture, phase/dependency overview, configured limits and application-owned gates |
+| D4: subproject scope and handoff | Complete local package and ordered tasks, ownership/exclusions, planned handoff contract, context-bound trusted execution evidence |
+| D5: ancestor context | `planning/context.py` and scoped worker ZIP; explicit shared snapshots; actual saved dispatch text and durable context review/recovery guards |
+
+Implementation preserves immutable planning contracts. The distinct execution
+context store retains reviewed bytes and approvals, while runs pin context/packet
+identities. A dependent package requires its integrated inputs and a fresh exact
+context review before an explicit same-phase resume. Missing legacy context or an
+instruction-policy mismatch blocks execution without replacing historical packets.
+The README documents the context preparation, approval, export and resume endpoints.
+
+Evidence for this extension is recorded in the handoff's current continuation.
+Final automated verification: 334 backend tests passed (one existing Windows
+symlink skip and one existing warning), Ruff, 23 frontend tests, type checking,
+production build and 16/16 scripted demo evaluations. Complete and blocked app
+graphs were browser-checked at desktop and mobile sizes; all views retained identity.
+Automated/demo evidence remains separate from real provider qualification and
+Phase 5 acceptance. Opening exported HTML through a `file://` browser URL requires
+a manual check when the browser tool's URL policy blocks that protocol.
+
 ## Protocol references and compatibility
 
 The transport follows the [official Codex app-server documentation](https://learn.chatgpt.com/docs/app-server):
