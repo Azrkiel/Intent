@@ -11,9 +11,16 @@ FAKE = Path(__file__).parent / "fixtures/codex/fake_server.py"
 
 
 async def connect(**kwargs):
+    request_timeout = kwargs.pop("timeout", 15.0)
     transport = Transport([sys.executable, "-u", str(FAKE)], **kwargs)
     await transport.start()
-    await transport.initialize()
+    try:
+        await transport.initialize()
+    except BaseException:
+        await transport.close()
+        raise
+    # Fault probes have short request deadlines; Python startup uses the normal bound.
+    transport.timeout = request_timeout
     return transport
 
 
@@ -30,6 +37,26 @@ async def test_split_frames_notifications_and_out_of_order_replies():
     finally:
         await transport.close()
     assert transport.process.returncode is not None
+
+
+async def test_short_request_deadline_does_not_apply_to_subprocess_startup(monkeypatch):
+    original = Transport
+
+    def delayed(argv, **kwargs):
+        return original(
+            [sys.executable, "-u", "-c",
+             "import time,runpy,sys; time.sleep(0.75); runpy.run_path(sys.argv[1], run_name='__main__')",
+             str(FAKE)],
+            **kwargs,
+        )
+
+    monkeypatch.setattr(sys.modules[__name__], "Transport", delayed)
+    transport = await connect(timeout=0.1)
+    try:
+        with pytest.raises(CodexError, match="timed out"):
+            await transport.request("test/hang", {})
+    finally:
+        await transport.close()
 
 
 @pytest.mark.parametrize("method", ["test/malformed", "test/oversized", "test/exit", "test/hang"])
