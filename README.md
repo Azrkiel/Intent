@@ -477,16 +477,16 @@ specification coverage. Application-owned confirmed/unconfirmed ID checklists an
 explicit statement-status instructions were added. Attempt 2 returned schema-valid
 JSON covering all seven confirmed IDs, but the application rejected its non-ASCII
 architecture diagram. No outline, screen or phase was accepted. Both session
-attempts are consumed; no allowance was reset and no replacement session or
-additional live planning request was made.
+attempts were consumed at that checkpoint; no allowance was reset and no replacement
+session or additional live planning request had been made.
 
 The diagram failure exposed a schema gap: ASCII was checked only after provider
 schema validation, so the existing JSON-repair path could not handle it. Checkpoint
 `a0af23f` declares the ASCII pattern in the provider schema while retaining
 application validation. Offline regressions verify repair of a Unicode diagram,
 failure after two invalid responses, Unicode prose support, coverage checklists
-and rejection of proposal-only coverage. This contract fix has **not** been
-requalified live in the exhausted session. Fresh verification passed 242 backend
+and rejection of proposal-only coverage. At that checkpoint the contract fix had
+not been requalified live in the exhausted session. Fresh verification passed 242 backend
 tests (one Windows symbolic-link skip and the existing dependency warning) and
 Ruff. No frontend files changed during this follow-up.
 
@@ -496,6 +496,40 @@ field/error diagnostics are in `.data/live-check/2026-10-28/planning-attempt-1/`
 `planning-attempt-2/` and `approved-requirements-test-summary.json`. No valid plan,
 plan approval, bundle audit or Codex model turn followed these failures. Phase 5
 and real generated-app qualification remain incomplete.
+
+**Approved one-attempt extension (2026-10-28):** after explicit human approval,
+`ec14afd` implements one recorded, non-renewable session extension while keeping
+the ordinary settings maximum at two. Prior attempts and usage remain intact;
+issuance and attempt reservation use atomic snapshot checks. Correction invalidates
+an unused extension, and private audit fields are excluded from public responses.
+`3c86154` separates transport test startup from short fault-probe deadlines and
+closes failed fixture setup; production transport deadlines are unchanged.
+
+Final fresh checks passed: **276 backend tests**, one existing Windows symlink
+skip and the existing dependency warning; Ruff, 15 frontend tests, type checking,
+production build, and 16/16 labeled demo evaluations. A built-app loopback/proxy
+smoke passed streamed demo planning, both views, and the approval gate. The basic
+live smoke initially returned generic Nano `model_error`; an instrumented repeat
+passed Nano, Lightning and Super without a runtime/prompt change. The optional
+thinking-controls smoke passed too, but the default stays off and prior failures
+remain evidence. The isolated Codex profile requalified without inference.
+
+The single authorized third planning attempt **failed**. Its outline covered all
+seven confirmed IDs and passed ASCII checks, and one screen was accepted. After
+one JSON repair, the first phase returned `ui-setup-phase` where the accepted
+outline required `ui-setup`; the application correctly rejected that identity.
+The unaccepted candidate also contained shell-style checks and a placeholder
+verification command incompatible with the trusted runner; none was executed.
+Four Super responses cost an estimated **$0.01263540**, bringing the retained
+session estimate to **$0.12442798** across 63 usage records.
+
+The extension is consumed and all three attempts remain stored. Postflight
+confirmed exhaustion blocks before provider dispatch. No complete immutable plan,
+plan approval, bundle, or Codex model turn exists. The outline and screen are
+partial accepted sections, not a qualified plan. Evidence is ignored under
+`.data/live-check/2026-10-28/extension-attempt-3/`. No fourth attempt, reset, or
+replacement session was used. Offline checks passed; overall live planning and
+Phase 5 remain failed/incomplete.
 
 ## Claude Code handoff
 

@@ -6,7 +6,8 @@ Phases 3 and 4 were accepted by the user on 2026-10-27. Phase 4 is implemented
 and verified offline. Phase 5 qualification tooling is implemented and tested
 offline. The 2026-10-28 live follow-up passed the basic Nebius smoke and qualified
 an isolated signed-in Codex profile. Requirements are approved and Ultra compilation
-passed. Planning is blocked after two failed attempts; generated execution has not started.
+passed. Planning remains blocked after a third, explicitly authorized attempt
+failed phase identity validation; generated execution has not started.
 Source: [design](../specs/2026-10-26-phase-plans-codex-orchestration.md).
 
 **Goal:** Turn approved, cited requirements into synchronized design and engineering
@@ -660,11 +661,36 @@ validation or adding retries. Offline regressions cover those constraints, repai
 success/failure, Unicode prose, source checklists and coverage failure closure.
 Fresh verification: 242 backend tests passed, one Windows symlink test skipped,
 existing dependency warning retained, and Ruff passed. No frontend files changed.
-The last contract change has not been requalified live. The current session's
-planning allowance remains exhausted; no reset or replacement session was used.
+At that checkpoint the last contract change had not been requalified live. The
+session's planning allowance remained exhausted; no reset or replacement was used.
 The follow-up's five model responses cost an estimated $0.02111; the entire retained
 counter conversation totals an estimated $0.11179. Reports and redacted diagnostics
 remain ignored under `.data/live-check/2026-10-28/`. Phase 5 acceptance remains pending.
+
+After human approval of the [one-attempt amendment](2026-10-28-planning-requalification-proposal.md),
+`ec14afd` added the recorded session-bound extension and atomic snapshot guards.
+`3c86154` fixed transport fixture startup/fault deadline coupling without changing
+production timeouts. Fresh final checks: 276 backend tests passed, one existing
+Windows symlink skip, existing dependency warning; Ruff, 15 frontend tests,
+type checking, production build, and 16/16 demo evaluations passed. Built-app
+loopback/proxy planning smoke and the latest basic/optional-control live smokes
+passed; the first basic live probe's generic Nano failure is retained. The Codex
+profile qualified again without a model turn.
+
+The sole added attempt accepted an outline covering all seven confirmed IDs and
+one screen. Its first phase used one JSON repair, then supplied `ui-setup-phase`
+instead of the accepted outline's `ui-setup`; the application rejected it. The
+candidate also proposed shell-style/placeholder checks outside the qualified
+trusted runner. No phase was accepted and no command was executed. Four Super
+responses cost an estimated $0.01263540; session cumulative estimate is $0.12442798
+across 63 usage records. Both earlier attempts and their usage remain intact.
+
+The grant is consumed, all three attempts are exhausted, and a read-only postflight
+confirmed the service blocks before further provider calls. No fourth attempt,
+reset, or replacement session was used. No immutable plan, approval, exported
+bundle, Codex inference, or Phase 5 acceptance exists. Outline/screen sections
+are partial only. Saved validated candidates, outcome, and failure audit remain
+ignored under `.data/live-check/2026-10-28/extension-attempt-3/`.
 
 ## Verification and requirement coverage
 

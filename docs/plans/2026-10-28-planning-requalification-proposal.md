@@ -1,8 +1,8 @@
 # Proposal: one recorded planning extension for Phase 5
 
 Date: 2026-10-28 (America/New_York).
-Status: approved by the human on 2026-10-28; implementation and live verification
-are being recorded in subsequent checkpoints. No plan approval is implied.
+Status: approved by the human on 2026-10-28, implemented at `ec14afd`, and consumed
+by one failed additional live attempt. No plan approval or fourth attempt is implied.
 
 ## Verified starting point
 
@@ -135,3 +135,28 @@ also passed; historical failures remain recorded and the default stays off.
 The isolated Codex profile qualified without inference; its overall qualification
 report remains incomplete pending an approved plan and generated execution.
 These results do not yet establish a successful third planning attempt.
+
+## Observed third-attempt outcome
+
+After the final checks and code checkpoints, the local operator command recorded
+the exact approval, approved revision 3, the two prior attempt hashes, and full
+implementation commit. The production qualifier then ran exactly one added attempt.
+The outline covered all seven confirmed IDs and passed ASCII constraints; one
+screen was accepted. The first phase used its existing single JSON repair, then
+returned schema-valid `ui-setup-phase` instead of the outline's `ui-setup`.
+Application validation correctly blocked it. No phase or immutable plan was accepted.
+
+There were three logical passes and four Super responses, costing an estimated
+$0.01263540. Cumulative retained usage is 63 responses and $0.12442798 estimated.
+The approved brief, requirements revision, prior attempts, and prior usage were
+unchanged. The rejected phase also included shell-style checks and a placeholder
+verification command incompatible with `git-inspection-only-v1`; none was executed.
+Changing its ref alone would not qualify its fidelity or checks.
+
+The extension is consumed and all three attempts are exhausted. Read-only
+postflight confirmed rejection before a provider call or a store save.
+No fourth attempt was made. No plan approval, bundle, Codex inference, or
+Phase 5 acceptance followed. The latest basic/controls probes and all offline
+checks passed; overall live planning remains failed/incomplete. Saved outcomes,
+validated candidates, before-snapshot, and the failure audit remain ignored under
+`.data/live-check/2026-10-28/extension-attempt-3/`.

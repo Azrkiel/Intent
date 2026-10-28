@@ -15,10 +15,14 @@ user acceptance gates for all five delivery phases. Phase 5 qualification comman
 and offline tests are implemented. The 2026-10-28 follow-up passed the basic live
 Nebius smoke and qualified an isolated signed-in Codex profile. The live counter
 conversation reached readiness after observed extraction/ranking/playback fixes.
-Requirements revision 3 is approved and Ultra compilation passed. Two live planning
-attempts failed coverage/ASCII checks; the session allowance is exhausted and no
-generated execution started. Contract improvements passed offline checks, with
-live requalification and Phase 5 acceptance still pending. Detailed
+Requirements revision 3 is approved and Ultra compilation passed. The first two
+live planning attempts failed coverage/ASCII checks. An explicitly approved,
+recorded third attempt accepted the outline and one screen, then failed phase
+reference identity after one JSON repair. The extension is consumed and all three
+attempts are exhausted; no generated execution started. Fresh final verification
+passed 276 backend tests (one existing Windows symlink skip), Ruff, 15 frontend
+tests, type checking, production build, and 16/16 demo evaluations. Overall live
+planning and Phase 5 acceptance remain incomplete. Detailed
 evidence and remaining manual audits are recorded in the implementation plan and README.
 
 ## Goal
