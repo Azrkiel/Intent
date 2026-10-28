@@ -57,21 +57,29 @@ async def run(output, *, session_id=None, phase_id=None, settings=None, factory=
                 try:
                     phase = executor.runs.phase(session.id, identity.content_hash, phase_id)
                 except KeyError:
-                    print("Model requests: selected approved phase. No automatic permission grants.")
-                    record["model_requests_possible"] = True
+                    print(
+                        "Selected phase: only reviewed contexts can dispatch. "
+                        "No automatic context or permission grants."
+                    )
                     phase = executor.start_phase(session, identity, phase_id)
                     await executor.phase_tasks[phase.id]
                     phase = executor.runs.phase(session.id, identity.content_hash, phase_id)
+                    record["model_requests_possible"] = bool(executor.phase_runs(phase))
                 runs = executor.phase_runs(phase)
                 record["codex_tokens"] = {
                     key: sum(r.token_usage.get(key, 0) for r in runs)
                     for key in ("inputTokens", "outputTokens", "totalTokens", "cachedInputTokens")
                 }
                 passed = phase.status in {"awaiting_phase_review", "accepted"} and bool(runs)
+                awaiting_context = phase.status == "awaiting_context_review"
                 record.update(
                     automated_checks_passed=passed,
-                    failure="phase_review_required" if passed else "execution_failed",
-                    status="incomplete" if passed else "failed",
+                    failure="context_review_required"
+                    if awaiting_context
+                    else "phase_review_required"
+                    if passed
+                    else "execution_failed",
+                    status="incomplete" if passed or awaiting_context else "failed",
                 )
     except Exception:
         record.update(status="failed", failure=("execution_failed" if executor else "profile_unavailable"))

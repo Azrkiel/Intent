@@ -16,6 +16,7 @@ FAILURES = {
     "manual_audit_required",
     "execution_failed",
     "phase_review_required",
+    "context_review_required",
     "cleanup_failed",
     "invalid_configuration",
 }

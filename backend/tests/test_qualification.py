@@ -204,9 +204,13 @@ async def test_planning_rejects_unapproved_or_demo_session_before_provider(tmp_p
 @pytest.mark.parametrize("scenario,success", [("scoped_artifact", True), ("out_of_scope", False)])
 async def test_codex_evidence_and_repeat_do_not_redispatch(tmp_path, monkeypatch, scenario, success):
     from backend import qualify_codex
+    from backend.tests.test_codex_worker import approve_package
     from backend.tests.test_execution_verification import scoped_fixture
 
-    session, _, executor = scoped_fixture(tmp_path, scenario)
+    session, document, executor = scoped_fixture(tmp_path, scenario)
+    executor.scheduler.capacity = 2
+    await approve_package(session, document, executor, "P1-W1")
+    await approve_package(session, document, executor, "P1-W2")
     monkeypatch.setattr(qualify_codex, "Executor", lambda *args: executor)
 
     class Profile:
@@ -231,6 +235,42 @@ async def test_codex_evidence_and_repeat_do_not_redispatch(tmp_path, monkeypatch
     assert [r.id for r in executor.runs.list(session.id)] == [r.id for r in runs]
     phase = executor.runs.phase(session.id, session.planning.approval.content_hash, "P1")
     assert phase.status != "accepted"
+
+
+async def test_codex_qualifier_preserves_context_review_pause_without_dispatch(tmp_path, monkeypatch):
+    from backend import qualify_codex
+    from backend.tests.test_execution_verification import scoped_fixture
+
+    session, _, executor = scoped_fixture(tmp_path, "scoped_artifact")
+    monkeypatch.setattr(qualify_codex, "Executor", lambda *args: executor)
+
+    async def forbidden(run):
+        pytest.fail("Missing context approval cannot start a worker process")
+
+    executor.factory = forbidden
+
+    class Profile:
+        async def qualify(self, cwd):
+            return {"model": "gpt-5.3-codex"}
+
+        async def close(self):
+            pass
+
+    result = await qualify_codex.run(
+        tmp_path / "codex-context.json",
+        session_id=session.id,
+        phase_id="P1",
+        settings=executor.settings,
+        factory=lambda _: Profile(),
+    )
+    assert result["status"] == "incomplete"
+    assert result["failure"] == "context_review_required"
+    assert not result["automated_checks_passed"] and not result["model_requests_possible"]
+    assert not executor.runs.list(session.id)
+    assert (
+        executor.runs.phase(session.id, session.planning.approval.content_hash, "P1").status
+        == "awaiting_context_review"
+    )
 
 
 async def test_planning_cleanup_failure_cannot_exit_as_success(tmp_path):

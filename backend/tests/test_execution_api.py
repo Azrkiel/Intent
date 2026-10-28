@@ -3,7 +3,7 @@ import asyncio
 import httpx
 
 from backend.app.main import create_app
-from backend.tests.test_codex_worker import fixture
+from backend.tests.test_codex_worker import approve_package, drive_reviewed_phase, fixture
 
 
 async def test_single_package_api_guards_and_preserves_run_on_restart(tmp_path):
@@ -17,6 +17,7 @@ async def test_single_package_api_guards_and_preserves_run_on_restart(tmp_path):
         request = {**session.planning.approval.model_dump(), "package_id": document.phases[0].packages[0].id}
         assert (await client.post(base, json={**request, "content_hash": "b" * 64})).status_code == 409
         assert (await client.post(base, json={**request, "sandbox": "all"})).status_code == 422
+        await approve_package(session, document, app.state.executor)
         started = await client.post(base, json=request)
         assert started.status_code == 200, started.text
         run_id = started.json()["id"]
@@ -66,6 +67,7 @@ async def test_correction_interrupts_execution_and_stops_stale_permission_replie
     ):
         base = f"/api/sessions/{session.id}/execution"
         request = {**session.planning.approval.model_dump(), "package_id": document.phases[0].packages[0].id}
+        await approve_package(session, document, app.state.executor)
         run = (await client.post(base, json=request)).json()
         for _ in range(100):
             saved = app.state.executor.runs.get(run["id"])
@@ -97,7 +99,8 @@ async def test_phase_start_api_exposes_durable_staging_and_does_not_accept_next_
         assert (await client.post(base + "/phases/P2/start", json=request)).status_code == 409
         result = await client.post(base + "/phases/P1/start", json=request)
         assert result.status_code == 200, result.text
-        await app.state.executor.phase_tasks[result.json()["id"]]
+        phase = app.state.executor.runs.phase(session.id, document.content_hash, "P1")
+        await drive_reviewed_phase(session, document, app.state.executor, phase)
         detail = (await client.get(base)).json()
         assert detail["phases"][0]["status"] == "awaiting_phase_review"
         assert detail["phase_acceptance_enabled"]

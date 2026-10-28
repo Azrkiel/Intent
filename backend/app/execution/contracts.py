@@ -14,6 +14,9 @@ class Run(BaseModel):
     session_id: str
     plan: PlanApproval
     package_id: str
+    context_hash: str | None = None
+    packet_hash: str | None = None
+    context_review_hash: str | None = None
     phase_attempt: int = Field(default=1, ge=1)
     status: Literal["queued", "running", "verifying", "integrated", "blocked", "cancelled"] = "queued"
     owned_paths: list[str] = Field(default_factory=list, max_length=20)
@@ -52,9 +55,15 @@ class PhaseExecution(BaseModel):
     session_id: str
     plan: PlanApproval
     phase_id: str
-    status: Literal["running", "verifying", "awaiting_phase_review", "accepted", "blocked", "cancelled"] = (
-        "running"
-    )
+    status: Literal[
+        "running",
+        "awaiting_context_review",
+        "verifying",
+        "awaiting_phase_review",
+        "accepted",
+        "blocked",
+        "cancelled",
+    ] = "running"
     attempt: int = Field(default=1, ge=1)
     stale: bool = False
     review_hash: str | None = None

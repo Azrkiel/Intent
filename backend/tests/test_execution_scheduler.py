@@ -9,7 +9,7 @@ from backend.app.planning.contracts import PhaseProposal, PlanApproval
 from backend.app.planning.validation import accept_phase
 from backend.app.store import Store
 from backend.tests.planning_fixtures import package, phase
-from backend.tests.test_codex_worker import fixture
+from backend.tests.test_codex_worker import approve_package, fixture, qualified_checks
 from backend.tests.test_plan_validation import plan
 
 
@@ -130,11 +130,14 @@ async def test_failure_interrupts_other_worker_and_stale_approval_cannot_dispatc
         document.outline,
         0,
     )
+    qualified_checks(document)
     identity_ = PlanApproval.model_validate(identity(document))
     session.planning.active = session.planning.approval = identity_
     executor.sessions.save(session)
     executor.sessions.save_plan(session.id, document)
     executor.scheduler.capacity = 2
+    await approve_package(session, document, executor, "P1-W1")
+    await approve_package(session, document, executor, "P1-W2")
     first = executor.start(session, identity_, "P1-W1")
     second = executor.start(session, identity_, "P1-W2")
     for _ in range(300):

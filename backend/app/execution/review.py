@@ -11,6 +11,8 @@ def transition(kind, before, after):
     edges = {
         "run": {("queued", "running"), ("running", "verifying"), ("verifying", "integrated")},
         "phase": {
+            ("running", "awaiting_context_review"),
+            ("awaiting_context_review", "running"),
             ("running", "verifying"),
             ("verifying", "awaiting_phase_review"),
             ("awaiting_phase_review", "accepted"),
@@ -86,6 +88,10 @@ def make_review(phase, runs, document):
     ):
         raise ValueError("Phase packages are incomplete, stale, or uncertain")
     for run in records:
+        if any(key in run.evidence for key in ("context_hash", "packet_hash", "context_review_hash")):
+            for key in ("context_hash", "packet_hash", "context_review_hash"):
+                if not getattr(run, key) or run.evidence.get(key) != getattr(run, key):
+                    raise ValueError("Trusted evidence differs from its run context identity")
         required_evidence(run.evidence, [next(p for p in packages if p.id == run.package_id)])
     required_evidence(phase.evidence, packages)
     attempts = sorted(r.id for r in records)
@@ -119,6 +125,8 @@ class PhaseReviews:
         self.executor = executor
 
     def publish(self, phase, document):
+        for run in self.executor.phase_runs(phase):
+            self.executor.check_context(run)
         review = make_review(phase, self.executor.runs.list(phase.session_id), document)
         self.executor.runs.save_review(review)
 
@@ -164,6 +172,8 @@ class PhaseReviews:
             or decision not in {"accept", "reject"}
         ):
             raise ValueError("Review identity is stale or decision is invalid")
+        for run in ex.phase_runs(phase):
+            ex.check_context(run)
         review = make_review(phase, ex.runs.list(session_id), document)
         if review.evidence_hash != evidence_hash or ex.runs.review(evidence_hash) != review:
             raise ValueError("Review evidence changed; reload the current immutable review")

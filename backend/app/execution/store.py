@@ -8,6 +8,7 @@ from .scheduler import interface_conflict
 class ExecutionStore:
     def __init__(self, sessions):
         self.sessions = sessions
+        self.context_guard = None
         with sessions.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             db.execute(
@@ -137,6 +138,10 @@ class ExecutionStore:
         try:
             with self.sessions.connect() as db:
                 db.execute("BEGIN IMMEDIATE")
+                if run.context_hash:
+                    if self.context_guard is None:
+                        raise ValueError("Context verification is unavailable")
+                    self.context_guard(db, run)
                 records = [
                     Run.model_validate_json(row[0])
                     for row in db.execute("SELECT state FROM execution_runs").fetchall()

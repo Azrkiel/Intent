@@ -4,7 +4,7 @@ import pytest
 
 from backend.app.execution.store import ExecutionStore
 from backend.app.store import Store
-from backend.tests.test_codex_worker import fixture
+from backend.tests.test_codex_worker import approve_package, fixture
 from backend.tests.test_execution_store import run
 
 
@@ -47,7 +47,8 @@ async def test_startup_reads_existing_thread_without_duplicate_dispatch(tmp_path
     from backend.app.codex.transport import Transport
     from backend.tests.test_codex_worker import FAKE
 
-    session, _, executor = fixture(tmp_path, "artifact")
+    session, document, executor = fixture(tmp_path, "artifact")
+    await approve_package(session, document, executor)
     saved = executor.start(session, session.planning.approval, "P1-W1")
     await executor.tasks[saved.id]
     executor.set(saved.id, status="running")
@@ -81,7 +82,8 @@ async def test_startup_reads_existing_thread_without_duplicate_dispatch(tmp_path
 async def test_failed_interrupt_and_correction_cannot_resurrect_dispatch(tmp_path):
     from backend.app.codex.protocol import CodexError
 
-    session, _, executor = fixture(tmp_path, "hang")
+    session, document, executor = fixture(tmp_path, "hang")
+    await approve_package(session, document, executor)
     saved = executor.start(session, session.planning.approval, "P1-W1")
     import asyncio
 
@@ -106,7 +108,8 @@ async def test_failed_interrupt_and_correction_cannot_resurrect_dispatch(tmp_pat
 
 
 async def test_cancelled_run_can_be_inspected_without_resuming_or_replacing_turn(tmp_path):
-    session, _, executor = fixture(tmp_path, "artifact")
+    session, document, executor = fixture(tmp_path, "artifact")
+    await approve_package(session, document, executor)
     saved = executor.start(session, session.planning.approval, "P1-W1")
     await executor.tasks[saved.id]
     await executor.cancel(session.id, saved.id)
