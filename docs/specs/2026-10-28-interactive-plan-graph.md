@@ -1,7 +1,8 @@
 # Interactive project graph and section conversations
 
 Date: 2026-10-28 (America/New_York).
-Status: proposed for human design approval; no implementation or live calls yet.
+Status: approved for implementation and PR by the subsequent human instruction to
+"continue where you left off" and "finish the handoff and commit and PR everything".
 Worktree: `C:/Users/jiang/.codex/worktrees/phase-four/intent`.
 Baseline: `6bf9461`, branch `codex/phase-five-live-qualification`.
 
@@ -193,7 +194,8 @@ Expected areas, after approval:
 
 Read `frontend/AGENTS.md` and installed Next.js client-component guides before edits;
 both have been inspected during this design pass. Continue in the existing worktree.
-Do not create a replacement checkout, alter the retained counter session, or publish.
+Do not create a replacement checkout or alter the retained counter session. The
+subsequent PR instruction authorizes pushing and opening a PR, not merging/releasing.
 
 ## Acceptance and verification
 
