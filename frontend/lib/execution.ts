@@ -50,6 +50,8 @@ export interface ExecutionRun {
   token_usage: Record<string, number>;
   evidence: Partial<Evidence>;
   error: string | null;
+  context_hash?: string | null;
+  packet_hash?: string | null;
 }
 export interface ExecutionPhase {
   id: string;
@@ -60,6 +62,7 @@ export interface ExecutionPhase {
     | "running"
     | "verifying"
     | "awaiting_phase_review"
+    | "awaiting_context_review"
     | "accepted"
     | "blocked"
     | "cancelled";
@@ -94,13 +97,98 @@ export interface ExecutionDetail {
   simulation: boolean;
   max_workers: number;
   verification_policy: string;
+  contexts?: ExecutionContext[];
   phase_options: {
     id: string;
     title: string;
-    packages: { id: string; owned_paths: string[] }[];
+    packages: ContextPackageOption[];
     can_start: boolean;
     reason: string;
   }[];
+}
+
+export interface PublicationOption {
+  producer_id: string;
+  interface_name: string | null;
+  interface_version: string | null;
+  artifacts: { path: string; sha256: string }[];
+}
+export interface ContextPackageOption {
+  id: string;
+  owned_paths: string[];
+  can_prepare?: boolean;
+  context_ready?: boolean;
+  context_reason?: string;
+  publication_options?: PublicationOption[];
+}
+export interface ExecutionContext {
+  plan: PlanIdentity;
+  package_id: string;
+  phase_attempt: number;
+  base_commit: string;
+  context_hash: string;
+  packet_hash: string;
+  manifest_hash: string;
+  review_hash: string;
+  approved: boolean;
+  current: boolean;
+  text: string;
+  documents: Record<string, string>;
+  snapshots: Record<string, unknown>[];
+}
+
+export function canApproveContext(
+  detail: ExecutionDetail,
+  context: ExecutionContext,
+  current: boolean,
+): boolean {
+  const phaseId = context.package_id.split("-W")[0];
+  const phase = detail.phases.find(
+    (candidate) =>
+      candidate.phase_id === phaseId && samePlan(candidate.plan, context.plan),
+  );
+  return (
+    current &&
+    detail.execution_enabled &&
+    context.current === true &&
+    !context.approved &&
+    /^[0-9a-f]{64}$/.test(context.packet_hash) &&
+    /^[0-9a-f]{64}$/.test(context.context_hash) &&
+    samePlan(context.plan, detail.plan) &&
+    detail.requirements_revision === context.plan.requirements_revision &&
+    (phase
+      ? phase.attempt === context.phase_attempt &&
+        !phase.stale &&
+        !phase.integration_intent &&
+        !phase.promotion_intent &&
+        ["running", "awaiting_context_review"].includes(phase.status)
+      : context.phase_attempt === 1) &&
+    !detail.runs.some(
+      (run) =>
+        samePlan(run.plan, context.plan) &&
+        run.package_id === context.package_id &&
+        run.phase_attempt === context.phase_attempt,
+    )
+  );
+}
+
+export function canResumeContextPhase(
+  detail: ExecutionDetail,
+  phase: ExecutionPhase,
+  current: boolean,
+): boolean {
+  return (
+    current &&
+    detail.execution_enabled &&
+    phase.status === "awaiting_context_review" &&
+    !phase.stale &&
+    !phase.integration_intent &&
+    !phase.promotion_intent &&
+    samePlan(phase.plan, detail.plan) &&
+    !!detail.phase_options
+      .find((option) => option.id === phase.phase_id)
+      ?.packages.some((option) => option.context_ready === true)
+  );
 }
 
 export function samePlan(

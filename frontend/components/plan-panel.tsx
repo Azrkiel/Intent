@@ -13,6 +13,8 @@ import {
   type PlanDetail,
 } from "@/lib/planning";
 import type { Session } from "@/lib/types";
+import { graphKey } from "@/lib/plan-graph";
+import { PlanGraph } from "@/components/plan-graph";
 
 export function PlanPanel({
   session,
@@ -28,11 +30,12 @@ export function PlanPanel({
   modeMismatch: boolean;
 }) {
   const [detail, setDetail] = useState<PlanDetail | null>(null);
-  const [view, setView] = useState<"human" | "engineering">("human");
+  const [view, setView] = useState<"graph" | "human" | "engineering">("graph");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const alive = useRef(true);
   const controller = useRef<AbortController | null>(null);
+  const graphRequest = useRef(0);
   const base = `/sessions/${session.id}/plan`;
 
   useEffect(() => {
@@ -53,6 +56,7 @@ export function PlanPanel({
       disposed = true;
       alive.current = false;
       controller.current?.abort();
+      graphRequest.current++;
     };
   }, [base]);
 
@@ -117,8 +121,27 @@ export function PlanPanel({
           planning,
           plan: null,
           partial: true,
+          graph: null,
           views: current ? draftViews(current) : null,
         }));
+        const request = ++graphRequest.current;
+        void api<PlanDetail>(base)
+          .then((fresh) => {
+            if (
+              alive.current &&
+              graphRequest.current === request &&
+              fresh.session_id === session.id &&
+              fresh.requirements_revision === session.revision &&
+              fresh.graph?.source.revision === current?.revision
+            ) {
+              setDetail((previous) =>
+                previous ? { ...previous, graph: fresh.graph } : previous,
+              );
+            }
+          })
+          .catch(() => {
+            /* The final reload below reports fetch failures. */
+          });
         if (event.type === "plan_error")
           setError(
             event.message || "Planning failed. Accepted sections were saved.",
@@ -130,6 +153,7 @@ export function PlanPanel({
           cause instanceof Error ? cause.message : "Planning was interrupted.",
         );
     } finally {
+      graphRequest.current++;
       try {
         const fresh = await api<PlanDetail>(base);
         const saved = await api<Session>(`/sessions/${session.id}`);
@@ -167,10 +191,11 @@ export function PlanPanel({
     <div className="plan-panel">
       <div className="plan-intro">
         <span className="eyebrow">FROM INTENT TO IMPLEMENTATION</span>
-        <h3>One plan. Two ways to see it.</h3>
+        <h3>Your project, from intent to every task.</h3>
         <p>
-          Review the vision and wireframes, then inspect the phases and work
-          packages. Both views share one revision.
+          Explore the whole plan from its center. Inspect each subproject’s
+          scope and handoff, or read the vision and engineering views. All three
+          share one revision.
         </p>
         <div className="plan-badges">
           <span>
@@ -272,9 +297,15 @@ export function PlanPanel({
         </ol>
       )}
 
-      {detail?.views ? (
+      {detail?.views || detail?.graph ? (
         <>
           <div className="plan-tabs" role="group" aria-label="Plan view">
+            <button
+              aria-pressed={view === "graph"}
+              onClick={() => setView("graph")}
+            >
+              Project graph
+            </button>
             <button
               aria-pressed={view === "human"}
               onClick={() => setView("human")}
@@ -293,15 +324,33 @@ export function PlanPanel({
               ? "Draft sections · final validation and semantic review pending"
               : `Revision ${detail.plan?.revision} · SHA-256 ${detail.plan?.content_hash}`}
           </p>
-          <pre
-            className="plan-document"
-            tabIndex={0}
-            aria-label={
-              view === "human" ? "Vision and wireframes" : "Engineering plan"
-            }
-          >
-            {detail.views[view]}
-          </pre>
+          {view === "graph" ? (
+            detail.graph ? (
+              <PlanGraph
+                key={graphKey(detail.graph)}
+                graph={detail.graph}
+                stale={
+                  modeMismatch ||
+                  state.status === "stale" ||
+                  detail.graph.source.requirements_revision !== session.revision
+                }
+              />
+            ) : (
+              <p role="status" className="plan-notice">
+                Loading the graph of accepted sections…
+              </p>
+            )
+          ) : (
+            <pre
+              className="plan-document"
+              tabIndex={0}
+              aria-label={
+                view === "human" ? "Vision and wireframes" : "Engineering plan"
+              }
+            >
+              {detail.views?.[view]}
+            </pre>
+          )}
         </>
       ) : (
         <div className="plan-empty">
@@ -342,8 +391,9 @@ export function PlanPanel({
           {(detail?.estimated_usd ?? session.estimated_usd).toFixed(4)}
         </span>
         <p>
-          Codex execution is unavailable in this phase. Exported commands and
-          proposed choices need review before execution.
+          Review proposed choices and checks before execution. The execution
+          panel keeps context approval, worker permissions, and phase acceptance
+          separate.
         </p>
       </footer>
     </div>
