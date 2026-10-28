@@ -5,7 +5,8 @@ Status: Phases 1 and 2 accepted by the user on 2026-10-27 (America/New_York).
 Phases 3 and 4 were accepted by the user on 2026-10-27. Phase 4 is implemented
 and verified offline. Phase 5 qualification tooling is implemented and tested
 offline. The 2026-10-28 live follow-up passed the basic Nebius smoke and qualified
-an isolated signed-in Codex profile; planning and generation remain pending approvals.
+an isolated signed-in Codex profile. Requirements are approved and Ultra compilation
+passed. Planning is blocked after two failed attempts; generated execution has not started.
 Source: [design](../specs/2026-10-26-phase-plans-codex-orchestration.md).
 
 **Goal:** Turn approved, cited requirements into synchronized design and engineering
@@ -623,10 +624,9 @@ trust roots through a local `SSL_CERT_FILE` bundle, with certificate verificatio
 enabled. Optional control probes produced mixed schema/grounding results and are
 not qualified for enabling globally. A retained real counter conversation reached
 all six confirmed slots and no readiness blockers after diagnostic re-extraction,
-reanalysis and prompt/ranking fixes. Its corrected playback was manually audited;
-human requirements approval is pending. No planning attempt, Ultra compilation,
-export audit, Codex model turn, generated-phase review or Phase 5 acceptance has
-occurred at this checkpoint.
+reanalysis and prompt/ranking fixes. Its corrected playback was manually audited.
+That initial checkpoint preceded the requirements approval, compile and planning
+follow-up recorded below.
 
 The user explicitly enabled execution and signed in to a separate local Codex test
 profile. That profile now qualifies on CLI 0.164.0 with `gpt-6.1-sol`, no inherited
@@ -639,6 +639,27 @@ and blocks unmocked HTTP; `fc573aa` supplies ranking with ledger/history context
 and refines model instructions. Verification: 234 backend tests passed, one
 Windows symbolic-link test skipped, existing warning retained; Ruff, 15 frontend
 tests, type checking, production build and 16/16 demo evaluations passed.
+
+After explicit human approval of requirements revision 3 (2026-10-28), the
+production approval API succeeded. Ultra compilation and Super verification both
+returned successfully; the final brief received a manual source/scope audit.
+Planning attempt 1 failed confirmed specification coverage after its JSON repair.
+The application now supplies confirmed/unconfirmed ID checklists and explicit
+status guidance. Attempt 2 returned schema-valid JSON covering all seven confirmed
+IDs, then failed the existing ASCII diagram check. Both attempts are retained and
+consumed. No plan, approval, export, generated phase or Codex inference was created.
+
+Checkpoint `a0af23f` also makes ASCII diagram constraints part of the provider
+schema, enabling the existing single JSON repair without weakening application
+validation or adding retries. Offline regressions cover those constraints, repair
+success/failure, Unicode prose, source checklists and coverage failure closure.
+Fresh verification: 242 backend tests passed, one Windows symlink test skipped,
+existing dependency warning retained, and Ruff passed. No frontend files changed.
+The last contract change has not been requalified live. The current session's
+planning allowance remains exhausted; no reset or replacement session was used.
+The follow-up's five model responses cost an estimated $0.02111; the entire retained
+counter conversation totals an estimated $0.11179. Reports and redacted diagnostics
+remain ignored under `.data/live-check/2026-10-28/`. Phase 5 acceptance remains pending.
 
 ## Verification and requirement coverage
 
@@ -663,7 +684,7 @@ interrupted-dispatch fixture; actual history reconciliation used backend subproc
 tests. Desktop and mobile layouts were inspected. Observations and screenshots are
 ignored under `.data/phase-four-check/`. All simulation remained local with zero
 provider requests. Temporary servers and the browser tab were closed. The user
-accepted Phase 4 on 2026-10-27; no Phase 5 qualification has started.
+accepted Phase 4 on 2026-10-27. At that checkpoint, Phase 5 qualification had not started.
 
 Phase 3 evidence (2026-10-27): 197 backend tests passed, with one symbolic-link test
 skipped because Windows denied symbolic-link creation. Both Windows junction tests

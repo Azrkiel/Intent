@@ -417,9 +417,9 @@ diagnostic re-extraction and reanalysis in the same retained session, all six sl
 were filled with exact source quotes, no high-impact blockers remained, and the
 corrected playback matched the access and recovery decisions. This is one observed
 integration case, not a measured quality or reliability result. Grouped extraction
-and semantic fidelity still need manual review. At this checkpoint the session
-retains 54 model responses and an estimated $0.09068 in usage; requirements approval,
-planning, Ultra compilation, bundle audit and generated execution remain pending.
+and semantic fidelity still need manual review. That initial clarification checkpoint
+retained 54 model responses and an estimated $0.09068 in usage. The subsequent
+requirements approval and planning results are recorded below.
 
 With the user's explicit execution opt-in, the original Codex profile was rejected
 for inherited tools. A separate local test profile was prepared and the user signed
@@ -439,6 +439,39 @@ checking, the production build and 16/16 demo evaluations also passed. The five 
 cases cover test isolation, network blocking, mocked providers and ranking context
 with failure closure. These code checkpoints are local on
 `codex/phase-five-live-qualification`.
+
+**After requirements approval (2026-10-28):** the user approved revision 3 through
+chat and the approval was recorded through the production API. Ultra compiled the
+brief on its first logical call and Super returned no rejected or missing brief
+items. Manual review of this artifact retained the core actions, access policy,
+storage behavior and exclusions; small unresolved choices stayed labeled. These
+two responses cost an estimated $0.01196. The resulting local artifact is
+`.data/live-check/2026-10-28/counter-brief-artifact.md`.
+
+Live planning **did not pass**. Attempt 1 used its JSON repair, then failed confirmed
+specification coverage. Application-owned confirmed/unconfirmed ID checklists and
+explicit statement-status instructions were added. Attempt 2 returned schema-valid
+JSON covering all seven confirmed IDs, but the application rejected its non-ASCII
+architecture diagram. No outline, screen or phase was accepted. Both session
+attempts are consumed; no allowance was reset and no replacement session or
+additional live planning request was made.
+
+The diagram failure exposed a schema gap: ASCII was checked only after provider
+schema validation, so the existing JSON-repair path could not handle it. Checkpoint
+`a0af23f` declares the ASCII pattern in the provider schema while retaining
+application validation. Offline regressions verify repair of a Unicode diagram,
+failure after two invalid responses, Unicode prose support, coverage checklists
+and rejection of proposal-only coverage. This contract fix has **not** been
+requalified live in the exhausted session. Fresh verification passed 242 backend
+tests (one Windows symbolic-link skip and the existing dependency warning) and
+Ruff. No frontend files changed during this follow-up.
+
+The compile/planning follow-up used five responses costing an estimated $0.02111;
+the retained counter session totals an estimated $0.11179. Reports and redacted
+field/error diagnostics are in `.data/live-check/2026-10-28/planning-attempt-1/`,
+`planning-attempt-2/` and `approved-requirements-test-summary.json`. No valid plan,
+plan approval, bundle audit or Codex model turn followed these failures. Phase 5
+and real generated-app qualification remain incomplete.
 
 ## Claude Code handoff
 

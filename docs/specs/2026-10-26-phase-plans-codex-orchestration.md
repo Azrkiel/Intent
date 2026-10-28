@@ -14,8 +14,11 @@ covering bounded planning passes, repository ownership, tests, small commits and
 user acceptance gates for all five delivery phases. Phase 5 qualification commands
 and offline tests are implemented. The 2026-10-28 follow-up passed the basic live
 Nebius smoke and qualified an isolated signed-in Codex profile. The live counter
-conversation reached readiness after observed extraction/ranking/playback fixes;
-requirements approval, planning and generated execution remain pending. Detailed
+conversation reached readiness after observed extraction/ranking/playback fixes.
+Requirements revision 3 is approved and Ultra compilation passed. Two live planning
+attempts failed coverage/ASCII checks; the session allowance is exhausted and no
+generated execution started. Contract improvements passed offline checks, with
+live requalification and Phase 5 acceptance still pending. Detailed
 evidence and remaining manual audits are recorded in the implementation plan and README.
 
 ## Goal
