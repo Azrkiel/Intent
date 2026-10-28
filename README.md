@@ -602,6 +602,21 @@ exists. Attempt 5 is blocked before provider dispatch. There is no automatic ret
 live planning and Phase 5 remain failed/incomplete. Evidence stays ignored under
 `.data/live-check/2026-10-28/requalification-attempt-4/`.
 
+**Offline response-boundary fixes (2026-10-28):** new provider responses now render
+a finite set of common arrow/box glyphs as ASCII in diagram fields only, then apply
+the original validation. Unknown characters and oversized diagrams still fail.
+Source quotes, identifiers, commands and stored plans are unchanged. Repair now
+addresses schema values as well as JSON structure. Planning output marked as
+length-limited receives the existing single compacting repair and cannot silently
+be accepted as complete. Budgets, token limits and attempt allowances are unchanged.
+Integrated simulated-HTTP tests cover planning through graph/views, runner preflight,
+preserved source/hash identity and gated export. These checks are not a new live pass;
+the retained session remains exhausted. See the [current handoff](.Codex/handoffs/2026-10-28-0843.md).
+
+Checkpoint `23acab5` passed 387 backend tests with one existing skip and warning,
+Ruff, 23 frontend tests, type checking, production build, and all 16 labeled demo
+evaluations. No new provider request was made and the retained live state is unchanged.
+
 ## Claude Code handoff
 
 After approving and compiling the brief, set `ALLOW_CLAUDE_BUILD=true` and restart.
