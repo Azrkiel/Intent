@@ -578,6 +578,15 @@ partial accepted sections, not a qualified plan. Evidence is ignored under
 replacement session was used. Offline checks passed; overall live planning and
 Phase 5 remain failed/incomplete.
 
+**Offline request-contract follow-up (2026-10-28):** screen and phase requests now
+require their exact accepted outline reference in the provider validation schema,
+so reference drift can use the existing single JSON repair. With Codex execution
+enabled, phase requests also receive the trusted runner's actual command policy;
+whitespace inspection is not behavioral verification. Existing preflight and
+approval gates remain in place. These changes have offline regression coverage,
+not a fresh live pass. The [further qualification proposal](docs/plans/2026-10-28-fourth-attempt-requalification-proposal.md)
+requires a separate policy decision; no fourth attempt is currently allowed.
+
 ## Claude Code handoff
 
 After approving and compiling the brief, set `ALLOW_CLAUDE_BUILD=true` and restart.
