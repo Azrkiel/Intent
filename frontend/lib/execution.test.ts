@@ -111,12 +111,22 @@ describe("execution gates", () => {
       phase_options: [
         {
           id: "P1",
-          packages: [{ id: "P1-W1", context_ready: true }],
+          packages: [{ id: "P1-W1", can_prepare: true, context_ready: true }],
           can_start: false,
         },
       ],
     } as ExecutionDetail;
     expect(canResumeContextPhase(ready, paused, true)).toBe(true);
+    const partiallyReviewed = structuredClone(ready);
+    partiallyReviewed.phase_options[0].packages.push({
+      id: "P1-W2",
+      owned_paths: ["api"],
+      can_prepare: true,
+      context_ready: false,
+    });
+    expect(canResumeContextPhase(partiallyReviewed, paused, true)).toBe(false);
+    partiallyReviewed.phase_options[0].packages[1].context_ready = true;
+    expect(canResumeContextPhase(partiallyReviewed, paused, true)).toBe(true);
     expect(
       canResumeContextPhase({ ...ready, phase_options: [] }, paused, true),
     ).toBe(false);

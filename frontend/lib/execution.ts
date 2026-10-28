@@ -177,6 +177,10 @@ export function canResumeContextPhase(
   phase: ExecutionPhase,
   current: boolean,
 ): boolean {
+  const eligible =
+    detail.phase_options
+      .find((option) => option.id === phase.phase_id)
+      ?.packages.filter((option) => option.can_prepare === true) ?? [];
   return (
     current &&
     detail.execution_enabled &&
@@ -185,9 +189,8 @@ export function canResumeContextPhase(
     !phase.integration_intent &&
     !phase.promotion_intent &&
     samePlan(phase.plan, detail.plan) &&
-    !!detail.phase_options
-      .find((option) => option.id === phase.phase_id)
-      ?.packages.some((option) => option.context_ready === true)
+    eligible.length > 0 &&
+    eligible.every((option) => option.context_ready === true)
   );
 }
 
