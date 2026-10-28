@@ -4,7 +4,8 @@ Date: 2026-10-26 (America/New_York).
 Status: Phases 1 and 2 accepted by the user on 2026-10-27 (America/New_York).
 Phases 3 and 4 were accepted by the user on 2026-10-27. Phase 4 is implemented
 and verified offline. Phase 5 qualification tooling is implemented and tested
-offline; live checks remain blocked by missing prerequisites.
+offline. The 2026-10-28 live follow-up passed the basic Nebius smoke and qualified
+an isolated signed-in Codex profile; planning and generation remain pending approvals.
 Source: [design](../specs/2026-10-26-phase-plans-codex-orchestration.md).
 
 **Goal:** Turn approved, cited requirements into synchronized design and engineering
@@ -615,6 +616,29 @@ verification: 229 backend tests passed, one Windows symlink test skipped and the
 existing dependency warning remained. Ruff, 15 frontend tests, type checking,
 production build and 16/16 demo evaluations passed. A dedicated demo-database
 server started, served its health/session endpoints and shut down cleanly.
+
+Live follow-up (2026-10-28): the server key authenticated; Nano, Super and Ultra
+were listed by the provider. The basic live smoke passed after using existing OS
+trust roots through a local `SSL_CERT_FILE` bundle, with certificate verification
+enabled. Optional control probes produced mixed schema/grounding results and are
+not qualified for enabling globally. A retained real counter conversation reached
+all six confirmed slots and no readiness blockers after diagnostic re-extraction,
+reanalysis and prompt/ranking fixes. Its corrected playback was manually audited;
+human requirements approval is pending. No planning attempt, Ultra compilation,
+export audit, Codex model turn, generated-phase review or Phase 5 acceptance has
+occurred at this checkpoint.
+
+The user explicitly enabled execution and signed in to a separate local Codex test
+profile. That profile now qualifies on CLI 0.164.0 with `gpt-6.1-sol`, no inherited
+MCP servers and no enabled skills; no credentials were copied. Effective generation,
+sandbox and lifecycle behavior remain unverified. Raw artifacts and authentication
+state remain ignored. Redacted evidence is under `.data/live-check/2026-10-28/`.
+
+Local checkpoints: `eba9e0e` isolates offline tests from live developer settings
+and blocks unmocked HTTP; `fc573aa` supplies ranking with ledger/history context
+and refines model instructions. Verification: 234 backend tests passed, one
+Windows symbolic-link test skipped, existing warning retained; Ruff, 15 frontend
+tests, type checking, production build and 16/16 demo evaluations passed.
 
 ## Verification and requirement coverage
 

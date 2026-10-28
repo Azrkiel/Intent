@@ -12,9 +12,11 @@ Date: 2026-10-26 (America/New_York).
 Next artifact: [implementation plan](../plans/2026-10-26-phase-plans-codex-orchestration.md),
 covering bounded planning passes, repository ownership, tests, small commits and
 user acceptance gates for all five delivery phases. Phase 5 qualification commands
-and offline tests are implemented. Live checks remain incomplete: the configured
-planning key is absent and Codex execution is disabled. Detailed evidence and
-remaining manual audits are recorded in the implementation plan and README.
+and offline tests are implemented. The 2026-10-28 follow-up passed the basic live
+Nebius smoke and qualified an isolated signed-in Codex profile. The live counter
+conversation reached readiness after observed extraction/ranking/playback fixes;
+requirements approval, planning and generated execution remain pending. Detailed
+evidence and remaining manual audits are recorded in the implementation plan and README.
 
 ## Goal
 

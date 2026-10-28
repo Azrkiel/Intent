@@ -390,6 +390,56 @@ Live planning fidelity, exported packet audit, real Codex generation, cancellati
 reload/restart reconciliation, acceptance and correction remain pending. No live
 model-quality result or Phase 5 acceptance is claimed.
 
+**Live follow-up (2026-10-28, America/New_York):** the configured Token Factory
+key authenticated and the model inventory included the configured Nano, Super and
+Ultra IDs. The initial SDK connection failed certificate verification. A local PEM
+bundle exported from the machine's existing OS trust roots resolved that connection
+failure with TLS verification enabled. The bundle is ignored local configuration,
+not a portable project dependency. Test processes used:
+
+```powershell
+$env:SSL_CERT_FILE = (Resolve-Path '.data/live-check/2026-10-28/system-trust.pem').Path
+uv run python -m backend.smoke --output .data/live-check/2026-10-28/basic-after-prompt.json
+```
+
+The basic live Nano/Lightning extraction and Super contradiction smoke passed
+before and after the prompt changes. Optional thinking-control probes had mixed
+schema/grounding results: one failed on Lightning, a later probe failed on Nano,
+and a focused Lightning recheck passed. These requests returned model responses,
+but do not establish reliable control behavior. `SEND_THINKING_CONTROLS=false`
+remains the application default.
+
+A real three-turn counter clarification session exposed missing source retention,
+repeated questions, inflated change-cost scores, and inaccurate playback wording.
+`fc573aa` supplies the ledger and answer history to the existing ranking pass and
+clarifies extraction, scoring, exclusion and playback instructions. After explicit
+diagnostic re-extraction and reanalysis in the same retained session, all six slots
+were filled with exact source quotes, no high-impact blockers remained, and the
+corrected playback matched the access and recovery decisions. This is one observed
+integration case, not a measured quality or reliability result. Grouped extraction
+and semantic fidelity still need manual review. At this checkpoint the session
+retains 54 model responses and an estimated $0.09068 in usage; requirements approval,
+planning, Ultra compilation, bundle audit and generated execution remain pending.
+
+With the user's explicit execution opt-in, the original Codex profile was rejected
+for inherited tools. A separate local test profile was prepared and the user signed
+in with ChatGPT through the CLI. Its browser/app/plugin features and skills were
+disabled within that profile. It qualified with CLI 0.164.0, model `gpt-6.1-sol`, no
+runtime MCP servers and no enabled skills. Credentials were not copied. No Codex
+model turn has started; effective live sandbox behavior, generation and lifecycle
+qualification remain pending. Reports stay under `.data/live-check/2026-10-28/`;
+authentication state stays in the ignored test profile.
+
+An initial regression run exposed that tests inherited the developer's live `.env`.
+`eba9e0e` makes test defaults independent of that file and exported app settings,
+uses an isolated test database and blocks unmocked synchronous/asynchronous HTTP
+transports. The normal `uv run pytest -q` then passed **234 tests**, with one Windows
+symlink skip and the existing dependency warning. Ruff, 15 frontend tests, type
+checking, the production build and 16/16 demo evaluations also passed. The five new
+cases cover test isolation, network blocking, mocked providers and ranking context
+with failure closure. These code checkpoints are local on
+`codex/phase-five-live-qualification`.
+
 ## Claude Code handoff
 
 After approving and compiling the brief, set `ALLOW_CLAUDE_BUILD=true` and restart.
