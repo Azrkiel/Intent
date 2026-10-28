@@ -4,6 +4,7 @@ from uuid import uuid4
 from ..domain import gate_for
 from ..models import ModelError
 from . import prompts
+from .allowance import attempt_limit, state_hash
 from .contracts import (
     OutlineProposal,
     PhaseProposal,
@@ -27,6 +28,9 @@ from .validation import (
 class PlanningService:
     def __init__(self, store, models, settings):
         self.store, self.models, self.settings = store, models, settings
+
+    def attempt_limit(self, session):
+        return attempt_limit(session, self.settings.planning_max_attempts)
 
     def guard(self, session):
         if session.mode != self.settings.mode:
@@ -65,7 +69,7 @@ class PlanningService:
                 if attempt
                 else 0
             ),
-            "planning": state.model_dump(mode="json"),
+            "planning": state.public(),
         }
 
     async def call(self, session, role, schema, prompt, payload):
@@ -91,16 +95,19 @@ class PlanningService:
             return
         if state.status == "planning":
             raise ValueError("A planning attempt is already running")
-        if len(state.attempts) >= self.settings.planning_max_attempts:
+        if len(state.attempts) >= self.attempt_limit(session):
             raise ValueError("Planning attempt allowance exhausted for this session")
+        expected = state_hash(session)
         attempt = PlanAttempt(
             plan_id=state.attempts[0].plan_id if state.attempts else str(uuid4()),
             revision=len(state.attempts) + 1,
             requirements_revision=session.revision,
         )
         state.attempts.append(attempt)
+        if attempt.revision == 3:
+            state.extension.status = "consumed"
         state.status, state.approval, state.active = "planning", None, None
-        self.store.save(session)
+        self.store.save(session, expected_state_hash=expected)
         finished = False
         context = {
             "ledger": [x.model_dump(mode="json") for x in session.ledger],

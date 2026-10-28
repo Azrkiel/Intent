@@ -72,6 +72,8 @@ class Engine:
     async def turn(self, session: Session, text: str):
         session.revision += 1
         session.approved_revision = None
+        if session.planning.extension and session.planning.extension.status == "granted":
+            session.planning.extension.status = "invalidated"
         if session.planning.attempts:
             session.planning.status = "stale"
             session.planning.approval = None

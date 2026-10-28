@@ -4,7 +4,15 @@ import hashlib
 import json
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, computed_field
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    computed_field,
+    model_validator,
+)
 
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
 Ref = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9-]{0,39}$")]
@@ -181,8 +189,48 @@ class PlanAttempt(PlanningModel):
     error: str | None = Field(default=None, max_length=500)
 
 
+class PlanningExtension(PlanningModel):
+    id: Text
+    session_id: Text
+    requirements_revision: int = Field(ge=0)
+    prior_attempt_hashes: list[Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]] = Field(
+        min_length=2, max_length=2
+    )
+    recorded_at: AwareDatetime
+    reason: Text
+    implementation_commit: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{40}$")]
+    approval_text: Text
+    status: Literal["granted", "consumed", "invalidated"] = "granted"
+
+
 class PlanningState(PlanningModel):
     status: Literal["draft", "planning", "review_ready", "approved", "blocked", "stale"] = "draft"
-    attempts: list[PlanAttempt] = Field(default_factory=list, max_length=2)
+    attempts: list[PlanAttempt] = Field(default_factory=list, max_length=3)
+    extension: PlanningExtension | None = None
     active: PlanApproval | None = None
     approval: PlanApproval | None = None
+
+    @model_validator(mode="after")
+    def bounded_extension(self):
+        grant = self.extension
+        if len(self.attempts) > 2 and not grant:
+            raise ValueError("A third planning attempt requires an extension")
+        if grant:
+            if len(self.attempts) < 2 or grant.prior_attempt_hashes != [
+                content_hash(x.model_dump(mode="json", round_trip=True)) for x in self.attempts[:2]
+            ]:
+                raise ValueError("Planning extension prior attempts do not match")
+            if (grant.status == "consumed") != (len(self.attempts) == 3):
+                raise ValueError("Planning extension consumption does not match attempts")
+            if len(self.attempts) == 3:
+                third = self.attempts[2]
+                if (
+                    third.revision != 3
+                    or third.plan_id != self.attempts[0].plan_id
+                    or third.requirements_revision != grant.requirements_revision
+                ):
+                    raise ValueError("Planning extension third attempt identity does not match")
+        return self
+
+    def public(self):
+        return self.model_dump(mode="json", exclude={"extension"})

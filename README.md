@@ -334,6 +334,30 @@ Pass that existing session ID; its budget, reserved passes and two-attempt allow
 remain in effect. Use a separate output directory for each session so saved artifacts
 from earlier probes cannot be mistaken for the current result.
 
+An explicitly approved, one-time extension may permit a third attempt for the
+same approved requirements. The normal settings maximum remains two. Both failed
+attempts and all usage remain stored; the extension cannot be renewed. A correction
+invalidates an unused extension. The operator command provides a read-only preflight:
+
+```powershell
+uv run python -m backend.planning_extension --session-id-file .data/live-check/SESSION_MARKER.txt --output .data/live-check/extension-preflight.json
+```
+
+Only after explicit human authorization, stop the app server and issue the grant
+using the preflight's `state_hash`, the exact approval saved in an ignored UTF-8
+file, the reason, and the verified implementation's full Git commit hash:
+
+```powershell
+uv run python -m backend.planning_extension --session-id-file .data/live-check/SESSION_MARKER.txt --output .data/live-check/extension-issued.json --issue --expected-state-hash 'PREFLIGHT_STATE_HASH' --approval-file .data/live-check/extension-approval.txt --reason 'Approved live requalification after a verified fix' --implementation-commit 'FULL_40_CHARACTER_COMMIT_HASH'
+```
+
+The command makes no model requests. Changed preflight state or an existing grant
+blocks issuance. Generation reserves attempt 3 atomically, consumes the grant even
+on interruption, and stops at the existing plan-review gate. It still has at most
+nine logical passes, one JSON repair per pass, and the existing dollar budget.
+The grant's private audit fields are excluded from public session/detail/events
+and operator reports. See the [approved policy amendment](docs/plans/2026-10-28-planning-requalification-proposal.md).
+
 ```powershell
 uv run python -m backend.qualify_planning --session-id 'YOUR_LIVE_SESSION_ID' --output .data/live-check/probe-1/planning.json
 ```

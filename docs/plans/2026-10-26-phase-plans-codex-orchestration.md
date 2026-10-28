@@ -128,6 +128,11 @@ attempt can only be retried explicitly within the remaining allowance. A correct
 does not replenish allowance. UI errors must explain exhaustion without offering
 automatic new sessions or hidden retries.
 
+Policy amendment approved on 2026-10-28: one explicitly recorded, non-renewable
+extension can permit a third attempt for the retained session's approved revision
+3. The default settings maximum remains two; failures, usage, and validation gates
+are preserved. See the [extension proposal and implementation contract](2026-10-28-planning-requalification-proposal.md).
+
 ## File ownership and dependencies
 
 New directories are packages with `__init__.py`. Keep pure contracts free of

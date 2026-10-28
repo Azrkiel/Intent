@@ -1,7 +1,8 @@
 # Proposal: one recorded planning extension for Phase 5
 
 Date: 2026-10-28 (America/New_York).
-Status: proposed; no policy change, grant, or further live request authorized.
+Status: approved by the human on 2026-10-28; implementation and live verification
+are being recorded in subsequent checkpoints. No plan approval is implied.
 
 ## Verified starting point
 
@@ -38,8 +39,9 @@ evade the agreed policy.
 Authorize implementing and using **one additional planning attempt for this
 retained session and its approved requirements revision 3**. Preserve the normal
 two-attempt policy for every session without an explicit recorded extension.
-This is a product-policy amendment requiring the human's approval; the request
-to resume verification did not approve it.
+The human approved this product-policy amendment after reviewing the proposal:
+"yes, I approve the using one extra attempt proposal. make sure all the smoke tests and test pass"
+The earlier request to resume verification alone did not approve it.
 
 The extension would have these bounds:
 
@@ -110,3 +112,26 @@ in 46.80 seconds across `test_plan_store.py`, `test_planning_api.py`, and
 `uv run ruff check backend` passed. No provider or Codex model request was made,
 and no runtime session state was changed. This documentation checkpoint does not
 claim a fresh full-suite or live qualification pass.
+
+## Approved implementation verification
+
+The implementation adds the bounded extension and operator command described
+above, with 33 extension regressions. A separate delayed-start regression fixes
+the transport test fixture's startup/fault-deadline coupling; production transport
+deadlines are unchanged. Three existing planning fixtures now save their changed
+inputs before generation, matching the production snapshot/concurrency boundary.
+
+Fresh full verification on 2026-10-28: 276 backend tests passed, one Windows symlink
+test was skipped for the existing permissions limitation, and the existing
+Starlette/httpx warning remained. Ruff, 15 frontend tests, type checking, production
+build, and all 16 labeled demo evaluations passed. A built-app HTTP/proxy smoke
+passed streamed demo planning, both views, and the export approval gate; its
+owned servers were stopped.
+
+The first basic live smoke failed with generic Nano `model_error`; the report
+did not preserve its precise cause. An instrumented repeat passed Nano, Lightning,
+and Super with unchanged runtime/prompts. The optional thinking-controls smoke
+also passed; historical failures remain recorded and the default stays off.
+The isolated Codex profile qualified without inference; its overall qualification
+report remains incomplete pending an approved plan and generated execution.
+These results do not yet establish a successful third planning attempt.

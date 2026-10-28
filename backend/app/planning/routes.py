@@ -36,14 +36,14 @@ def planning_router(store, service, locks, load, guard_edit):
         return {
             "session_id": session.id,
             "requirements_revision": session.revision,
-            "planning": state.model_dump(mode="json"),
+            "planning": state.public(),
             "plan": document.model_dump(mode="json") if document and not partial else None,
             "views": {"human": render_human(document), "engineering": render_engineering(document)}
             if document
             else None,
             "partial": partial,
             "execution_enabled": False,
-            "attempt_limit": service.settings.planning_max_attempts,
+            "attempt_limit": service.attempt_limit(session),
             "pass_limit": service.settings.planning_max_passes,
             "estimated_usd": round(sum(x.estimated_usd for x in session.usage), 6),
             "usage": [x.model_dump() for x in session.usage if x.role.startswith("planner:")],
@@ -61,7 +61,7 @@ def planning_router(store, service, locks, load, guard_edit):
             raise HTTPException(409, "This conversation has an active operation")
         if (
             session.planning.status not in {"review_ready", "approved"}
-            and len(session.planning.attempts) >= service.settings.planning_max_attempts
+            and len(session.planning.attempts) >= service.attempt_limit(session)
         ):
             raise HTTPException(409, "Planning attempt allowance exhausted for this session")
 

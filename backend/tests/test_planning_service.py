@@ -192,6 +192,7 @@ async def test_live_adapter_planning_uses_super_and_retains_repaired_response_us
     session = ready_session()
     session.mode = "live"
     store = Store(str(tmp_path / "live.db"))
+    store.save(session)
     requests = []
     roles = [
         "planner:outline",
@@ -246,6 +247,7 @@ async def test_planning_uses_existing_budget_without_resetting_usage(setup):
         )
     ]
     provider = LiveModels(Settings(mode="live"))
+    store.save(session)
     events = await collect(PlanningService(store, provider, provider.settings), session)
     assert events[-1]["type"] == "plan_error"
     assert "budget" in events[-1]["message"].lower()
@@ -268,7 +270,8 @@ async def test_invalid_package_edges_never_become_accepted_sections(setup):
 
 
 async def test_source_whitespace_is_preserved_in_the_hashed_snapshot(setup):
-    _, session, service = setup
+    store, session, service = setup
     session.ledger[0].text = "  Save notes with whitespace  "
+    store.save(session)
     events = await collect(service, session)
     assert events[-1]["type"] == "plan_ready"
