@@ -48,13 +48,13 @@ async def test_live_model_repairs_json_once_and_tracks_both_calls():
 
 
 @pytest.mark.parametrize("repair_succeeds", [True, False])
-async def test_non_ascii_planning_diagram_uses_only_the_existing_repair(repair_succeeds):
+async def test_unconvertible_planning_diagram_uses_only_the_existing_repair(repair_succeeds):
     from backend.app.planning.contracts import OutlineProposal
     from backend.tests.planning_fixtures import outline
 
     requests = []
     valid = outline()
-    invalid = {**valid, "architecture": "[Input] \u2192 [Save]"}
+    invalid = {**valid, "architecture": "[Input] -> [\u4fdd\u5b58]"}
 
     def handle(request):
         requests.append(json.loads(request.content))
