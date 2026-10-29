@@ -9,20 +9,22 @@ from ..codex.client import Client
 from ..codex.protocol import CodexError
 from ..codex.transport import Transport
 from ..domain import gate_for
-from ..planning.export import COMMON_RULES
-from ..planning.render import render_package
 from ..planning.validation import safe_path, validate_plan
+from .context import ContextExecution, ContextReviewRequired, ExecutionContexts
 from .contracts import PhaseExecution, Run
+from .review import PhaseReviews, transition
 from .scheduler import Scheduler
 from .store import ExecutionStore
 from .verification import VerificationFailure, Verifier, protected, redact
 from .worktrees import Worktrees
 
 
-class Executor:
+class Executor(ContextExecution):
     def __init__(self, settings, sessions, factory=None):
         self.settings, self.sessions = settings, sessions
         self.runs = ExecutionStore(sessions)
+        self.contexts = ExecutionContexts(sessions)
+        self.runs.context_guard = self.contexts.validate_claim
         self.scheduler = Scheduler(
             self.runs, capacity=settings.codex_max_workers, global_capacity=settings.codex_global_max_workers
         )
@@ -35,6 +37,8 @@ class Executor:
         self.tasks, self.clients = {}, {}
         self.phase_tasks = {}
         self.locks = defaultdict(asyncio.Lock)
+        self.reviews = PhaseReviews(self)
+        self.dispatch_ready = True
 
     async def default_client(self, run):
         executable = shutil.which(self.settings.codex_command)
@@ -67,9 +71,16 @@ class Executor:
         return document
 
     def start(self, session, identity, package_id, model=None):
+        if not self.dispatch_ready:
+            raise ValueError("Startup reconciliation is still running")
         document = self.guard(session, identity)
         package = next(
-            (p for p in self.scheduler.eligible(session.id, document, "P1") if p.id == package_id), None
+            (
+                p
+                for p in self.scheduler.eligible(session.id, document, package_id.split("-W")[0])
+                if p.id == package_id
+            ),
+            None,
         )
         if package is None:
             raise ValueError("Package is attempted, dependent, or in an ineligible phase")
@@ -90,8 +101,26 @@ class Executor:
             if phase.status != "running" or phase.integration_intent:
                 raise ValueError("Phase is blocked, already reviewing, or has uncertain integration")
             run.base_commit = phase.staging_commit
+            run.phase_attempt = phase.attempt
         except KeyError:
-            pass
+            phase = self.runs.ensure_phase(
+                self.new_phase(session.id, identity, document, package_id.split("-W")[0])
+            )
+            run.base_commit, run.phase_attempt = phase.staging_commit, phase.attempt
+        context = self.approved_context(session, document, package_id, phase)
+        if phase.staging_commit is None:
+
+            def pin(p):
+                if p.stale or p.attempt != phase.attempt or p.staging_commit is not None:
+                    raise ValueError("Phase input base changed before dispatch")
+                p.base_commit = p.staging_commit = context.base_commit
+
+            phase = self.runs.patch_phase(phase, pin)
+        run.base_commit = context.base_commit
+        run.context_hash = context.context_hash
+        run.packet_hash = context.packet.packet_hash
+        run.context_review_hash = context.review_hash
+        self.check_context(run)
         self.scheduler.claim(
             run,
             package.owned_paths,
@@ -103,18 +132,30 @@ class Executor:
         return run
 
     def start_phase(self, session, identity, phase_id, model=None):
+        if not self.dispatch_ready:
+            raise ValueError("Startup reconciliation is still running")
         document = self.guard(session, identity)
         eligible = self.scheduler.eligible(session.id, document, phase_id)
         existing = [p for p in self.runs.phases(session.id) if p.plan == identity and p.phase_id == phase_id]
         if existing or not eligible:
             raise ValueError("Phase already attempted or has no eligible packages; reconcile before resuming")
-        phase = self.runs.ensure_phase(
-            PhaseExecution(session_id=session.id, plan=identity, phase_id=phase_id)
-        )
+        phase = self.runs.ensure_phase(self.new_phase(session.id, identity, document, phase_id))
         if phase.id in self.phase_tasks:
             raise ValueError("Phase is already running")
         self.phase_tasks[phase.id] = asyncio.create_task(self.drive_phase(phase, model))
         return phase
+
+    def new_phase(self, session_id, identity, document, phase_id):
+        index = next(i for i, phase in enumerate(document.phases) if phase.id == phase_id)
+        base = None
+        if index:
+            prior = self.runs.phase(session_id, identity.content_hash, document.phases[index - 1].id)
+            if prior.status != "accepted" or prior.stale or not prior.staging_commit:
+                raise ValueError("Earlier phase lacks a current accepted commit")
+            base = prior.staging_commit
+        return PhaseExecution(
+            session_id=session_id, plan=identity, phase_id=phase_id, base_commit=base, staging_commit=base
+        )
 
     async def drive_phase(self, phase, model):
         try:
@@ -123,35 +164,54 @@ class Executor:
                 current = self.runs.phase(phase.session_id, phase.plan.content_hash, phase.phase_id)
                 if current.status != "running" or current.integration_intent:
                     raise ValueError("Phase is blocked or requires reconciliation")
-                records = [r for r in self.runs.list(phase.session_id) if r.plan == phase.plan]
+                records = self.phase_runs(current)
                 if any(r.status in {"blocked", "cancelled"} for r in records):
                     raise ValueError("Phase worker failed; review and repair are required")
                 for run in records:
-                    if run.status == "verifying" and self.tasks.get(run.id) and self.tasks[run.id].done():
+                    if run.status == "verifying" and (
+                        not self.tasks.get(run.id) or self.tasks[run.id].done()
+                    ):
                         await self.verify_run(phase.session_id, run.id)
-                records = [r for r in self.runs.list(phase.session_id) if r.plan == phase.plan]
+                records = self.phase_runs(current)
                 packages = next(p.packages for p in document.phases if p.id == phase.phase_id)
                 if len([r for r in records if r.status == "integrated"]) == len(packages):
 
                     def ready(p):
                         if p.status != "running" or p.integration_intent:
                             raise ValueError("Phase changed during verification")
-                        p.status = "awaiting_phase_review"
+                        p.status = transition("phase", p.status, "verifying")
 
-                    self.runs.patch_phase(phase, ready)
+                    current = self.runs.patch_phase(phase, ready)
+                    self.reviews.publish(current, document)
                     return
                 active = [r for r in records if r.status in {"queued", "running", "verifying"}]
                 available = min(self.scheduler.capacity, self.scheduler.global_capacity) - len(active)
+                needs_context = False
                 for package in self.scheduler.eligible(phase.session_id, document, phase.phase_id)[
                     :available
                 ]:
-                    self.start(self.sessions.get(phase.session_id), phase.plan, package.id, model)
+                    try:
+                        self.start(self.sessions.get(phase.session_id), phase.plan, package.id, model)
+                    except ContextReviewRequired:
+                        needs_context = True
                 pending = [
                     task
                     for id, task in self.tasks.items()
                     if not task.done() and self.runs.get(id).session_id == phase.session_id
                 ]
                 if not pending:
+                    if needs_context:
+
+                        def pause(p):
+                            if p.status != "running" or p.stale or p.integration_intent:
+                                raise ValueError("Phase changed before context review pause")
+                            p.status = transition("phase", p.status, "awaiting_context_review")
+                            p.error = (
+                                "Review and approve exact eligible package contexts, then resume this phase"
+                            )
+
+                        self.runs.patch_phase(phase, pause)
+                        return
                     if any(
                         r.status == "verifying" and self.tasks.get(r.id) and self.tasks[r.id].done()
                         for r in self.runs.list(phase.session_id)
@@ -176,6 +236,8 @@ class Executor:
 
     def block_phase(self, phase, message):
         def block(p):
+            if p.status == "accepted":
+                return
             p.status, p.error = "blocked", message
 
         return self.runs.patch_phase(phase, block)
@@ -196,7 +258,12 @@ class Executor:
                 document = self.guard(self.sessions.get(session_id), run.plan)
                 package = next(p for ph in document.phases for p in ph.packages if p.id == run.package_id)
                 evidence = await self.verifier.inspect(run, package)
-                self.set(run_id, evidence=evidence.model_dump(), changed_paths=evidence.changed_paths)
+                evidence_data = evidence.model_dump() | {
+                    "context_hash": run.context_hash,
+                    "packet_hash": run.packet_hash,
+                    "context_review_hash": run.context_review_hash,
+                }
+                self.set(run_id, evidence=evidence_data, changed_paths=evidence.changed_paths)
                 self.check(run_id)
 
                 def reserve(p):
@@ -208,7 +275,7 @@ class Executor:
 
                 phase = self.runs.patch_phase(phase, reserve)
                 project = await self.worktrees.owned_project(session_id)
-                accepted = (await self.worktrees.git(project, "rev-parse", "HEAD")).strip()
+                accepted = (await self.worktrees.git(project, "rev-parse", "refs/heads/accepted")).strip()
                 if accepted != phase.base_commit:
                     raise ValueError("Accepted project base changed; preserve worker and staging changes")
                 commit = await self.verifier.integrate(run, evidence, phase.staging_commit)
@@ -216,11 +283,9 @@ class Executor:
                 stage_id = "stage-" + run.id
                 await self.worktrees.create(session_id, stage_id, base_commit=commit)
                 _, stage_path = self.worktrees.paths(session_id, stage_id)
-                included = {
-                    r.package_id
-                    for r in self.runs.list(session_id)
-                    if r.plan == run.plan and r.status == "integrated"
-                } | {run.package_id}
+                included = {r.package_id for r in self.phase_runs(phase) if r.status == "integrated"} | {
+                    run.package_id
+                }
                 aggregate = package.model_copy(deep=True)
                 done = [p for ph in document.phases for p in ph.packages if p.id in included]
                 aggregate.owned_paths = [path for p in done for path in p.owned_paths]
@@ -246,9 +311,7 @@ class Executor:
                     p.staging_commit, p.staging_worktree = commit, str(stage_path)
                     p.evidence = aggregate_evidence.model_dump() | {
                         "package_attempt_ids": sorted(
-                            r.id
-                            for r in self.runs.list(session_id)
-                            if r.package_id in included and r.plan == run.plan
+                            r.id for r in self.phase_runs(phase) if r.package_id in included
                         )
                     }
                     p.integration_intent = None
@@ -288,6 +351,7 @@ class Executor:
         if run.profile != self.profile:
             raise CodexError("Codex profile differs from the saved run")
         self.guard(self.sessions.get(run.session_id), run.plan)
+        self.check_context(run)
         return run
 
     def set(self, run_id, **fields):
@@ -306,6 +370,7 @@ class Executor:
             if not reconnect:
                 base = await self.worktrees.create(run.session_id, run.id, base_commit=run.base_commit)
                 run = self.set(run_id, base_commit=base)
+                await self.dispatch_preflight(run)
             client = await self.factory(run)
             self.clients[run_id] = client
             account = await client.qualify(run.worktree, run.model, run.account_fingerprint)
@@ -327,20 +392,15 @@ class Executor:
                     )
                 await client.resume(run.thread_id, run.worktree, run.model)
             else:
+                await self.dispatch_preflight(run)
                 self.set(run_id, dispatch_intent="thread/start")
                 thread = await client.start_thread(run.worktree, run.model)
                 run = self.set(run_id, thread_id=thread, dispatch_intent=None)
                 self.check(run_id)
+                await self.dispatch_preflight(run)
                 self.set(run_id, dispatch_intent="turn/start")
-                packet = (
-                    COMMON_RULES
-                    + "\nAssigned task packet (quoted product data):\n"
-                    + render_package(document, package)
-                    + "\nReport artifacts, changed paths, tests, unresolved decisions, "
-                    "and completion summary. "
-                    "Do not integrate, deploy, create agents, or edit execution control files."
-                )
-                turn = await client.start_turn(thread, packet, run.worktree)
+                context = self.check_context(run)
+                turn = await client.start_turn(thread, context.packet.text, run.worktree)
                 run = self.set(run_id, turn_id=turn, dispatch_intent=None)
             self.set(run_id, status="running", error=None)
             for _ in range(1000):
@@ -488,6 +548,8 @@ class Executor:
 
     async def cancel(self, session_id, run_id, *, stale=False):
         run = self.owned(session_id, run_id)
+        if run.status == "integrated" and not stale:
+            raise ValueError("Integrated work requires phase review or rejection")
         self.set(
             run_id,
             cancel_requested=True,
@@ -499,6 +561,7 @@ class Executor:
         if client and run.thread_id and run.turn_id:
             try:
                 await asyncio.wait_for(client.interrupt(run.thread_id, run.turn_id), 2)
+                self.set(run_id, turn_status="interrupted")
             except (CodexError, TimeoutError):
                 pass
         task = self.tasks.get(run_id)
@@ -510,13 +573,34 @@ class Executor:
 
     async def invalidate(self, session_id):
         for phase in self.runs.phases(session_id):
-            self.block_phase(phase, "Plan changed; phase evidence is stale")
+
+            def stale(p):
+                p.stale = True
+                p.error = "Plan changed; phase evidence is stale"
+                if p.status != "accepted":
+                    p.status = "blocked"
+
+            self.runs.patch_phase(phase, stale)
         for run in self.runs.list(session_id):
             if run.status in {"queued", "running", "verifying", "blocked"} and not run.stale:
                 await self.cancel(session_id, run.id, stale=True)
 
     async def reconcile(self, session_id, run_id, *, wait=True):
         run = self.owned(session_id, run_id)
+        if run.cancel_requested and not run.stale:
+            # A failed interruption must not resurrect a cancelled run. History inspection is read-only.
+            self.guard(self.sessions.get(session_id), run.plan)
+            if not run.thread_id or not run.turn_id or run.dispatch_intent:
+                return run
+            if run.profile != self.profile:
+                raise ValueError("Codex profile differs from the saved run")
+            client = await self.factory(run)
+            try:
+                await client.qualify(run.worktree, run.model, run.account_fingerprint)
+                status = await client.reconcile(run.thread_id, run.turn_id)
+                return self.set(run_id, turn_status=status)
+            finally:
+                await client.close()
         if not run.thread_id or not run.turn_id or run.dispatch_intent:
             self.set(
                 run_id,
@@ -533,6 +617,155 @@ class Executor:
         if wait:
             await self.tasks[run_id]
         return self.runs.get(run_id)
+
+    def phase_runs(self, phase):
+        return [
+            r
+            for r in self.runs.current_runs(phase.session_id)
+            if r.plan == phase.plan
+            and r.package_id.split("-W")[0] == phase.phase_id
+            and r.phase_attempt == phase.attempt
+        ]
+
+    async def cancel_phase(self, session_id, identity, phase_id):
+        phase = self.runs.phase(session_id, identity.content_hash, phase_id)
+        if phase.plan != identity or phase.status == "accepted" or phase.promotion_intent:
+            raise ValueError("Accepted or uncertain promotion requires reconciliation")
+        self.runs.patch_phase(phase, lambda p: setattr(p, "status", "cancelled"))
+        controller = self.phase_tasks.get(phase.id)
+        if controller and not controller.done():
+            controller.cancel()
+            await asyncio.gather(controller, return_exceptions=True)
+        for run in self.phase_runs(phase):
+            if run.status in {"queued", "running", "verifying", "blocked"}:
+                await self.cancel(session_id, run.id)
+        return self.runs.patch_phase(phase, lambda p: setattr(p, "status", "cancelled"))
+
+    async def reconcile_phase(self, session, identity, phase_id, evidence_hash):
+        document = self.guard(session, identity)
+        phase = self.runs.phase(session.id, identity.content_hash, phase_id)
+        if (
+            phase.plan != identity
+            or phase.stale
+            or phase.review_hash != evidence_hash
+            or phase.integration_intent
+            or phase.decision == "reject"
+        ):
+            raise ValueError("Phase identity is stale or integration outcome is uncertain")
+        if phase.promotion_intent:
+            from .review import make_review
+
+            review = make_review(phase, self.runs.list(session.id), document)
+            if review.evidence_hash != evidence_hash or review != self.runs.review(evidence_hash):
+                raise ValueError("Promotion evidence differs from the saved review")
+            project = await self.reviews.validate_tree(phase)
+            accepted = (await self.worktrees.git(project, "rev-parse", "refs/heads/accepted")).strip()
+            if accepted not in {phase.staging_commit, phase.base_commit}:
+                raise ValueError("Accepted ref has an unknown value; preserve all work")
+
+            def reconciled(p):
+                if p.promotion_intent != evidence_hash or p.stale:
+                    raise ValueError("Promotion changed during reconciliation")
+                p.promotion_intent = None
+                p.status = "accepted" if accepted == phase.staging_commit else "awaiting_phase_review"
+                p.decision = "accept" if p.status == "accepted" else None
+                p.error = None
+
+            return self.runs.patch_phase(phase, reconciled)
+        records = self.phase_runs(phase)
+        if (
+            phase.status != "blocked"
+            or not records
+            or any(
+                r.status not in {"verifying", "integrated"} or r.stale or r.cancel_requested for r in records
+            )
+        ):
+            raise ValueError("Reconcile existing worker outcomes before resuming phase verification")
+        if phase.id in self.phase_tasks and not self.phase_tasks[phase.id].done():
+            raise ValueError("Phase controller is still running")
+        phase = self.runs.patch_phase(phase, lambda p: setattr(p, "status", "running"))
+        self.phase_tasks[phase.id] = asyncio.create_task(self.drive_phase(phase, None))
+        return phase
+
+    async def review_phase(self, session_id, identity, phase_id, evidence_hash, decision, notes=""):
+        return await self.reviews.decide(session_id, identity, phase_id, evidence_hash, decision, notes)
+
+    def repair_phase(self, session, identity, phase_id, evidence_hash, model=None, expected_attempt=1):
+        if not self.dispatch_ready:
+            raise ValueError("Startup reconciliation is still running")
+        document = self.guard(session, identity)
+        phase = self.runs.phase(session.id, identity.content_hash, phase_id)
+        records = self.phase_runs(phase)
+        if any(
+            (r.id in self.tasks and not self.tasks[r.id].done())
+            or r.dispatch_intent
+            or (r.thread_id and r.turn_status not in {"completed", "failed", "interrupted"})
+            for r in records
+        ):
+            raise ValueError("Reconcile or interrupt existing worker outcomes before repair")
+        if phase.id in self.phase_tasks and not self.phase_tasks[phase.id].done():
+            raise ValueError("Phase controller is still running")
+        # Recheck predecessor acceptance before releasing any old claims.
+        for earlier in document.phases[: next(i for i, p in enumerate(document.phases) if p.id == phase_id)]:
+            prior = self.runs.phase(session.id, identity.content_hash, earlier.id)
+            if prior.status != "accepted" or prior.stale:
+                raise ValueError("Earlier phases must be accepted")
+        phase = self.runs.repair(phase, expected_attempt, evidence_hash)
+        self.phase_tasks[phase.id] = asyncio.create_task(self.drive_phase(phase, model))
+        return phase
+
+    async def recover(self):
+        """Inspect history before enabling dispatch. Never start/resume turns at startup."""
+        self.dispatch_ready = False
+        self.runs.recover()
+        try:
+            for summary in self.sessions.list():
+                for run in self.runs.current_runs(summary["id"]):
+                    if run.status in {"integrated", "cancelled"} or run.stale or run.cancel_requested:
+                        continue
+                    if not run.thread_id or not run.turn_id or run.dispatch_intent:
+                        self.set(run.id, status="blocked", error="Unknown dispatch outcome; no replay")
+                        continue
+                    client = None
+                    try:
+                        self.guard(self.sessions.get(run.session_id), run.plan)
+                        client = await self.factory(run)
+                        await client.qualify(run.worktree, run.model, run.account_fingerprint)
+                        status = await client.reconcile(run.thread_id, run.turn_id)
+                        self.set(run.id, turn_status=status)
+                        if status == "completed" and not any(
+                            p.status in {"pending", "responding"} for p in run.approvals
+                        ):
+                            document = self.guard(self.sessions.get(run.session_id), run.plan)
+                            package = next(
+                                p for ph in document.phases for p in ph.packages if p.id == run.package_id
+                            )
+                            await self.finish(run, package, status)
+                        else:
+                            self.set(
+                                run.id,
+                                status="blocked",
+                                error="Saved turn requires explicit reconciliation or repair",
+                            )
+                    except Exception:
+                        self.set(
+                            run.id,
+                            status="blocked",
+                            error="Saved thread could not be reconciled; no replacement dispatched",
+                        )
+                    finally:
+                        if client:
+                            await client.close()
+                for phase in self.runs.phases(summary["id"]):
+                    if phase.status == "awaiting_phase_review" and not phase.review_hash:
+                        try:
+                            document = self.guard(self.sessions.get(phase.session_id), phase.plan)
+                            await self.reviews.validate_tree(phase)
+                            self.reviews.publish(phase, document)
+                        except Exception:
+                            self.block_phase(phase, "Prior phase evidence requires review and repair")
+        finally:
+            self.dispatch_ready = True
 
     async def close(self):
         for task in self.phase_tasks.values():

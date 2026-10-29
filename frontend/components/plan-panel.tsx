@@ -13,7 +13,11 @@ import {
   type PlanDetail,
 } from "@/lib/planning";
 import type { Session } from "@/lib/types";
-import { VaultWorkspace } from "./vault-workspace";
+import { graphKey } from "@/lib/plan-graph";
+import { PlanGraph } from "@/components/plan-graph";
+import { GraphDiscussion } from "@/components/graph-discussion";
+import type { DiscussionActivity } from "@/lib/discussion";
+import { VaultWorkspace } from "@/components/vault-workspace";
 
 export function PlanPanel({
   session,
@@ -29,12 +33,37 @@ export function PlanPanel({
   modeMismatch: boolean;
 }) {
   const [detail, setDetail] = useState<PlanDetail | null>(null);
-  const [view, setView] = useState<"human" | "engineering" | "vault">("vault");
+  const [view, setView] = useState<"graph" | "human" | "engineering" | "vault">(
+    "graph",
+  );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const alive = useRef(true);
   const controller = useRef<AbortController | null>(null);
+  const graphRequest = useRef(0);
   const base = `/sessions/${session.id}/plan`;
+  const sourceKey = detail?.graph ? graphKey(detail.graph) : "intent";
+  const displayedSource = useRef(sourceKey);
+  displayedSource.current = sourceKey;
+  const [activity, setActivity] = useState<{
+    key: string;
+    data: DiscussionActivity;
+  }>({ key: "", data: {} });
+
+  function reportSession(saved: Session) {
+    if (alive.current && saved.id === session.id) {
+      setDetail((previous) =>
+        previous
+          ? {
+              ...previous,
+              planning: saved.planning,
+              estimated_usd: saved.estimated_usd,
+            }
+          : previous,
+      );
+      onSession(saved);
+    }
+  }
 
   useEffect(() => {
     alive.current = true;
@@ -54,10 +83,15 @@ export function PlanPanel({
       disposed = true;
       alive.current = false;
       controller.current?.abort();
+      graphRequest.current++;
     };
   }, [base]);
 
   const state = detail?.planning ?? session.planning;
+  const stale =
+    state.status === "stale" ||
+    (!!detail?.graph &&
+      detail.graph.source.requirements_revision !== session.revision);
   const attempt = state.attempts.at(-1);
   const eligible = canGeneratePlan(
     detail,
@@ -118,8 +152,27 @@ export function PlanPanel({
           planning,
           plan: null,
           partial: true,
+          graph: null,
           views: current ? draftViews(current) : null,
         }));
+        const request = ++graphRequest.current;
+        void api<PlanDetail>(base)
+          .then((fresh) => {
+            if (
+              alive.current &&
+              graphRequest.current === request &&
+              fresh.session_id === session.id &&
+              fresh.requirements_revision === session.revision &&
+              fresh.graph?.source.revision === current?.revision
+            ) {
+              setDetail((previous) =>
+                previous ? { ...previous, graph: fresh.graph } : previous,
+              );
+            }
+          })
+          .catch(() => {
+            /* The final reload below reports fetch failures. */
+          });
         if (event.type === "plan_error")
           setError(
             event.message || "Planning failed. Accepted sections were saved.",
@@ -131,6 +184,7 @@ export function PlanPanel({
           cause instanceof Error ? cause.message : "Planning was interrupted.",
         );
     } finally {
+      graphRequest.current++;
       try {
         const fresh = await api<PlanDetail>(base);
         const saved = await api<Session>(`/sessions/${session.id}`);
@@ -167,11 +221,12 @@ export function PlanPanel({
   return (
     <div className="plan-panel">
       <div className="plan-intro">
-        <span className="eyebrow">FROM INTENT TO IMPLEMENTATION</span>
-        <h3>One plan. Every connection.</h3>
+        <span className="eyebrow">YOUR PROJECT, IN CONVERSATION</span>
+        <h3>See the plan. Shape every part.</h3>
         <p>
-          Explore your plan as connected Markdown notes. Review the vision,
-          wireframes, phases and work packages from the same plan revision.
+          Select a section to ask questions, explain your vision, or dictate a
+          better way forward. Your direction stays connected to the part it
+          belongs to.
         </p>
         <div className="plan-badges">
           <span>
@@ -179,7 +234,9 @@ export function PlanPanel({
               ? "Scripted demo · no model calls"
               : "Live Nemotron planning"}
           </span>
-          <span aria-live="polite">{state.status.replaceAll("_", " ")}</span>
+          <span aria-live="polite">
+            {stale ? "stale" : state.status.replaceAll("_", " ")}
+          </span>
           {attempt && (
             <span>
               Revision {attempt.revision} · {attempt.passes.length}/
@@ -194,11 +251,24 @@ export function PlanPanel({
           {error}
         </div>
       )}
-      {state.status === "stale" && (
+      {stale && (
         <p className="plan-notice">
           Requirements changed. This plan is stale; its approval was cleared.
           Previous work remains available for inspection.
         </p>
+      )}
+      {stale && detail?.graph && (
+        <details className="draft-vision-current">
+          <summary>Shape your current draft vision</summary>
+          <GraphDiscussion
+            session={session}
+            nodeId="intent"
+            busy={busy}
+            setBusy={setBusy}
+            onSession={reportSession}
+            modeMismatch={modeMismatch}
+          />
+        </details>
       )}
       {attempt?.error && attempt.error !== error && (
         <p className="plan-notice">{attempt.error}</p>
@@ -275,6 +345,12 @@ export function PlanPanel({
 
       <div className="plan-tabs" role="group" aria-label="Plan view">
         <button
+          aria-pressed={view === "graph"}
+          onClick={() => setView("graph")}
+        >
+          Project graph
+        </button>
+        <button
           aria-pressed={view === "vault"}
           onClick={() => setView("vault")}
         >
@@ -295,39 +371,102 @@ export function PlanPanel({
       </div>
       <div hidden={view !== "vault"}>
         <VaultWorkspace
+          key={session.id}
           session={session}
           canSeed={!!detail?.views}
           readOnly={modeMismatch || busy}
         />
       </div>
       {view !== "vault" &&
-        (detail?.views ? (
+        (detail?.views || detail?.graph ? (
           <>
             <p className="plan-caption">
               {detail.partial
                 ? "Draft sections · final validation and semantic review pending"
-                : `Revision ${detail.plan?.revision} · SHA-256 ${detail.plan?.content_hash}`}
+                : `Revision ${detail.plan?.revision} · one plan, connected views`}
             </p>
-            <pre
-              className="plan-document"
-              tabIndex={0}
-              aria-label={
-                view === "human" ? "Vision and wireframes" : "Engineering plan"
-              }
-            >
-              {detail.views[view]}
-            </pre>
+            {view === "graph" ? (
+              detail.graph ? (
+                <PlanGraph
+                  key={graphKey(detail.graph)}
+                  graph={detail.graph}
+                  activity={activity.key === sourceKey ? activity.data : {}}
+                  discussion={(node) => (
+                    <GraphDiscussion
+                      key={`${graphKey(detail.graph!)}:${node.id}`}
+                      session={session}
+                      nodeId={node.id}
+                      source={detail.graph!.source}
+                      onActivity={(data) => {
+                        if (
+                          alive.current &&
+                          displayedSource.current === sourceKey
+                        )
+                          setActivity({ key: sourceKey, data });
+                      }}
+                      busy={busy}
+                      setBusy={setBusy}
+                      onSession={reportSession}
+                      modeMismatch={modeMismatch}
+                    />
+                  )}
+                  stale={modeMismatch || stale}
+                />
+              ) : (
+                <p role="status" className="plan-notice">
+                  Loading the graph of accepted sections…
+                </p>
+              )
+            ) : (
+              <pre
+                className="plan-document"
+                tabIndex={0}
+                aria-label={
+                  view === "human"
+                    ? "Vision and wireframes"
+                    : "Engineering plan"
+                }
+              >
+                {detail.views?.[view]}
+              </pre>
+            )}
           </>
         ) : (
-          <div className="plan-empty">
-            <GitBranch size={30} />
-            <h4>
-              {loading ? "Loading your plan…" : "Make the next steps visible."}
-            </h4>
-            <p>
-              Validated sections appear here as planning progresses. Approval
-              and export become available after all checks pass.
-            </p>
+          <div className="draft-vision-workspace">
+            <div className="draft-vision-map">
+              <span className="eyebrow">DRAFT VISION</span>
+              <div className="draft-root-connector" />
+              <div className="draft-root-node">
+                <GitBranch size={25} />
+                <h4>Your project starts here.</h4>
+                <p>
+                  {session.ledger.find((item) => item.slot === "goal")?.text ||
+                    session.turns[0]?.text ||
+                    "Tell us what you want to make."}
+                </p>
+              </div>
+              <p className="draft-vision-caption">
+                Shape the vision now. Planning will add phases, subprojects and
+                tasks.
+              </p>
+              <div className="draft-intent-notes">
+                {session.ledger.slice(0, 4).map((item) => (
+                  <span key={item.id}>{item.text}</span>
+                ))}
+              </div>
+            </div>
+            {loading ? (
+              <p role="status">Loading your project…</p>
+            ) : (
+              <GraphDiscussion
+                session={session}
+                nodeId="intent"
+                busy={busy}
+                setBusy={setBusy}
+                onSession={reportSession}
+                modeMismatch={modeMismatch}
+              />
+            )}
           </div>
         ))}
 
@@ -357,8 +496,9 @@ export function PlanPanel({
           {(detail?.estimated_usd ?? session.estimated_usd).toFixed(4)}
         </span>
         <p>
-          Codex execution is unavailable in this phase. Exported commands and
-          proposed choices need review before execution.
+          Review proposed choices and checks before execution. The execution
+          panel keeps context approval, worker permissions, and phase acceptance
+          separate.
         </p>
       </footer>
     </div>

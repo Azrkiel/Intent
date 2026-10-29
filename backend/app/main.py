@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field, field_validator
 
 from .builder import run_build, safe_index
 from .demo import DemoModels
+from .discussion.routes import discussion_router
+from .discussion.service import Discussions
 from .domain import Build, Session, gate_for, public_session
 from .engine import Engine
 from .execution.routes import execution_router
@@ -46,12 +48,14 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
     planner = PlanningService(store, models, settings)
     executor = Executor(settings, store, codex_factory)
     locks = defaultdict(asyncio.Lock)
+    discussions = Discussions(store, engine, planner, executor, settings)
     jobs: set[asyncio.Task] = set()
 
     @asynccontextmanager
     async def lifespan(app):
         store.recover()
-        executor.runs.recover()
+        discussions.recover()
+        await executor.recover()
         yield
         for task in jobs:
             task.cancel()
@@ -64,6 +68,7 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
     app.state.store = store
     app.state.executor = executor
     web_origins = [f"http://{host}:{settings.frontend_port}" for host in ("127.0.0.1", "localhost")]
+    app.state.discussions = discussions
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver"])
     app.add_middleware(
         CORSMiddleware,
@@ -263,6 +268,7 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
 
     app.include_router(planning_router(store, planner, locks, load, guard_edit))
     app.include_router(vault_router(store, planner, locks, load, guard_edit))
+    app.include_router(discussion_router(discussions, locks, load))
     app.include_router(execution_router(executor, locks, load))
     return app
 

@@ -2,8 +2,12 @@
 
 Date: 2026-10-26 (America/New_York).
 Status: Phases 1 and 2 accepted by the user on 2026-10-27 (America/New_York).
-Phase 3 is implemented and verified offline; awaiting user phase acceptance.
-Phases 4-5 remain pending.
+Phases 3 and 4 were accepted by the user on 2026-10-27. Phase 4 is implemented
+and verified offline. Phase 5 qualification tooling is implemented and tested
+offline. The 2026-10-28 live follow-up passed the basic Nebius smoke and qualified
+an isolated signed-in Codex profile. Requirements are approved and Ultra compilation
+passed. Planning remains blocked after a third, explicitly authorized attempt
+failed phase identity validation; generated execution has not started.
 Source: [design](../specs/2026-10-26-phase-plans-codex-orchestration.md).
 
 **Goal:** Turn approved, cited requirements into synchronized design and engineering
@@ -124,6 +128,11 @@ and usage. Reposting a successful attempt returns its stored result. A failed
 attempt can only be retried explicitly within the remaining allowance. A correction
 does not replenish allowance. UI errors must explain exhaustion without offering
 automatic new sessions or hidden retries.
+
+Policy amendment approved on 2026-10-28: one explicitly recorded, non-renewable
+extension can permit a third attempt for the retained session's approved revision
+3. The default settings maximum remains two; failures, usage, and validation gates
+are preserved. See the [extension proposal and implementation contract](2026-10-28-planning-requalification-proposal.md).
 
 ## File ownership and dependencies
 
@@ -501,70 +510,72 @@ codex app-server generate-json-schema --out .data/codex-schema
   Commit: `feat: verify scoped worker changes and stage phase integration`.
 - [x] Present a fake two-worker phase with one dependency, one conflict case,
   and one out-of-scope failure.
-- [ ] Obtain user Phase 3 acceptance before Phase 4.
+- [x] Obtain user Phase 3 acceptance before Phase 4 (2026-10-27).
 
 ## Phase 4: evidence, phase review, corrections, and restart gates
 
 ### 4.1 Explicit state transitions and acceptance identity
 
-- [ ] Add `backend/tests/test_phase_review.py` and `test_execution_recovery.py`.
+- [x] Add `backend/tests/test_phase_review.py` and `test_execution_recovery.py`.
   Exercise every permitted transition and reject all other state pairs. Include
   stale-browser acceptance, rejected phase, incomplete checks, duplicate acceptance,
   correction during dispatch, limits, server restart, and an unknown active turn.
-- [ ] Implement `review.py` with distinct plan, run, and phase states. Plan:
+- [x] Implement `review.py` with distinct plan, run, and phase states. Plan:
   `draft -> planning -> review_ready -> approved`; correction -> `stale`.
   Package: `queued -> running -> verifying`; verified evidence contributes to phase
   review. Phase: `running -> verifying -> awaiting_phase_review -> accepted`.
   Failure/limit/uncertainty -> `blocked`; explicit cancel -> `cancelled`.
   Repairs create a new attempt and invalidate prior review evidence.
-- [ ] Define immutable `PhaseReview` identity from plan hash, phase ID, staging
+- [x] Define immutable `PhaseReview` identity from plan hash, phase ID, staging
   commit, package attempt IDs, check results/artifact hashes, and open decisions.
   Accept/reject requests include that identity. Reject stale evidence even when the
   plan hash is unchanged. Acceptance requires all required checks and artifacts,
   no unresolved blocking decisions, and a successful promotion of the reviewed
   staging commit. The scheduler also rechecks current requirements approval.
-- [ ] Add `POST /api/sessions/{id}/execution/phases/{phase_id}/review` with
+- [x] Add `POST /api/sessions/{id}/execution/phases/{phase_id}/review` with
   `decision: accept|reject`, plan identity, evidence hash, and optional review notes.
   Rejection preserves staging/worktrees and keeps successors blocked. Acceptance
   makes the next phase eligible but does not silently launch it.
-- [ ] Reconcile durable runs during lifespan startup before dispatch is enabled.
+- [x] Reconcile durable runs during lifespan startup before dispatch is enabled.
   Unlike the old HTML builder's restart recovery, an existing Codex thread must
   be inspected. Persisted `running` is not proof of an active or completed turn.
   Cancellation and correction remain effective when Codex interruption fails.
-- [ ] Run `uv run pytest -q` and `uv run ruff check backend`.
+- [x] Run `uv run pytest -q` and `uv run ruff check backend`.
   Commit: `feat: require current phase evidence and explicit user acceptance`.
 
 ### 4.2 Execution UI and phase-four acceptance
 
-- [ ] Add `frontend/lib/execution.ts` and failing `execution.test.ts` selectors
+- [x] Add `frontend/lib/execution.ts` and failing `execution.test.ts` selectors
   for phase eligibility, permission request identity, stale evidence, cancellation,
   account limits, restart uncertainty, and accepted-phase versus completed-turn state.
-- [ ] Add `ExecutionPanel` with worker/package progress, owned paths, bounded
+- [x] Add `ExecutionPanel` with worker/package progress, owned paths, bounded
   logs, model selection/default, account availability, permission requests, cancel,
   changed files/diff, trusted check results, artifact links, unresolved decisions,
   and accept/reject actions. Explain why the next phase is blocked. Show Codex
   usage separately from Nemotron estimated dollars and never invent a dollar cap.
-- [ ] Poll durable execution state; suppress stale responses by session/run/hash.
+- [x] Poll durable execution state; suppress stale responses by session/run/hash.
   Restore the panel after reload. Show an explicit next-phase start action only
   after acceptance. Corrections clear approval and dispatch eligibility at once.
-- [ ] Run `npm test`, `npm run typecheck`, `npm run build`,
+- [x] Run `npm test`, `npm run typecheck`, `npm run build`,
   `uv run pytest -q`, `uv run ruff check backend`, and `npm run eval:demo`.
   Browser-check simulated permissions, cancellation, failed checks, reject/repair,
   acceptance, next-phase blocking, correction, and reload. Label simulation in UI.
   Commit: `feat: show Codex phase evidence permissions and user review gates`.
-- [ ] Present the simulated end-to-end review flow. Require Phase 4 acceptance
+- [x] Present the simulated end-to-end review flow. Require Phase 4 acceptance
   before real generation qualification. No generated backend/deployment claim follows
   from source files or an HTML preview alone.
+
+- [x] Obtain user Phase 4 acceptance before starting Phase 5 qualification (2026-10-27).
 
 ## Phase 5: real Nemotron and Codex qualification
 
 ### 5.1 Explicit qualification commands and redacted reports
 
-- [ ] Add offline tests for `backend/qualify_planning.py` and
+- [x] Add offline tests for `backend/qualify_planning.py` and
   `backend/qualify_codex.py`. Reports must retain failure usage but exclude keys,
   auth payloads, transcript bodies, local account identifiers, and raw exceptions.
   Missing prerequisites produce explicit failed/incomplete reports without requests.
-- [ ] Implement module entry points with these exact CLI contracts:
+- [x] Implement module entry points with these exact CLI contracts:
 
 ```powershell
 uv run python -m backend.qualify_planning --output .data/live-check/planning.json
@@ -585,11 +596,11 @@ uv run python -m backend.qualify_codex --output .data/live-check/codex.json
   cancellation, reload/restart reconciliation, phase acceptance, and a correction.
   Keep all generated projects and reports ignored. One successful app is integration
   evidence, not a measured model-quality or general correctness claim.
-- [ ] Keep multiple-account concurrent inference explicitly unverified unless two
+- [x] Keep multiple-account concurrent inference explicitly unverified unless two
   distinct authenticated accounts are actually tested. The prior empty-profile
   isolation probe is supporting evidence only; account rotation is not a scheduler
   fallback. A single-account qualification is sufficient for initial local support.
-- [ ] Update `README.md` with dated, redacted results and exact remaining limits.
+- [x] Update `README.md` with dated, redacted results and exact remaining limits.
   Run relevant backend checks for qualifier code and `git diff --check` for docs.
   Commit qualifier code and tests as `test: add explicit planning and Codex qualification reports`;
   commit observed documentation separately as `docs: record planning and Codex qualification results`.
@@ -597,7 +608,114 @@ uv run python -m backend.qualify_codex --output .data/live-check/codex.json
   Missing credentials leave live qualification pending while preserving completed
   offline work. Never substitute fixture evidence for a live pass.
 
+Phase 5 observed prerequisite checks (2026-10-27): the separate basic smoke and
+planning commands exited 1 with `missing_credentials`; Codex exited 1 with
+`execution_disabled`. There were zero model requests and no recorded usage.
+No profile, sandbox or real generation pass is inferred. The new CLIs preserve
+existing session allowances and approval gates. `--session-id` selects an existing
+approved live session; `--phase-id` explicitly selects an execution phase. Existing
+phase attempts are inspected without replay. Stop the app server before using
+these direct-store commands. README documents the manual audit and interactive
+permission flow. Overall reports remain incomplete pending that audit.
+
+Checkpoint `e4e5973` adds the qualifier modules and 12 offline tests. Fresh full
+verification: 229 backend tests passed, one Windows symlink test skipped and the
+existing dependency warning remained. Ruff, 15 frontend tests, type checking,
+production build and 16/16 demo evaluations passed. A dedicated demo-database
+server started, served its health/session endpoints and shut down cleanly.
+
+Live follow-up (2026-10-28): the server key authenticated; Nano, Super and Ultra
+were listed by the provider. The basic live smoke passed after using existing OS
+trust roots through a local `SSL_CERT_FILE` bundle, with certificate verification
+enabled. Optional control probes produced mixed schema/grounding results and are
+not qualified for enabling globally. A retained real counter conversation reached
+all six confirmed slots and no readiness blockers after diagnostic re-extraction,
+reanalysis and prompt/ranking fixes. Its corrected playback was manually audited.
+That initial checkpoint preceded the requirements approval, compile and planning
+follow-up recorded below.
+
+The user explicitly enabled execution and signed in to a separate local Codex test
+profile. That profile now qualifies on CLI 0.164.0 with `gpt-6.1-sol`, no inherited
+MCP servers and no enabled skills; no credentials were copied. Effective generation,
+sandbox and lifecycle behavior remain unverified. Raw artifacts and authentication
+state remain ignored. Redacted evidence is under `.data/live-check/2026-10-28/`.
+
+Local checkpoints: `eba9e0e` isolates offline tests from live developer settings
+and blocks unmocked HTTP; `fc573aa` supplies ranking with ledger/history context
+and refines model instructions. Verification: 234 backend tests passed, one
+Windows symbolic-link test skipped, existing warning retained; Ruff, 15 frontend
+tests, type checking, production build and 16/16 demo evaluations passed.
+
+After explicit human approval of requirements revision 3 (2026-10-28), the
+production approval API succeeded. Ultra compilation and Super verification both
+returned successfully; the final brief received a manual source/scope audit.
+Planning attempt 1 failed confirmed specification coverage after its JSON repair.
+The application now supplies confirmed/unconfirmed ID checklists and explicit
+status guidance. Attempt 2 returned schema-valid JSON covering all seven confirmed
+IDs, then failed the existing ASCII diagram check. Both attempts are retained and
+consumed. No plan, approval, export, generated phase or Codex inference was created.
+
+Checkpoint `a0af23f` also makes ASCII diagram constraints part of the provider
+schema, enabling the existing single JSON repair without weakening application
+validation or adding retries. Offline regressions cover those constraints, repair
+success/failure, Unicode prose, source checklists and coverage failure closure.
+Fresh verification: 242 backend tests passed, one Windows symlink test skipped,
+existing dependency warning retained, and Ruff passed. No frontend files changed.
+At that checkpoint the last contract change had not been requalified live. The
+session's planning allowance remained exhausted; no reset or replacement was used.
+The follow-up's five model responses cost an estimated $0.02111; the entire retained
+counter conversation totals an estimated $0.11179. Reports and redacted diagnostics
+remain ignored under `.data/live-check/2026-10-28/`. Phase 5 acceptance remains pending.
+
+After human approval of the [one-attempt amendment](2026-10-28-planning-requalification-proposal.md),
+`ec14afd` added the recorded session-bound extension and atomic snapshot guards.
+`3c86154` fixed transport fixture startup/fault deadline coupling without changing
+production timeouts. Fresh final checks: 276 backend tests passed, one existing
+Windows symlink skip, existing dependency warning; Ruff, 15 frontend tests,
+type checking, production build, and 16/16 demo evaluations passed. Built-app
+loopback/proxy planning smoke and the latest basic/optional-control live smokes
+passed; the first basic live probe's generic Nano failure is retained. The Codex
+profile qualified again without a model turn.
+
+The sole added attempt accepted an outline covering all seven confirmed IDs and
+one screen. Its first phase used one JSON repair, then supplied `ui-setup-phase`
+instead of the accepted outline's `ui-setup`; the application rejected it. The
+candidate also proposed shell-style/placeholder checks outside the qualified
+trusted runner. No phase was accepted and no command was executed. Four Super
+responses cost an estimated $0.01263540; session cumulative estimate is $0.12442798
+across 63 usage records. Both earlier attempts and their usage remain intact.
+
+The grant is consumed, all three attempts are exhausted, and a read-only postflight
+confirmed the service blocks before further provider calls. No fourth attempt,
+reset, or replacement session was used. No immutable plan, approval, exported
+bundle, Codex inference, or Phase 5 acceptance exists. Outline/screen sections
+are partial only. Saved validated candidates, outcome, and failure audit remain
+ignored under `.data/live-check/2026-10-28/extension-attempt-3/`.
+
 ## Verification and requirement coverage
+
+Phase 4 evidence (2026-10-27): 217 backend tests passed, one Windows symbolic-link
+test skipped, and the existing Starlette/httpx warning remained. Ruff, 15 frontend
+tests, TypeScript checking, the production build and 16/16 scripted demo evaluations
+passed. `c93b6cf` adds immutable review identity, migration with retained attempt
+history, acceptance/rejection, reviewed-commit promotion and startup reconciliation.
+`a87f42d` adds the execution panel and selectors for current evidence and permissions.
+
+Backend regressions cover same-plan stale staging/attempt/check evidence, duplicate
+acceptance, rejection requiring fresh repair attempts, failed checks, correction,
+lost promotion replies, moved refs, cancelled turns, legacy phase-three evidence
+and unknown running turns. A two-phase fake-server test completes and accepts both
+phases without rerunning prior packages. Successors pin their base to the preceding
+reviewed commit even if the accepted ref moves externally.
+
+Production-browser simulation covered permission decline, active cancellation,
+failed checks, rejection and repair, acceptance, next-phase blocking, requirements
+correction and reload. The restart uncertainty screen used an explicitly labeled
+interrupted-dispatch fixture; actual history reconciliation used backend subprocess
+tests. Desktop and mobile layouts were inspected. Observations and screenshots are
+ignored under `.data/phase-four-check/`. All simulation remained local with zero
+provider requests. Temporary servers and the browser tab were closed. The user
+accepted Phase 4 on 2026-10-27. At that checkpoint, Phase 5 qualification had not started.
 
 Phase 3 evidence (2026-10-27): 197 backend tests passed, with one symbolic-link test
 skipped because Windows denied symbolic-link creation. Both Windows junction tests
@@ -610,7 +728,7 @@ and an out-of-scope failure. Successful phases stopped at `awaiting_phase_review
 failure cases remained blocked. Worktrees were preserved and accepted project trees
 remained unchanged. Reports and generated repositories remain ignored under
 `.data/phase-three-check/`. No provider requests or real account-backed generation
-were made. Phase 3 acceptance is pending; Phases 4-5 have not started.
+were made. The user accepted Phase 3 on 2026-10-27; Phase 4 follows below.
 
 Checkpoints on `codex/phase-three`: `cfdecbf` hardens owned roots and separate
 worktrees; `2de8de1` adds transactional scheduling and bounded concurrency;
@@ -628,7 +746,7 @@ filters, config overrides, unsafe links and external object stores are rejected;
 checkout materialization reads raw blobs rather than executing filters. Worker
 test edits and summaries remain changed code/claims. Textual exclusions and open
 decisions are retained for review; Git inspection is not semantic or application
-correctness evidence. No phase acceptance or accepted-branch promotion is exposed.
+correctness evidence. Phase 4 adds explicit phase acceptance and accepted-ref promotion.
 
 Phase 2 evidence (2026-10-27): 156 backend tests, Ruff, and 16/16 existing scripted
 evaluations passed. A separate synthetic lifecycle run exercised artifact creation,
@@ -675,6 +793,38 @@ is included. Fresh verification remains required for each future checkpoint.
 | User review after every phase | 4.1-4.2 evidence identity, stale acceptance rejection, successor blocking |
 | Correction/restart/limits/cancellation preserve work | 2.3 dispatch intents; 3.2 failure handling; 4.1 recovery tests |
 | HTML preview limits and honest qualification | 4.2 UI boundaries; 5.1 separate offline/live reports and README |
+
+## Approved graph and ancestor-context extension, 2026-10-28
+
+The approved implementation contract and G0-G6 acceptance map are retained in the
+[original handoff](../../.Codex/handoffs/2026-10-28-0843.md). This extension keeps the
+five-phase qualification plan intact. Its graph, worker context and shared
+publication projections are deterministic and require no new inference or planning
+allowance. The failed retained live counter is not a source of complete plan data.
+
+| Requirement | Implementation |
+| --- | --- |
+| D1: entire plan and details | `planning/graph.py` source-field map; full graph/legacy human exports; selected-node inspector |
+| D2: central project root | Deterministic radial layout, root-centered camera, fit/pan/zoom and responsive graph panel |
+| D3: intent and orchestration | Root specification, architecture, phase/dependency overview, configured limits and application-owned gates |
+| D4: subproject scope and handoff | Complete local package and ordered tasks, ownership/exclusions, planned handoff contract, context-bound trusted execution evidence |
+| D5: ancestor context | `planning/context.py` and scoped worker ZIP; explicit shared snapshots; actual saved dispatch text and durable context review/recovery guards |
+
+Implementation preserves immutable planning contracts. The distinct execution
+context store retains reviewed bytes and approvals, while runs pin context/packet
+identities. A dependent package requires its integrated inputs and a fresh exact
+context review before an explicit same-phase resume. Missing legacy context or an
+instruction-policy mismatch blocks execution without replacing historical packets.
+The README documents the context preparation, approval, export and resume endpoints.
+
+Evidence for this extension is recorded in the handoff's current continuation.
+Final automated verification: 334 backend tests passed (one existing Windows
+symlink skip and one existing warning), Ruff, 23 frontend tests, type checking,
+production build and 16/16 scripted demo evaluations. Complete and blocked app
+graphs were browser-checked at desktop and mobile sizes; all views retained identity.
+Automated/demo evidence remains separate from real provider qualification and
+Phase 5 acceptance. Opening exported HTML through a `file://` browser URL requires
+a manual check when the browser tool's URL policy blocks that protocol.
 
 ## Protocol references and compatibility
 

@@ -7,10 +7,10 @@ from backend.app.execution.verification import Verifier, redact
 from backend.app.planning.contracts import Check, PhaseProposal, PlanApproval
 from backend.app.planning.validation import accept_phase
 from backend.tests.planning_fixtures import package, phase
-from backend.tests.test_codex_worker import fixture
+from backend.tests.test_codex_worker import approve_package, drive_reviewed_phase, fixture
 
 
-def scoped_fixture(tmp_path, scenario="artifact", *, dependent=False):
+def scoped_fixture(tmp_path, scenario="artifact", *, dependent=False, successor=False):
     session, document, executor = fixture(tmp_path, scenario)
     document.id = "phase-three"
     packages = [package("contracts", "contracts"), package("api", "api", ["contracts"] if dependent else [])]
@@ -20,6 +20,14 @@ def scoped_fixture(tmp_path, scenario="artifact", *, dependent=False):
     for p in document.phases[0].packages:
         p.artifacts = [p.owned_paths[0] + "/result.txt"]
         p.tasks[0].checks = [Check(command=["git", "diff", "--check"], expected="No whitespace errors")]
+    if successor:
+        document.id = "phase-four"
+        package_ = document.phases[1].packages[0]
+        package_.owned_paths = ["ui"]
+        package_.artifacts = ["ui/result.txt"]
+        package_.tasks[0].checks = [
+            Check(command=["git", "diff", "--check"], expected="No whitespace errors")
+        ]
     identity = PlanApproval(
         plan_id=document.id,
         revision=document.revision,
@@ -34,6 +42,7 @@ def scoped_fixture(tmp_path, scenario="artifact", *, dependent=False):
 
 async def completed(tmp_path):
     session, document, executor = scoped_fixture(tmp_path)
+    await approve_package(session, document, executor)
     run = executor.start(session, session.planning.approval, "P1-W1")
     await executor.tasks[run.id]
     return session, document, executor, executor.runs.get(run.id)
@@ -114,7 +123,7 @@ async def test_two_worker_phase_stages_both_packages_and_blocks_next_phase(tmp_p
     session, document, executor = scoped_fixture(tmp_path, "scoped_artifact")
     executor.scheduler.capacity = 2
     started = executor.start_phase(session, session.planning.approval, "P1")
-    await executor.phase_tasks[started.id]
+    await drive_reviewed_phase(session, document, executor, started)
     saved = executor.runs.phase(session.id, document.content_hash, "P1")
     assert saved.status == "awaiting_phase_review", saved.error
     assert {r.status for r in executor.runs.list(session.id)} == {"integrated"}
@@ -130,7 +139,7 @@ async def test_two_worker_phase_stages_both_packages_and_blocks_next_phase(tmp_p
 async def test_same_phase_dependent_worker_starts_from_integrated_prerequisite(tmp_path):
     session, document, executor = scoped_fixture(tmp_path, "scoped_artifact", dependent=True)
     started = executor.start_phase(session, session.planning.approval, "P1")
-    await executor.phase_tasks[started.id]
+    await drive_reviewed_phase(session, document, executor, started)
     saved = executor.runs.phase(session.id, document.content_hash, "P1")
     assert saved.status == "awaiting_phase_review", saved.error
     runs = {r.package_id: r for r in executor.runs.list(session.id)}
@@ -241,7 +250,7 @@ async def test_changed_accepted_base_blocks_integration_and_preserves_both_chang
 async def test_phase_staging_works_beneath_long_local_workspace_path(tmp_path):
     session, document, executor = scoped_fixture(tmp_path / ("long-root-" * 5), "scoped_artifact")
     phase = executor.start_phase(session, session.planning.approval, "P1")
-    await executor.phase_tasks[phase.id]
+    await drive_reviewed_phase(session, document, executor, phase)
     saved = executor.runs.phase(session.id, document.content_hash, "P1")
     assert saved.status == "awaiting_phase_review", [r.error for r in executor.runs.list(session.id)]
     await executor.close()

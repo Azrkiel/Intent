@@ -214,11 +214,14 @@ class Worktrees:
         async with self.locks[session_id]:
             return await self._create(session_id, run_id, base_commit)
 
-    async def _create(self, session_id: str, run_id: str, base_commit: str | None) -> str:
-        project, checkout = self.paths(session_id, run_id)
-        if checkout.exists():
-            raise ValueError("Worker checkout already exists; preserve and reconcile it")
-        checkout.parent.mkdir(parents=True, exist_ok=True)
+    async def prepare_base(self, session_id: str) -> str:
+        """Prepare a reviewable initial Git base without starting a coding worker."""
+        async with self.locks[session_id]:
+            project = await self._initialize(session_id)
+            return (await self.git(project, "rev-parse", "refs/heads/accepted")).strip()
+
+    async def _initialize(self, session_id: str) -> Path:
+        project, _ = self.paths(session_id, "context-review")
         if not project.exists():
             project.mkdir(parents=True)
             await self.git(
@@ -231,10 +234,20 @@ class Worktrees:
         await self.owned_project(session_id)
         if await self.changed_paths(project):
             raise ValueError("Owned project must be clean; preserve dirty or untracked work")
+        return project
+
+    async def _create(self, session_id: str, run_id: str, base_commit: str | None) -> str:
+        project, checkout = self.paths(session_id, run_id)
+        if checkout.exists():
+            raise ValueError("Worker checkout already exists; preserve and reconcile it")
+        checkout.parent.mkdir(parents=True, exist_ok=True)
+        await self._initialize(session_id)
         if base_commit is not None and not re.fullmatch(r"[0-9a-f]{40}", base_commit):
             raise ValueError("Worker base must be an exact commit")
         base = (
-            await self.git(project, "rev-parse", "--verify", (base_commit or "HEAD") + "^{commit}")
+            await self.git(
+                project, "rev-parse", "--verify", (base_commit or "refs/heads/accepted") + "^{commit}"
+            )
         ).strip()
         await self.git(
             project, "worktree", "add", "--quiet", "--detach", "--no-checkout", str(checkout), base

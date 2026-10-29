@@ -26,15 +26,32 @@ class Scheduler:
             raise ValueError("Worker capacity must be one or two and fit the global limit")
         self.runs, self.capacity, self.global_capacity = runs, capacity, global_capacity
 
-    def eligible(self, session_id, document, phase_id):
+    def eligible(self, session_id, document, phase_id, *, context_review=False):
         phase = next((p for p in document.phases if p.id == phase_id), None)
         if phase is None:
             raise ValueError("Unknown phase")
-        # Successor acceptance is deliberately implemented in Phase 4, never inferred here.
-        if phase != document.phases[0]:
-            raise ValueError("Earlier phases must be explicitly accepted before dispatch")
-        records = [r for r in self.runs.list(session_id) if r.plan.content_hash == document.content_hash]
-        if any(r.status in {"blocked", "cancelled"} or r.stale for r in records):
+        phases = {
+            p.phase_id: p
+            for p in self.runs.phases(session_id)
+            if p.plan.content_hash == document.content_hash
+        }
+        for earlier in document.phases[: document.phases.index(phase)]:
+            saved = phases.get(earlier.id)
+            if not saved or saved.status != "accepted" or saved.stale or saved.promotion_intent:
+                raise ValueError("Earlier phases must be explicitly accepted before dispatch")
+        saved = phases.get(phase_id)
+        if saved and (
+            saved.status not in ({"running", "awaiting_context_review"} if context_review else {"running"})
+            or saved.stale
+            or saved.integration_intent
+            or saved.promotion_intent
+        ):
+            raise ValueError("Phase requires review, acceptance, repair, or reconciliation")
+        records = [
+            r for r in self.runs.current_runs(session_id) if r.plan.content_hash == document.content_hash
+        ]
+        current = [r for r in records if r.package_id.split("-W")[0] == phase_id]
+        if any(r.status in {"blocked", "cancelled"} or r.stale for r in current):
             raise ValueError("Phase is blocked; repair/review is required")
         attempted = {r.package_id for r in records}
         integrated = {r.package_id for r in records if r.status == "integrated" and r.integrated_commit}

@@ -90,6 +90,19 @@ class DemoModels:
         pass
 
     async def call(self, session, role, schema, instruction, payload):
+        if role == "graph:question":
+            selected = payload["selected"]
+            pending = selected.get("status") == "pending"
+            return schema(
+                text=(
+                    f"DEMO · scripted explanation for {selected['title']}. "
+                    + ("Details are pending; no implementation is established. " if pending else
+                       "Inspect this section's scope, ancestors and cited requirements. ")
+                    + "This answer does not change or approve the plan."
+                ),
+                citations=[f"node:{selected['id']}"],
+                follow_up="What should this part do from your point of view?",
+            )
         if role.startswith("planner:"):
             from .planning.demo import demo_response
 

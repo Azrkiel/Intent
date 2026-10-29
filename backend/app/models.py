@@ -102,21 +102,32 @@ class LiveModels:
                 content = re.sub(r"<think>.*?</think>", "", content, flags=re.S).strip()
                 if content.startswith("```"):
                     content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content).strip()
-                try:
-                    return schema.model_validate_json(content)
-                except ValidationError as error:
-                    if attempt:
-                        raise ModelError(
-                            f"{role} did not return valid JSON after one repair retry."
-                        ) from error
-                    messages.append({"role": "assistant", "content": content[:16000]})
-                    messages.append(
-                        {
-                            "role": "user",
-                            "content": "JSON validation failed. Correct only the "
-                            "JSON structure and return the complete object. Validation: " + str(error)[:2500],
-                        }
-                    )
+                limited = role.startswith("planner:") and response.choices[0].finish_reason == "length"
+                validation_error = None
+                if limited:
+                    detail = "The response reached its output limit. Return a more concise complete object."
+                else:
+                    try:
+                        return schema.model_validate_json(content)
+                    except ValidationError as error:
+                        validation_error = error
+                        detail = str(error)[:2500]
+                if attempt:
+                    suffix = " Planning output limit reached." if limited else ""
+                    raise ModelError(
+                        f"{role} did not return valid JSON after one repair retry.{suffix}"
+                    ) from validation_error
+                messages.append({"role": "assistant", "content": content[:16000]})
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": "Correct all schema validation errors, including field values, "
+                        "patterns, lengths, and exact references. Return the complete JSON object. "
+                        "Be concise; remove repetition without dropping required coverage or changing "
+                        "requirements. Prefer concise plain-language descriptions over drawn diagrams. "
+                        "Unicode text is supported. Validation: " + detail,
+                    }
+                )
             except OpenAIError as error:
                 # SDK errors can include request bodies and credentials: expose only actionable categories.
                 code = getattr(error, "status_code", None)

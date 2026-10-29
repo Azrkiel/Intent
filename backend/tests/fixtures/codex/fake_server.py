@@ -201,15 +201,10 @@ for line in sys.stdin:
                     Path("outside.txt").write_text("Synthetic out-of-scope change")
                 if scenario in {"artifact", "scoped_artifact"}:
                     directory = "contracts"
-                    if (
-                        scenario == "scoped_artifact"
-                        and "P1-W2"
-                        in params["input"][0]["text"]
-                        .split("Assigned task packet (quoted product data):", 1)[1]
-                        .lstrip()
-                        .splitlines()[0]
-                    ):
-                        directory = "api"
+                    if scenario == "scoped_artifact":
+                        task = params["input"][0]["text"].split("--- TASK.md ---\n", 1)[1]
+                        assigned, _ = json.JSONDecoder().raw_decode(task[task.index("{"):])
+                        directory = {"P1-W1": "contracts", "P1-W2": "api", "P2-W1": "ui"}[assigned["id"]]
                     Path(directory).mkdir(exist_ok=True)
                     (Path(directory) / "result.txt").write_text("Synthetic artifact")
                 event(

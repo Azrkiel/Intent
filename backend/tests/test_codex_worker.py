@@ -15,10 +15,61 @@ from backend.tests.test_plan_validation import plan
 FAKE = Path(__file__).parent / "fixtures/codex/fake_server.py"
 
 
+def qualified_checks(document):
+    for phase in document.phases:
+        for package in phase.packages:
+            for task in package.tasks:
+                for check in task.checks:
+                    check.command = ["git", "diff", "--check"]
+
+
+async def approve_package(session, document, executor, package_id="P1-W1"):
+    """Test-only human action: explicitly review a fresh packet and chosen inputs."""
+    package = next(p for phase in document.phases for p in phase.packages if p.id == package_id)
+    publications = []
+    for dependency in document.dependency_ids[package_id]:
+        producer = next(p for ph in document.phases for p in ph.packages if p.id == dependency)
+        path = producer.owned_paths[0] + "/result.txt"
+        assert path in producer.artifacts, "Tests must explicitly declare the selected shared artifact"
+        interfaces = [i for i in package.consumes if i in producer.produces]
+        for interface in interfaces or [None]:
+            publications.append(
+                {
+                    "producer_id": dependency,
+                    "interface_name": interface.name if interface else None,
+                    "interface_version": interface.version if interface else None,
+                    "paths": [path],
+                }
+            )
+    record = await executor.prepare_context(session, session.planning.approval, package_id, publications)
+    return await executor.approve_context(
+        session, session.planning.approval, record.context_hash, record.packet.packet_hash
+    )
+
+
+async def drive_reviewed_phase(session, document, executor, phase):
+    """Simulate explicit reviews/resumes at each dependency/base/attempt boundary."""
+    for _ in range(10):
+        task = executor.phase_tasks.get(phase.id)
+        if task:
+            await task
+        phase = executor.runs.phase(session.id, document.content_hash, phase.phase_id)
+        if phase.status != "awaiting_context_review":
+            return phase
+        eligible = executor.scheduler.eligible(session.id, document, phase.phase_id, context_review=True)
+        assert eligible
+        for package in eligible:
+            await approve_package(session, document, executor, package.id)
+        phase = executor.resume_context_phase(session, session.planning.approval, phase.phase_id)
+    raise AssertionError("Synthetic phase exceeded its bounded explicit review cycle")
+
+
 def fixture(tmp_path, scenario="success"):
     session, document = plan()
     session.mode = document.mode = "live"
     document.phases[0].packages[0].owned_paths = ["contracts"]
+    document.phases[0].packages[0].artifacts = ["contracts/result.txt"]
+    qualified_checks(document)
     identity = PlanApproval(
         plan_id=document.id,
         revision=document.revision,
@@ -60,6 +111,7 @@ def fixture(tmp_path, scenario="success"):
 )
 async def test_one_package_lifecycle_preserves_ids_and_never_accepts_phase(tmp_path, scenario, status):
     session, document, executor = fixture(tmp_path, scenario)
+    await approve_package(session, document, executor)
     run = executor.start(session, session.planning.approval, document.phases[0].packages[0].id)
     await executor.tasks[run.id]
     saved = executor.runs.get(run.id)
@@ -79,6 +131,7 @@ async def test_one_package_lifecycle_preserves_ids_and_never_accepts_phase(tmp_p
 
 async def test_known_completed_turn_is_reconciled_without_starting_another_turn(tmp_path):
     session, document, executor = fixture(tmp_path, "artifact")
+    await approve_package(session, document, executor)
     run = executor.start(session, session.planning.approval, document.phases[0].packages[0].id)
     await executor.tasks[run.id]
     executor.set(run.id, status="blocked", error="Synthetic reconnect")
@@ -99,6 +152,7 @@ async def test_known_completed_turn_is_reconciled_without_starting_another_turn(
 
 async def test_permission_is_durable_and_requires_matching_generation(tmp_path):
     session, document, executor = fixture(tmp_path, "approval")
+    await approve_package(session, document, executor)
     run = executor.start(session, session.planning.approval, document.phases[0].packages[0].id)
     for _ in range(100):
         saved = executor.runs.get(run.id)
@@ -117,6 +171,7 @@ async def test_permission_is_durable_and_requires_matching_generation(tmp_path):
 
 async def test_cancellation_preserves_work_and_closes_owned_process(tmp_path):
     session, document, executor = fixture(tmp_path, "hang")
+    await approve_package(session, document, executor)
     run = executor.start(session, session.planning.approval, document.phases[0].packages[0].id)
     for _ in range(100):
         if executor.runs.get(run.id).turn_id:
@@ -130,6 +185,7 @@ async def test_cancellation_preserves_work_and_closes_owned_process(tmp_path):
 
 async def test_recovery_without_turn_id_remains_blocked_and_does_not_spawn(tmp_path):
     session, document, executor = fixture(tmp_path, "lost_start")
+    await approve_package(session, document, executor)
     run = executor.start(session, session.planning.approval, document.phases[0].packages[0].id)
     await executor.tasks[run.id]
     await executor.reconcile(session.id, run.id)
@@ -140,6 +196,7 @@ async def test_recovery_without_turn_id_remains_blocked_and_does_not_spawn(tmp_p
 
 async def test_cancellation_during_change_inventory_cannot_turn_into_success(tmp_path):
     session, document, executor = fixture(tmp_path)
+    await approve_package(session, document, executor)
     entered, release = asyncio.Event(), asyncio.Event()
     changed = executor.worktrees.changed_paths
 

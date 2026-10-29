@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { api, consumeEvents } from "@/lib/stream";
 import { PlanPanel } from "@/components/plan-panel";
+import { ExecutionPanel } from "@/components/execution-panel";
 import {
   recognitionConstructor,
   speak,
@@ -65,7 +66,7 @@ const SLOT_LABELS: Record<Slot, string> = {
   "success-criterion": "Success criterion",
 };
 type Summary = { id: string; title: string; mode: "demo" | "live" };
-type View = "clarify" | "brief" | "plan" | "build";
+type View = "clarify" | "brief" | "plan" | "execution" | "build";
 
 function Mark({ small = false }: { small?: boolean }) {
   return (
@@ -482,12 +483,20 @@ export default function Home() {
           Build brief{session?.brief && <span className="tiny-dot" />}
         </button>
         <button
-          className={`sidebar-link ${view === "plan" ? "active" : ""}`}
+          className={`sidebar-link project-graph-link ${view === "plan" ? "active" : ""}`}
           onClick={() => setView("plan")}
-          disabled={!hasTurns}
+          disabled={!session}
         >
           <GitBranch size={16} />
-          Phase plan
+          Project graph
+        </button>
+        <button
+          className={`sidebar-link ${view === "execution" ? "active" : ""}`}
+          onClick={() => setView("execution")}
+          disabled={!hasTurns}
+        >
+          <Terminal size={16} />
+          Codex execution
         </button>
         <button
           className={`sidebar-link ${view === "build" ? "active" : ""}`}
@@ -574,7 +583,11 @@ export default function Home() {
           </div>
         </header>
 
-        <main id="main" className="workspace">
+        <main
+          id="main"
+          className={`workspace ${view === "plan" ? "graph-workspace-page" : ""}`}
+        >
+          {view === "plan" && <h1 className="sr-only">Project graph</h1>}
           <div className="page-heading">
             <div>
               <div className="eyebrow">
@@ -666,7 +679,7 @@ export default function Home() {
           )}
 
           <div
-            className={`workspace-grid ${view !== "clarify" ? "review-grid" : ""}`}
+            className={`workspace-grid ${view !== "clarify" ? "review-grid" : ""} ${view === "plan" ? "graph-focus" : ""}`}
           >
             <section className="conversation-panel">
               <div className="panel-header">
@@ -680,8 +693,10 @@ export default function Home() {
                       : view === "brief"
                         ? "Your build brief"
                         : view === "plan"
-                          ? "Your phase plan"
-                          : "The build workspace"}
+                          ? "Your project graph"
+                          : view === "execution"
+                            ? "Your phase execution"
+                            : "The build workspace"}
                   </h2>
                 </div>
                 {view === "clarify" ? (
@@ -999,6 +1014,15 @@ export default function Home() {
                 />
               )}
 
+              {view === "execution" && session && (
+                <ExecutionPanel
+                  key={`${session.id}:${session.revision}`}
+                  session={session}
+                  busy={busy}
+                  modeMismatch={modeMismatch}
+                />
+              )}
+
               {view === "brief" && (
                 <div className="brief-content">
                   {!session?.playback && !session?.brief ? (
@@ -1089,7 +1113,7 @@ export default function Home() {
                               onClick={() => setView("plan")}
                             >
                               <GitBranch size={14} />
-                              Plan phases
+                              Explore project graph
                             </button>
                           </div>
                           <div className="comparison">

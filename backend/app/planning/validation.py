@@ -1,11 +1,11 @@
 """Deterministic checks; a model's claim of independence is never sufficient."""
 
-import re
 from pathlib import PurePosixPath
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 from .contracts import (
+    Diagram,
     LeafTask,
     OutlineProposal,
     Package,
@@ -76,9 +76,11 @@ def unique(values):
         raise ValueError("Duplicate proposal reference")
 
 
+_description = TypeAdapter(Diagram)
+
+
 def check_diagram(diagram: str):
-    if re.search(r"[^\x09\x0a\x0d\x20-\x7e]", diagram):
-        raise ValueError("Diagrams must use plain ASCII")
+    _description.validate_python(diagram)
 
 
 def accept_outline(outline: OutlineProposal, ledger) -> OutlineProposal:
