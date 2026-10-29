@@ -146,3 +146,42 @@ for attempt 7.
 These changes improve the odds and make any failure diagnosable. They do not
 guarantee provider availability or faithful model output, and success will not be
 claimed from a fixture or from a partial plan.
+
+## What attempt 8 added to the evidence
+
+The authorized eighth run was prepared with 640 passing backend tests, one skip,
+95 passing focused checks, seven offline full-pipeline rehearsals and all 16 demo
+evaluations. It nevertheless failed. Those checks established bounded protocol
+behavior and history preservation; they could not establish faithful live output.
+The detailed [eighth-attempt record](../plans/2026-10-29-eighth-planning-attempt.md)
+contains the measured result and proposed follow-up.
+
+What worked: the model used one phase/package, the outline and screen passed
+without repair, references and L4 exclusions were present in the rejected phase,
+and every task used the supported runner command. The original schema errors
+were supplied to the one repair. HTTP responses and finish reasons make the
+failure reproducible. No overload occurred, so bounded overload recovery remains
+offline-tested rather than live-demonstrated. All prior source/history and gates
+survived; the demo returned with the same sessions.
+
+What failed: initial empty `preconditions` and `inputs` violated minimum lengths.
+The full-object repair fixed those fields but emitted two identical three-task
+blocks, violating the independent three-task maximum. Both bodies were valid JSON
+and ended with `stop`. Captured-response replay confirmed this is in the provider
+output, not a concatenation in the adapter. Improving the repair prompt did not
+prevent a new error in previously valid fields. "Valid JSON" is also a misleading
+public diagnostic when JSON parsing succeeded but schema validation failed.
+
+Why the preparation was insufficient: rehearsals injected known failures into
+otherwise faithful fixtures. They demonstrated enforcement, not the model's
+ability to obey all structural constraints and preserve requirement semantics at
+once. General instructions also did not eliminate earlier fidelity drift: the
+rejected phase still conflates absent data and read failures, and commits update
+ordering while that choice remains open. A shape-only fix would be insufficient.
+
+The next credible direction is constrained field repair with whole-document
+validation, plus semantic review of free-form architecture, flow and task steps.
+Test it offline on these real captured failures before requesting any further
+live attempt. Do not relax the task limit, deduplicate model output into approval,
+or accept placeholder inputs merely to get green checks. Attempt 8 consumed
+$0.01464840 estimated; no ninth attempt was made or authorized.

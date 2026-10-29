@@ -821,6 +821,28 @@ the measured outcome; private evidence remains ignored under
 `.data/live-check/2026-10-29/attempt-7/`. No additional live retry is authorized by
 this record.
 
+**Eighth-attempt qualification (2026-10-29):** the user authorized one eighth
+attempt after a handoff and full review of attempts 1?7. The
+[retrospective](docs/retrospectives/2026-10-29-seven-planning-attempts.md) and
+[eighth-attempt record](docs/plans/2026-10-29-eighth-planning-attempt.md) explain the
+causes, mitigations and measured outcome. Checkpoint `5270b9c` adds an audited
+eighth grant, at most two explicit overload retries shared across that attempt,
+and checked runner/review-coverage acceptance. Ordinary sessions retain two
+attempts; SDK retries stay disabled. Verification passed 640 backend tests (one
+existing skip and warning), 95 focused checks, seven offline rehearsals, Ruff and
+all 16 demo cases.
+
+The sole live run accepted its outline and screen, then **failed at phase repair**.
+The initial JSON had empty required inputs/preconditions. Its repair fixed those
+fields but duplicated a three-task block, exceeding the three-task maximum. All
+four responses were HTTP 200 with finish reason `stop`; there was no overload or
+truncation. Offline replay reproduced the failure using only captured responses.
+No phase, complete plan, plan approval or worker dispatch exists. Estimated new
+cost was $0.01464840; cumulative recorded spend is $0.16489738 over 75 responses.
+All previous history and approved sources are intact. The eighth grant is
+consumed and a ninth is refused before provider/save. The demo was restored with
+the same three sessions. No further live inference is authorized by this record.
+
 ## Claude Code handoff
 
 After approving and compiling the brief, set `ALLOW_CLAUDE_BUILD=true` and restart.

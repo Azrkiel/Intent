@@ -88,23 +88,23 @@ failure/cancel/restart -> preserve accepted prefix and all evidence; no ninth at
   `uv run python -m backend.evals.run --demo`, and `git diff --check`. Persist full
   logs/JUnit under `.data/`. Review retry accounting, immutable history, API
   redaction, source/fidelity gates and cleanup; commit the verified checkpoint.
-- [ ] Recheck the live session: revision 3 approved, seven failures, five consumed
+- [x] Recheck the live session: revision 3 approved, seven failures, five consumed
   grants, 71 prior usage records, original ledger/transcript/brief/compiler count,
   estimated spend $0.15024898, same key/model/TLS and cumulative $2 budget. Back it
   up, stop the owned demo, record the exact current authorization and CAS-issue
   one eighth grant against the fresh hash and implementation commit.
-- [ ] Invoke the new exclusive driver once. Allow at most nine logical passes,
+- [x] Invoke the new exclusive driver once. Allow at most nine logical passes,
   18 successful model responses, two extra overload HTTP posts and 30s per delay.
   Keep 4096 output tokens, one content repair and no hidden SDK retries. Capture
   bodies, finish reasons and retry metadata privately; redact console output.
-- [ ] Check the applicable result. Success requires a complete persisted plan,
+- [x] Check the applicable result. Success requires a complete persisted plan,
   exact semantic review coverage with no rejected/missing claims, manual fidelity
   audit against the ledger, valid runner commands, consistent graph/views and
   notes snapshot, and a closed export/worker gate pending human plan approval.
   Failure requires its exact boundary and retained evidence, not an invented pass.
   Verify all seven prior attempts, grants and usage are unchanged, transport audit
   is append-only and attempt 9 is rejected before provider/save.
-- [ ] Restore the same demo database and sessions. Record the measured outcome,
+- [x] Restore the same demo database and sessions. Record the measured outcome,
   update README and the handoff, check paths/whitespace, and commit documentation
   separately. Report the plan or remaining blocker and checkpoint hashes.
 
@@ -123,3 +123,73 @@ private grant redaction, append-only retry records, shared retry and budget limi
 SDK retry disabling, and genuine semantic rejection. Cleanup retained the existing
 grant pattern and acceptance wrapper. The live eighth attempt remains unstarted
 at this checkpoint; rehearsals do not establish live model quality.
+
+## Measured live outcome: failed at phase repair
+
+Implementation checkpoint: `5270b9c09512e872ee3d9d5952273d03474fd73c`.
+The exact user authorization was recorded before CAS issuance. The fresh state
+hash matched the pre-investigation snapshot; the source was still approved at
+revision 3, with seven failures and 71 usage entries. The demo database was backed
+up and its owned process stopped before issuance and dispatch.
+
+The new exclusive driver ran exactly once. The outline and screen were accepted
+on their first responses. One phase with one package was proposed. The initial
+phase was valid JSON but violated the schema because `preconditions` and `inputs`
+were empty. Its one repair filled both with `None`, then duplicated the complete
+three-task block, returning six tasks against the maximum of three. No phase was
+accepted and semantic verification was never reached. All four responses were
+HTTP 200 with finish reason `stop`; this was neither overload nor truncation.
+The public error says "did not return valid JSON", but the precise failure is
+schema-invalid JSON. The saved validation identifies `packages.0.tasks`.
+
+Three logical passes used four responses, zero transport retries, 16,827 input
+and 10,667 output tokens. Estimated incremental cost was $0.01464840; cumulative
+recorded spend is $0.16489738 across 75 successful HTTP-response usage entries.
+There is no complete plan, active plan identity, plan approval, instruction
+export or worker dispatch. The eighth grant is consumed; a ninth attempt was
+rejected before provider construction or save. All seven prior attempts, five
+old grants, 71 old usage entries, ledger, transcript, requirements/playback
+approval, compiled brief and compiler count are unchanged.
+
+An offline replay of all four captured responses against an isolated temporary
+SQLite store reproduced the exact failure and repair prompt with zero provider
+calls. It confirmed the duplicate tasks already exist in the raw provider body;
+the application did not concatenate them. The production session remained
+unchanged throughout replay. Private evidence includes `failure-audit.json`,
+`reproduction.json`, `outcome.json`, `postflight.json`, every provider body, the
+accepted sections, rejected phases, and before/after database backups under
+`.data/live-check/2026-10-29/attempt-8/`. Never replay `run.py` or reuse its marker.
+
+Manual inspection also found residual fidelity issues in the rejected phase:
+its original flow treats missing storage as an error, its load task conflates a
+failed read with invalid data and forces zero, and its write steps settle update
+ordering while L8 remains open. These were not reached by the final reviewer;
+correcting task duplication alone would not establish a faithful plan. Source
+and dist paths also differ without a complete declared copy/build arrangement.
+No rejected content was edited into an accepted plan.
+
+The demo was restored at port 3000 using the same `.data/prompt-caller.sqlite3`:
+all three session summaries match, the API reports demo mode, and `/` and
+`/workspace` return HTTP 200. The separate `C:/Users/jiang/Intent` checkout moved
+to local main `18edcde` during this work and is ahead of its origin by five
+commits; its changes were not reverted, merged or pushed by this attempt. This
+isolated branch still carries the eighth-attempt changes on its original base.
+The full suite qualifies this branch, not those separate newer commits.
+
+## Next design proposal, not another live request
+
+Do not spend another attempt on the same whole-object repair strategy. Design a
+bounded repair format that can replace only invalid field paths, leaves all
+other model content intact, and validates the reconstructed whole proposal
+against the original schema, source/coverage checks, runner policy and final
+semantic gate. Do not silently deduplicate, truncate lists or synthesize missing
+facts. Use real approved-source inputs and explicit readiness preconditions
+rather than asking for meaningless nonempty placeholders. Review whether truly
+absent inputs/preconditions should be expressible; changing that contract needs
+its own tests and design rationale, not an exception for this response.
+
+Before another live run, replay the captured failures offline, test independent
+schema constraints after repair, and expand semantic review coverage to include
+architecture, flow and task-step prose where unsupported decisions can hide.
+That design is proposed, not implemented or live-qualified here. Further live
+inference requires new authorization; no ninth allowance exists.
