@@ -13,7 +13,7 @@ from backend.app.planning.demo import demo_response
 from backend.app.planning.service import PlanningService
 from backend.app.settings import Settings
 from backend.app.store import Store
-from backend.tests.planning_fixtures import ready_session
+from backend.tests.planning_fixtures import ready_session, repair_response
 from backend.tests.test_models import completion
 
 
@@ -48,7 +48,7 @@ async def test_acceptance_checks_share_one_content_repair(tmp_path, failure, rep
                 result["packages"][0]["tasks"][0]["checks"][0]["command"] = ["node", "unapproved.js"]
             else:
                 result["packages"][0]["tasks"][0]["checks"][0]["expected"] = "TODO verify"
-        return httpx.Response(200, json=completion(json.dumps(result)))
+        return httpx.Response(200, json=completion(json.dumps(repair_response(body, result))))
 
     config = Settings(mode="live", allow_codex_execution=True)
     client = AsyncOpenAI(api_key="offline-test", base_url="https://test.invalid/v1", max_retries=0,
@@ -78,7 +78,8 @@ async def test_genuine_semantic_rejection_is_not_repaired_into_approval(tmp_path
     seen = Counter()
 
     def handle(request):
-        payload = json.loads(json.loads(request.content)["messages"][1]["content"])
+        body = json.loads(request.content)
+        payload = json.loads(body["messages"][1]["content"])
         role = (
             "planner:verify" if "statements" in payload else
             f"planner:phase:{payload['phase']['ref']}" if "phase" in payload else
@@ -92,7 +93,7 @@ async def test_genuine_semantic_rejection_is_not_repaired_into_approval(tmp_path
             )
             if incomplete:
                 result["reviewed_statement_ids"].pop()
-        return httpx.Response(200, json=completion(json.dumps(result)))
+        return httpx.Response(200, json=completion(json.dumps(repair_response(body, result))))
 
     config = Settings(mode="live")
     client = AsyncOpenAI(api_key="offline-test", base_url="https://test.invalid/v1", max_retries=0,

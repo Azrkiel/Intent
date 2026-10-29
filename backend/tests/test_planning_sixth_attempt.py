@@ -311,6 +311,7 @@ async def test_sixth_uses_only_existing_shared_outline_repair(retained, repair_s
     from openai import AsyncOpenAI
 
     from backend.app.planning.demo import demo_response
+    from backend.tests.planning_fixtures import repair_response
     from backend.tests.test_models import completion
 
     config, store, original = retained
@@ -329,7 +330,7 @@ async def test_sixth_uses_only_existing_shared_outline_repair(retained, repair_s
         result = demo_response(session, role, payload)
         if len(requests) == 1 or not repair_succeeds:
             result["common_rules"] = []
-        return httpx.Response(200, json=completion(json.dumps(result)))
+        return httpx.Response(200, json=completion(json.dumps(repair_response(body, result))))
 
     client = AsyncOpenAI(
         api_key="offline-test", base_url="https://test.invalid/v1", max_retries=0,

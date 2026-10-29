@@ -1,4 +1,23 @@
+import json
+
 from backend.app.domain import LedgerItem, Session, Turn
+
+
+def repair_response(request, valid_response):
+    """Synthetic provider obeys application-owned scopes; no production fallback."""
+    try:
+        repair = json.loads(request["messages"][-1]["content"])
+    except (ValueError, TypeError):
+        return valid_response
+    if not isinstance(repair, dict) or repair.get("mode") != "field_repair":
+        return valid_response
+    result = {}
+    for key, field in repair["repair_fields"].items():
+        value = valid_response
+        for token in field["path"]:
+            value = value[token]
+        result[key] = value
+    return result
 
 
 def statement(text="Save notes", ids=None, status="proposal"):

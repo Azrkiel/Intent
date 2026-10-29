@@ -13,7 +13,7 @@ from backend.app.planning.demo import demo_response
 from backend.app.planning.service import PlanningService
 from backend.app.settings import Settings
 from backend.app.store import Store
-from backend.tests.planning_fixtures import ready_session
+from backend.tests.planning_fixtures import ready_session, repair_response
 from backend.tests.test_models import completion
 
 
@@ -47,7 +47,7 @@ async def test_wrong_section_reference_uses_existing_repair_before_acceptance(
             target_requests.append(body)
             if len(target_requests) == 1 or not repair_succeeds:
                 result["ref"] += "-changed"
-        return httpx.Response(200, json=completion(json.dumps(result)))
+        return httpx.Response(200, json=completion(json.dumps(repair_response(body, result))))
 
     client = AsyncOpenAI(
         api_key="offline-test",

@@ -21,12 +21,13 @@ from .contracts import (
     ScreenProposal,
     SourceItem,
 )
+from .repair import ScopedError
+from .review import review_catalog
 from .validation import (
     accept_outline,
     accept_phase,
     accept_screen,
     check_citations,
-    statement_catalog,
     validate_plan,
 )
 
@@ -86,13 +87,24 @@ class PlanningService:
         check_citations(proposal, session.ledger)
         accepted = accept_phase(proposal, attempt.outline, index)
         phases = [*attempt.phases, accepted]
-        validate_plan(
-            self.document(session, attempt, phases), session.ledger,
-            complete=len(phases) == len(attempt.outline.phases),
-        )
+        try:
+            validate_plan(
+                self.document(session, attempt, phases), session.ledger,
+                complete=len(phases) == len(attempt.outline.phases),
+            )
+        except ScopedError as error:
+            if not error.paths or any(path[:2] != ("phases", index) for path in error.paths):
+                raise ValueError(
+                    "Accepted section failed validation; current phase cannot repair it"
+                ) from error
+            raise ScopedError(str(error), *(path[2:] for path in error.paths)) from error
         if self.settings.allow_codex_execution:
-            for package in accepted.packages:
-                preflight_checks(package)
+            for package_index, package in enumerate(accepted.packages):
+                try:
+                    preflight_checks(package)
+                except ScopedError as error:
+                    raise ScopedError(str(error), *(("packages", package_index) + path
+                                                    for path in error.paths)) from error
         return accepted
 
     def event(self, session, kind, message=None):
@@ -226,7 +238,7 @@ class PlanningService:
                 yield self.event(session, "plan_section")
             plan = self.document(session, attempt)
             validate_plan(plan, session.ledger)
-            catalog = statement_catalog(plan)
+            catalog = review_catalog(plan)
             verification = await self.call(
                 session,
                 "planner:verify",

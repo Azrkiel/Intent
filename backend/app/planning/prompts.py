@@ -51,6 +51,10 @@ Each package has at most three ordered leaf tasks. Use globally unique package
 refs and explicit dependency refs. Earlier accepted packages are supplied for context.
 Include ownership paths, interfaces, preconditions, inputs/outputs, steps, acceptance,
 checks with command argv and expected results, artifacts, exclusions, and open choices.
+Use real inputs: the approved source ledger, accepted outline, requested phase and actual
+dependency outputs. State concrete readiness preconditions for execution; distinguish
+already satisfied facts from future gates. A plan being drafted is not yet approved.
+Never fill inputs or preconditions with None, N/A or other meaningless placeholders.
 Every confirmed requirement must map to package acceptance across the completed plan.
 Acceptance for a confirmed requirement must use status="confirmed" and include its ledger ID;
 check confirmed_ledger_ids against acceptance in this phase and earlier accepted phases.
@@ -72,8 +76,15 @@ inspection proves functionality or grants permission to run additional commands.
 VERIFY = (
     COMMON
     + """Review every supplied statement address against its cited
-source ledger, including prose, screen purposes, phase goals, package/task acceptance,
-choices, and exclusions. Return every reviewed_statement_id. Reject unsupported or
+source ledger, including architecture, screen wireframes/titles, phase and package flows,
+task titles and every step, inputs, preconditions, outputs, ownership, artifacts, check
+expectations, screen purposes, phase goals, package/task acceptance, choices and exclusions.
+Uncited prose has no inherited confirmed status: assess it against the full ledger and
+surrounding plan, without inventing citations. Reject placeholder inputs/readiness, treating
+absent data as corrupt data or failed I/O, resetting on failed reads without source support,
+and task steps that choose a mechanism while listing that choice as unresolved. Assess
+coherent ownership and output production, including source-to-build artifact arrangements.
+Return every reviewed_statement_id. Reject unsupported or
 contradictory statements and assumptions presented as confirmed. Report confirmed
 requirements missing from actionable acceptance. Do not approve execution or rewrite
 the plan. Complete citations alone do not establish semantic fidelity.
