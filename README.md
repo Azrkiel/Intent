@@ -20,7 +20,10 @@ npm ci
 npm run dev
 ```
 
-Open **http://127.0.0.1:3000**. The orchestrator runs on port 8000; interactive API
+Open **http://127.0.0.1:3000** for the Intent homepage, then choose **Workspace**
+(or open **http://127.0.0.1:3000/workspace** directly). The workspace sidebar connects
+the conversation, build brief, project graph, Codex execution, and build output.
+The orchestrator runs on port 8000; interactive API
 documentation is at http://127.0.0.1:8000/docs. Both servers bind to loopback. Use
 Ctrl+C to stop them. The launcher stops the processes it started, including their
 child processes on Windows.
@@ -232,7 +235,7 @@ available separately.
 
 ## Editable Markdown vault and graph
 
-Open **Phase plan → Graph & notes** after starting a conversation. The vault works
+Open **Workspace → Project graph → Graph & notes**. The vault works
 before a phase plan exists: edit the main `Plan.md` note and create your own notes.
 After generating a phase plan, choose **Add phase plan** to add linked vision,
 specification, architecture, screen, phase, work-package and task notes. This is a
@@ -872,6 +875,22 @@ npm run eval:demo
 # Uses real Token Factory calls and credits:
 uv run python -m backend.evals.run
 ```
+
+For browser regression checks, install Chromium once with
+`npx playwright install chromium`, then run `npm run test:e2e`. Stop the frontend
+dev server first: browser tests and production builds use `frontend/.next`.
+The browser suite starts isolated demo servers on loopback ports 3817 and 8817,
+stores its temporary databases and screenshots under `.data/`, and makes no
+provider calls. It checks homepage navigation, both graph views, plan approval,
+section questions, linked Markdown creation, autosave, reload, execution-panel
+navigation, and mobile canvas width.
+
+**Graph integration verification (2026-10-29):** 539 backend tests passed with one
+skip; 44 frontend tests and all three browser checks passed, along with Ruff,
+TypeScript, the production build for `/` and `/workspace`, and 16/16 scripted demo
+evaluations. Editable notes preserve the canonical plan hash and approval. These
+are offline and scripted-demo checks; live provider quality and paid worker
+execution remain separately qualified.
 
 Eight fixtures in `backend/evals/fixtures.json` contain 2–3 documented ambiguities
 each. The runner compares six lenses with one general critic, keeping extraction,
