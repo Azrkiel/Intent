@@ -1,6 +1,7 @@
 # Clarity v2 proposal: from filled categories to determined behavior
 
-Status: **proposal, not approved.** No code changed. Builds on the
+Status: **proposal.** §11 decisions, North Star rubrics and the decision framework
+are now specified in [clarity v2](../specs/2026-10-29-clarity-v2.md). No code changed. Builds on the
 [framework-backed clarity spec](../specs/2026-10-29-framework-clarity.md) and the
 failed live qualification recorded in
 [the framework plan](2026-10-29-framework-clarity.md).
