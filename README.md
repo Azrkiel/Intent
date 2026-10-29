@@ -20,7 +20,10 @@ npm ci
 npm run dev
 ```
 
-Open **http://127.0.0.1:3000**. The orchestrator runs on port 8000; interactive API
+Open **http://127.0.0.1:3000** for the Intent homepage, then choose **Workspace**
+(or open **http://127.0.0.1:3000/workspace** directly). The workspace sidebar connects
+the conversation, build brief, project graph, Codex execution, and build output.
+The orchestrator runs on port 8000; interactive API
 documentation is at http://127.0.0.1:8000/docs. Both servers bind to loopback. Use
 Ctrl+C to stop them. The launcher stops the processes it started, including their
 child processes on Windows.
@@ -229,6 +232,70 @@ described below adds worker execution and phase staging. The
 [implementation plan](docs/plans/2026-10-26-phase-plans-codex-orchestration.md)
 records scheduling in Phase 3 and the review UI in Phase 4. The existing HTML builder remains
 available separately.
+
+## Editable Markdown vault and graph
+
+Open **Workspace → Project graph → Graph & notes**. The vault works
+before a phase plan exists: edit the main `Plan.md` note and create your own notes.
+After generating a phase plan, choose **Add phase plan** to add linked vision,
+specification, architecture, screen, phase, work-package and task notes. This is a
+snapshot; later plan revisions do not overwrite your Markdown edits.
+
+- Drag a node to arrange it, drag the background to pan, and scroll to zoom. The
+  larger green node is the main plan. Click a node to read or edit its Markdown.
+  Use the expand button for the full workspace, and Fit to bring notes into view.
+- Connect notes with `[[Note name]]`, `[[folder/Note#Heading|Label]]`, or
+  `[Label](relative/Note.md)`. Hover highlights connections; the inspector lists
+  backlinks. A dashed node represents a missing note; select it to create the note.
+- Create, rename or delete notes through the explorer and inspector. Renaming
+  updates resolved internal links, including relative links when moving a note to
+  another folder. Deleting a note keeps incoming links as missing-note placeholders.
+  The main plan note can be edited and renamed, but cannot be deleted.
+- Changes autosave locally. **Saved locally** confirms the saved copy; an unsaved
+  draft can be exported separately. Concurrent saves show a conflict and preserve
+  the draft, with backup, retry and explicit reload options. A temporary browser
+  recovery copy also protects pending edits when switching views.
+- **Export vault** downloads Markdown files and `intent-vault.json` in a ZIP.
+  Unzip it into a folder to open in Obsidian. **Import Markdown / ZIP** replaces
+  the current vault after confirmation; imported notes never count as an approved
+  execution plan. Import/export supports Markdown text, not attachment files or
+  Obsidian settings. The live workspace is stored in the local SQLite database;
+  it does not watch or synchronize an existing filesystem vault.
+
+Search filters both the file list and graph. Graph settings include node types,
+labels, arrows, node size, link distance and repulsion. Pause/resume controls layout
+motion, and reduced-motion preferences disable animated settling. Focus the graph
+and use arrow keys to pan, `+`/`-` to zoom, and Home to fit. The explorer provides a
+keyboard-accessible alternative to selecting graph nodes.
+
+Vaults support up to 500 notes, 100 KB UTF-8 per note and 2 MB total Markdown.
+The graph displays at most 750 nodes (including missing notes) and 5,000 connections;
+an explicit notice appears at that limit, and exports retain all note content.
+Raw HTML is disabled in preview. ZIP imports are bounded and validated without
+extracting files onto the host filesystem.
+
+Vault edits are independent of the canonical plan, its hash, ledger citations,
+requirements approval and execution gates. Demo, draft and stale source snapshots
+remain labeled. Markdown links express note relationships, not execution permission
+or verified work-package dependencies.
+
+For a second local instance, run the backend with `FRONTEND_PORT` set to the chosen
+web port, and start Next.js with `INTENT_API_PORT` set to the chosen API port. For
+example, use separate terminals from the repository root:
+
+```powershell
+# API terminal
+$env:FRONTEND_PORT = '3001'
+$env:DATABASE_PATH = '.data/second-instance.sqlite3'
+uv run uvicorn backend.app.main:app --host 127.0.0.1 --port 8001
+
+# Web terminal
+$env:INTENT_API_PORT = '8001'
+npm exec --workspace frontend -- next dev --hostname 127.0.0.1 --port 3001
+```
+
+Defaults remain loopback ports 3000/8000. The alternate origin is restricted to
+`127.0.0.1` or `localhost` at the configured web port.
 
 ## Codex execution and phase staging API
 
@@ -808,6 +875,22 @@ npm run eval:demo
 # Uses real Token Factory calls and credits:
 uv run python -m backend.evals.run
 ```
+
+For browser regression checks, install Chromium once with
+`npx playwright install chromium`, then run `npm run test:e2e`. Stop the frontend
+dev server first: browser tests and production builds use `frontend/.next`.
+The browser suite starts isolated demo servers on loopback ports 3817 and 8817,
+stores its temporary databases and screenshots under `.data/`, and makes no
+provider calls. It checks homepage navigation, both graph views, plan approval,
+section questions, linked Markdown creation, autosave, reload, execution-panel
+navigation, and mobile canvas width.
+
+**Graph integration verification (2026-10-29):** 539 backend tests passed with one
+skip; 44 frontend tests and all three browser checks passed, along with Ruff,
+TypeScript, the production build for `/` and `/workspace`, and 16/16 scripted demo
+evaluations. Editable notes preserve the canonical plan hash and approval. These
+are offline and scripted-demo checks; live provider quality and paid worker
+execution remain separately qualified.
 
 Eight fixtures in `backend/evals/fixtures.json` contain 2–3 documented ambiguities
 each. The runner compares six lenses with one general critic, keeping extraction,

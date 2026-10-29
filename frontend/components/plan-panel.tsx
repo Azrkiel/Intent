@@ -17,6 +17,7 @@ import { graphKey } from "@/lib/plan-graph";
 import { PlanGraph } from "@/components/plan-graph";
 import { GraphDiscussion } from "@/components/graph-discussion";
 import type { DiscussionActivity } from "@/lib/discussion";
+import { VaultWorkspace } from "@/components/vault-workspace";
 
 export function PlanPanel({
   session,
@@ -32,7 +33,9 @@ export function PlanPanel({
   modeMismatch: boolean;
 }) {
   const [detail, setDetail] = useState<PlanDetail | null>(null);
-  const [view, setView] = useState<"graph" | "human" | "engineering">("graph");
+  const [view, setView] = useState<"graph" | "human" | "engineering" | "vault">(
+    "graph",
+  );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const alive = useRef(true);
@@ -340,115 +343,132 @@ export function PlanPanel({
         </ol>
       )}
 
-      {detail?.views || detail?.graph ? (
-        <>
-          <div className="plan-tabs" role="group" aria-label="Plan view">
-            <button
-              aria-pressed={view === "graph"}
-              onClick={() => setView("graph")}
-            >
-              Project graph
-            </button>
-            <button
-              aria-pressed={view === "human"}
-              onClick={() => setView("human")}
-            >
-              Vision & wireframes
-            </button>
-            <button
-              aria-pressed={view === "engineering"}
-              onClick={() => setView("engineering")}
-            >
-              Engineering & work packages
-            </button>
-          </div>
-          <p className="plan-caption">
-            {detail.partial
-              ? "Draft sections · final validation and semantic review pending"
-              : `Revision ${detail.plan?.revision} · one plan, connected views`}
-          </p>
-          {view === "graph" ? (
-            detail.graph ? (
-              <PlanGraph
-                key={graphKey(detail.graph)}
-                graph={detail.graph}
-                activity={activity.key === sourceKey ? activity.data : {}}
-                discussion={(node) => (
-                  <GraphDiscussion
-                    key={`${graphKey(detail.graph!)}:${node.id}`}
-                    session={session}
-                    nodeId={node.id}
-                    source={detail.graph!.source}
-                    onActivity={(data) => {
-                      if (
-                        alive.current &&
-                        displayedSource.current === sourceKey
-                      )
-                        setActivity({ key: sourceKey, data });
-                    }}
-                    busy={busy}
-                    setBusy={setBusy}
-                    onSession={reportSession}
-                    modeMismatch={modeMismatch}
-                  />
-                )}
-                stale={modeMismatch || stale}
-              />
-            ) : (
-              <p role="status" className="plan-notice">
-                Loading the graph of accepted sections…
-              </p>
-            )
-          ) : (
-            <pre
-              className="plan-document"
-              tabIndex={0}
-              aria-label={
-                view === "human" ? "Vision and wireframes" : "Engineering plan"
-              }
-            >
-              {detail.views?.[view]}
-            </pre>
-          )}
-        </>
-      ) : (
-        <div className="draft-vision-workspace">
-          <div className="draft-vision-map">
-            <span className="eyebrow">DRAFT VISION</span>
-            <div className="draft-root-connector" />
-            <div className="draft-root-node">
-              <GitBranch size={25} />
-              <h4>Your project starts here.</h4>
-              <p>
-                {session.ledger.find((item) => item.slot === "goal")?.text ||
-                  session.turns[0]?.text ||
-                  "Tell us what you want to make."}
-              </p>
-            </div>
-            <p className="draft-vision-caption">
-              Shape the vision now. Planning will add phases, subprojects and
-              tasks.
+      <div className="plan-tabs" role="group" aria-label="Plan view">
+        <button
+          aria-pressed={view === "graph"}
+          onClick={() => setView("graph")}
+        >
+          Project graph
+        </button>
+        <button
+          aria-pressed={view === "vault"}
+          onClick={() => setView("vault")}
+        >
+          Graph & notes
+        </button>
+        <button
+          aria-pressed={view === "human"}
+          onClick={() => setView("human")}
+        >
+          Vision & wireframes
+        </button>
+        <button
+          aria-pressed={view === "engineering"}
+          onClick={() => setView("engineering")}
+        >
+          Engineering & work packages
+        </button>
+      </div>
+      <div hidden={view !== "vault"}>
+        <VaultWorkspace
+          key={session.id}
+          session={session}
+          canSeed={!!detail?.views}
+          readOnly={modeMismatch || busy}
+        />
+      </div>
+      {view !== "vault" &&
+        (detail?.views || detail?.graph ? (
+          <>
+            <p className="plan-caption">
+              {detail.partial
+                ? "Draft sections · final validation and semantic review pending"
+                : `Revision ${detail.plan?.revision} · one plan, connected views`}
             </p>
-            <div className="draft-intent-notes">
-              {session.ledger.slice(0, 4).map((item) => (
-                <span key={item.id}>{item.text}</span>
-              ))}
+            {view === "graph" ? (
+              detail.graph ? (
+                <PlanGraph
+                  key={graphKey(detail.graph)}
+                  graph={detail.graph}
+                  activity={activity.key === sourceKey ? activity.data : {}}
+                  discussion={(node) => (
+                    <GraphDiscussion
+                      key={`${graphKey(detail.graph!)}:${node.id}`}
+                      session={session}
+                      nodeId={node.id}
+                      source={detail.graph!.source}
+                      onActivity={(data) => {
+                        if (
+                          alive.current &&
+                          displayedSource.current === sourceKey
+                        )
+                          setActivity({ key: sourceKey, data });
+                      }}
+                      busy={busy}
+                      setBusy={setBusy}
+                      onSession={reportSession}
+                      modeMismatch={modeMismatch}
+                    />
+                  )}
+                  stale={modeMismatch || stale}
+                />
+              ) : (
+                <p role="status" className="plan-notice">
+                  Loading the graph of accepted sections…
+                </p>
+              )
+            ) : (
+              <pre
+                className="plan-document"
+                tabIndex={0}
+                aria-label={
+                  view === "human"
+                    ? "Vision and wireframes"
+                    : "Engineering plan"
+                }
+              >
+                {detail.views?.[view]}
+              </pre>
+            )}
+          </>
+        ) : (
+          <div className="draft-vision-workspace">
+            <div className="draft-vision-map">
+              <span className="eyebrow">DRAFT VISION</span>
+              <div className="draft-root-connector" />
+              <div className="draft-root-node">
+                <GitBranch size={25} />
+                <h4>Your project starts here.</h4>
+                <p>
+                  {session.ledger.find((item) => item.slot === "goal")?.text ||
+                    session.turns[0]?.text ||
+                    "Tell us what you want to make."}
+                </p>
+              </div>
+              <p className="draft-vision-caption">
+                Shape the vision now. Planning will add phases, subprojects and
+                tasks.
+              </p>
+              <div className="draft-intent-notes">
+                {session.ledger.slice(0, 4).map((item) => (
+                  <span key={item.id}>{item.text}</span>
+                ))}
+              </div>
             </div>
+            {loading ? (
+              <p role="status">Loading your project…</p>
+            ) : (
+              <GraphDiscussion
+                session={session}
+                nodeId="intent"
+                busy={busy}
+                setBusy={setBusy}
+                onSession={reportSession}
+                modeMismatch={modeMismatch}
+              />
+            )}
           </div>
-          {loading ? (
-            <p role="status">Loading your project…</p>
-          ) : (
-            <GraphDiscussion
-              session={session}
-              nodeId="intent"
-              busy={busy}
-              setBusy={setBusy}
-              onSession={reportSession}
-              modeMismatch={modeMismatch}
-            />
-          )}
-        </div>
-      )}
+        ))}
 
       {attempt && (
         <details className="plan-footer">

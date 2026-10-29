@@ -22,6 +22,7 @@ from .planning.routes import planning_router
 from .planning.service import PlanningService
 from .settings import Settings
 from .store import Store
+from .vault.routes import vault_router
 
 
 class Utterance(BaseModel):
@@ -66,11 +67,12 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
     app.state.engine = engine
     app.state.store = store
     app.state.executor = executor
+    web_origins = [f"http://{host}:{settings.frontend_port}" for host in ("127.0.0.1", "localhost")]
     app.state.discussions = discussions
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver"])
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://127.0.0.1:3000", "http://localhost:3000"],
+        allow_origins=web_origins,
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type"],
     )
@@ -83,8 +85,7 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
             and origin
             and origin
             not in {
-                "http://127.0.0.1:3000",
-                "http://localhost:3000",
+                *web_origins,
                 "http://127.0.0.1:8000",
                 "http://localhost:8000",
             }
@@ -266,6 +267,7 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
         )
 
     app.include_router(planning_router(store, planner, locks, load, guard_edit))
+    app.include_router(vault_router(store, planner, locks, load, guard_edit))
     app.include_router(discussion_router(discussions, locks, load))
     app.include_router(execution_router(executor, locks, load))
     return app
