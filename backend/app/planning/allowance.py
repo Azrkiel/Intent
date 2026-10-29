@@ -8,6 +8,13 @@ def state_hash(session):
 
 
 def attempt_limit(session, default):
+    fifth = session.planning.fifth_attempt
+    if default == 2 and fifth and fifth.session_id == session.id:
+        if fifth.status == "consumed" or (
+            fifth.status == "granted"
+            and fifth.requirements_revision == session.revision == session.approved_revision
+        ):
+            return 5
     qualification = session.planning.requalification
     if default == 2 and qualification and qualification.session_id == session.id:
         if qualification.status == "consumed" or (

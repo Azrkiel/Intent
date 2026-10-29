@@ -654,6 +654,17 @@ draft restoration, stale gating, keyboard selection and Unicode. Speech lifecycl
 was tested with simulated recognition; real microphone and live explanations remain
 unverified. The retained live session's stored bytes and usage counts are unchanged.
 
+**Fifth-attempt authorization (2026-10-29):** the human subsequently authorized one
+fifth attempt to qualify the merged Unicode fixes. A separate `fifth_attempt` grant
+binds the retained session, approved revision, all four prior attempt hashes and
+the consumed fourth-attempt grant. Neither earlier grant is reset. The existing
+local operator command accepts `--fifth-attempt` for preflight and issuance; issuance
+still requires a stopped server, fresh state hash, exact approval file, reason and
+verified implementation commit. The grant is consumed atomically before dispatch;
+failure, interruption, restart or correction never replenishes it. The ordinary
+two-attempt policy, nine-pass cap, one repair per pass and session budget remain.
+No sixth attempt is provided. See the [bounded execution plan](docs/plans/2026-10-29-fifth-planning-attempt.md).
+
 ## Claude Code handoff
 
 After approving and compiling the brief, set `ALLOW_CLAUDE_BUILD=true` and restart.

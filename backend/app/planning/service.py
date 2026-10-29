@@ -112,6 +112,8 @@ class PlanningService:
             state.extension.status = "consumed"
         elif attempt.revision == 4:
             state.requalification.status = "consumed"
+        elif attempt.revision == 5:
+            state.fifth_attempt.status = "consumed"
         state.status, state.approval, state.active = "planning", None, None
         self.store.save(session, expected_state_hash=expected)
         finished = False
