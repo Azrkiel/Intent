@@ -4,6 +4,7 @@ import path from "node:path";
 export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.e2e.ts",
+  outputDir: "../.data/graph-e2e-results",
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,

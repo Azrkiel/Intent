@@ -887,7 +887,18 @@
 }
 @container vault (max-width: 500px) {
   .vault-grid {
-    grid-template-columns: 125px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .vault-files {
+    max-height: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--vault-line);
+  }
+  .vault-note-list {
+    max-height: 120px;
+  }
+  .is-expanded .vault-files {
+    max-height: none;
   }
   .vault-toolbar {
     padding: 13px 11px;

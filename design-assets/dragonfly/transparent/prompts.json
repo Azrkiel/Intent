@@ -1,0 +1,44 @@
+{
+  "collection": "Intent transparent dragonflies",
+  "generation_mode": "Built-in image_gen",
+  "transparent_background": true,
+  "prompt": "Use case: background-extraction. Edit the supplied finished dragonfly engraving into an actual transparent-background asset for placement directly on arbitrary website backgrounds. This image is the EDIT TARGET, not a loose style reference. Preserve its composition, perspective, anatomy, subject count, crop, wing-cell linework, stippling, white glitch fragments, fine radiating lines, and white-ink detail as faithfully as possible. Remove the entire solid near-black/gray paper background and make it genuinely alpha-transparent, including the negative spaces between wing veins and around all tiny pixel fragments. The output should be ivory-white engraved ink on transparency, with preserved fine antialiased edges and no black/gray rectangular matte, no gray haze, no drop shadow, no glow, and no opaque enclosing silhouette. Dark negative spaces in the engraving should read through to the background instead of forming a dark patch. Do not change the drawing or add new subjects. Preserve the thin water ripple lines or supporting stem when present. Do not add text, borders, a simulated checkerboard, colored accents, or any replacement background. Deliver true RGBA transparency, not an image of a checkerboard. Keep the current aspect ratio and framing.",
+  "assets": [
+    {
+      "name": "dragonfly",
+      "master": "dragonfly-transparent.png",
+      "source": "frontend/public/brand/dragonfly.webp",
+      "web_asset": "../../../frontend/public/brand/dragonfly-transparent.webp"
+    },
+    {
+      "name": "dragonfly-macro-face",
+      "master": "dragonfly-macro-face-transparent.png",
+      "source": "design-assets/dragonfly/dragonfly-macro-face.png",
+      "web_asset": "../../../frontend/public/brand/dragonfly-set/dragonfly-macro-face-transparent.webp"
+    },
+    {
+      "name": "dragonfly-facing-pair",
+      "master": "dragonfly-facing-pair-transparent.png",
+      "source": "design-assets/dragonfly/dragonfly-facing-pair.png",
+      "web_asset": "../../../frontend/public/brand/dragonfly-set/dragonfly-facing-pair-transparent.webp"
+    },
+    {
+      "name": "dragonfly-dorsal-spread",
+      "master": "dragonfly-dorsal-spread-transparent.png",
+      "source": "design-assets/dragonfly/dragonfly-dorsal-spread.png",
+      "web_asset": "../../../frontend/public/brand/dragonfly-set/dragonfly-dorsal-spread-transparent.webp"
+    },
+    {
+      "name": "dragonfly-lake-hover",
+      "master": "dragonfly-lake-hover-transparent.png",
+      "source": "design-assets/dragonfly/dragonfly-lake-hover.png",
+      "web_asset": "../../../frontend/public/brand/dragonfly-set/dragonfly-lake-hover-transparent.webp"
+    },
+    {
+      "name": "dragonfly-head-on-flight",
+      "master": "dragonfly-head-on-flight-transparent.png",
+      "source": "design-assets/dragonfly/dragonfly-head-on-flight.png",
+      "web_asset": "../../../frontend/public/brand/dragonfly-set/dragonfly-head-on-flight-transparent.webp"
+    }
+  ]
+}
