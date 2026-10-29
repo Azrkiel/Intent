@@ -48,7 +48,10 @@ checks with command argv and expected results, artifacts, exclusions, and open c
 Every confirmed requirement must map to package acceptance across the completed plan.
 Acceptance for a confirmed requirement must use status="confirmed" and include its ledger ID;
 check confirmed_ledger_ids against acceptance in this phase and earlier accepted phases.
-Carry applicable constraints/non-goals in package exclusions. Ownership is relative
+Use constraint_ledger_ids as the exclusions checklist for every package, including
+setup packages: cite every listed ID with its actual constraint/non-goal in each
+package's exclusions, even when already present in outline common_rules.
+Ownership is relative
 to the generated project. Shared interfaces require one producer and dependent consumers.
 When execution_policy is supplied, every task check command must exactly match one of
 its allowed_commands argv arrays. Do not use shell strings, chaining, placeholder commands,

@@ -1,4 +1,5 @@
 import asyncio
+from functools import partial
 from typing import Literal
 from uuid import uuid4
 
@@ -27,6 +28,19 @@ from .validation import (
     statement_catalog,
     validate_plan,
 )
+
+
+def checked_schema(schema, *checks):
+    """Keep deterministic section failures inside the adapter's existing repair."""
+    @model_validator(mode="after")
+    def checked(proposal):
+        for check in checks:
+            check(proposal)
+        return proposal
+
+    return create_model(
+        f"Checked{schema.__name__}", __base__=schema, __validators__={"checked": checked}
+    )
 
 
 class PlanningService:
@@ -58,6 +72,16 @@ class PlanningService:
                 for x in session.ledger
             ],
         )
+
+    def accepted_phase(self, session, attempt, index, proposal):
+        check_citations(proposal, session.ledger)
+        accepted = accept_phase(proposal, attempt.outline, index)
+        phases = [*attempt.phases, accepted]
+        validate_plan(
+            self.document(session, attempt, phases), session.ledger,
+            complete=len(phases) == len(attempt.outline.phases),
+        )
+        return accepted
 
     def event(self, session, kind, message=None):
         state = session.planning
@@ -130,15 +154,7 @@ class PlanningService:
             ],
         }
 
-        @model_validator(mode="after")
-        def grounded_outline(proposal):
-            return accept_outline(proposal, session.ledger)
-
-        # Deterministic outline failures must use the same single repair as schema errors.
-        outline_schema = create_model(
-            "GroundedOutline", __base__=OutlineProposal,
-            __validators__={"grounded_outline": grounded_outline},
-        )
+        outline_schema = checked_schema(OutlineProposal, partial(accept_outline, ledger=session.ledger))
         try:
             yield self.event(session, "plan_started")
             outline = await self.call(session, "planner:outline", outline_schema, prompts.OUTLINE, context)
@@ -149,7 +165,13 @@ class PlanningService:
                 draft = await self.call(
                     session,
                     f"planner:screen:{screen.ref}",
-                    create_model("RequestedScreen", __base__=ScreenProposal, ref=(Literal[screen.ref], ...)),
+                    checked_schema(
+                        create_model(
+                            "RequestedScreen", __base__=ScreenProposal, ref=(Literal[screen.ref], ...)
+                        ),
+                        partial(check_citations, ledger=session.ledger),
+                        partial(accept_screen, outline=outline, ref=screen.ref),
+                    ),
                     prompts.SCREEN,
                     {**context, "outline": outline.model_dump(), "screen": screen.model_dump()},
                 )
@@ -161,7 +183,10 @@ class PlanningService:
                 draft = await self.call(
                     session,
                     f"planner:phase:{phase.ref}",
-                    create_model("RequestedPhase", __base__=PhaseProposal, ref=(Literal[phase.ref], ...)),
+                    checked_schema(
+                        create_model("RequestedPhase", __base__=PhaseProposal, ref=(Literal[phase.ref], ...)),
+                        partial(self.accepted_phase, session, attempt, index),
+                    ),
                     prompts.PHASE,
                     {
                         **context,
@@ -179,13 +204,7 @@ class PlanningService:
                         ),
                     },
                 )
-                check_citations(draft, session.ledger)
-                accepted = accept_phase(draft, outline, index)
-                validate_plan(
-                    self.document(session, attempt, [*attempt.phases, accepted]),
-                    session.ledger,
-                    complete=False,
-                )
+                accepted = self.accepted_phase(session, attempt, index, draft)
                 attempt.phases.append(accepted)
                 self.store.save(session)
                 yield self.event(session, "plan_section")
