@@ -9,6 +9,12 @@ Describe both success and failure paths concisely. No credentials, local
 machine paths, permissions, billing changes, tool authorization, or child agent policy.
 Plain-language descriptions are sufficient; text diagrams are optional. Unicode is supported.
 Keep output within the supplied schema and output token budget; prefer focused tasks.
+Use the smallest coherent decomposition for the scope. Phase/package/task maxima are
+ceilings, not targets; a small self-contained app can use one phase and one package.
+Do not quietly settle an unresolved choice in architecture, journeys or task steps.
+Distinguish absent/uninitialized data from corrupt data and failed read/write operations.
+Implement stated failure behavior without inventing extra restrictions or mechanisms;
+unspecified decisions remain explicitly proposed or unresolved.
 """
 
 OUTLINE = (

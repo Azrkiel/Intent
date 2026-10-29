@@ -75,7 +75,7 @@ class Engine:
         for grant in (
             session.planning.extension, session.planning.requalification,
             session.planning.fifth_attempt, session.planning.sixth_attempt,
-            session.planning.seventh_attempt
+            session.planning.seventh_attempt, session.planning.eighth_attempt
         ):
             if grant and grant.status == "granted":
                 grant.status = "invalidated"

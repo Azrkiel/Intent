@@ -191,7 +191,10 @@ class Session(Contract):
 
     @model_validator(mode="after")
     def extension_session_binding(self):
-        for field in ("extension", "requalification", "fifth_attempt", "sixth_attempt", "seventh_attempt"):
+        for field in (
+            "extension", "requalification", "fifth_attempt", "sixth_attempt", "seventh_attempt",
+            "eighth_attempt"
+        ):
             grant = getattr(self.planning, field)
             if grant and grant.session_id != self.id:
                 raise ValueError(f"Planning {field} belongs to a different session")
@@ -321,7 +324,8 @@ def public_session(session: Session) -> dict:
         **session.model_dump(
             mode="json",
             exclude={"planning": {
-                "extension", "requalification", "fifth_attempt", "sixth_attempt", "seventh_attempt"
+                "extension", "requalification", "fifth_attempt", "sixth_attempt", "seventh_attempt",
+                "eighth_attempt"
             }}
         ),
         "gate": gate_for(session).model_dump(),

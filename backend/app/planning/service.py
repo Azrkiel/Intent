@@ -10,6 +10,7 @@ from ..execution.verification import POLICY, TRUSTED_COMMAND
 from ..models import ModelError
 from . import prompts
 from .allowance import attempt_limit, state_hash
+from .context import preflight_checks
 from .contracts import (
     OutlineProposal,
     PhaseProposal,
@@ -41,6 +42,14 @@ def checked_schema(schema, *checks):
     return create_model(
         f"Checked{schema.__name__}", __base__=schema, __validators__={"checked": checked}
     )
+
+
+def check_review_coverage(verification, expected):
+    # A genuine rejection must reach the failure gate, never a request to clear it.
+    if verification.rejected_statement_ids or verification.missing_ledger_ids:
+        return
+    if set(verification.reviewed_statement_ids) != expected:
+        raise ValueError("Plan semantic reviewer must review every supplied statement ID")
 
 
 class PlanningService:
@@ -81,6 +90,9 @@ class PlanningService:
             self.document(session, attempt, phases), session.ledger,
             complete=len(phases) == len(attempt.outline.phases),
         )
+        if self.settings.allow_codex_execution:
+            for package in accepted.packages:
+                preflight_checks(package)
         return accepted
 
     def event(self, session, kind, message=None):
@@ -142,6 +154,8 @@ class PlanningService:
             state.sixth_attempt.status = "consumed"
         elif attempt.revision == 7:
             state.seventh_attempt.status = "consumed"
+        elif attempt.revision == 8:
+            state.eighth_attempt.status = "consumed"
         state.status, state.approval, state.active = "planning", None, None
         self.store.save(session, expected_state_hash=expected)
         finished = False
@@ -216,7 +230,7 @@ class PlanningService:
             verification = await self.call(
                 session,
                 "planner:verify",
-                PlanVerification,
+                checked_schema(PlanVerification, partial(check_review_coverage, expected=set(catalog))),
                 prompts.VERIFY,
                 {
                     **context,

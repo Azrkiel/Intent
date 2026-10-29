@@ -59,32 +59,32 @@ failure/cancel/restart -> preserve accepted prefix and all evidence; no ninth at
 
 ## Steps and acceptance criteria
 
-- [ ] Write eighth-grant tests first. Run
+- [x] Write eighth-grant tests first. Run
   `uv run pytest backend/tests/test_planning_eighth_attempt.py -q -x`; expect
   failure because `eighth_attempt` is not supported. Cover CAS issuance/reservation,
   default exhaustion, nine refusal, history, redaction, correction, restart,
   rollback and immutable audit fields. Add only the existing grant pattern plus
   an append-only, two-record transport list on the new grant; do not change the
   serialization of historical `PlanAttempt` records or their hashes.
-- [ ] Write retry tests before changing the adapter. Run
+- [x] Write retry tests before changing the adapter. Run
   `uv run pytest backend/tests/test_planning_transport_retry.py -q -x`; expect a
   one-off HTTP 529 to fail without recovery. Implement the bounded policy described
   above, then verify transient recovery, shared quota across roles, content repair
   independence, no retries for 400/401/403/429/connection/timeouts, cancellation,
   retry timing, budget risk reservation and persistence. No global retry setting.
-- [ ] Write acceptance-boundary regressions. Run
+- [x] Write acceptance-boundary regressions. Run
   `uv run pytest backend/tests/test_planning_acceptance_repair.py -q -x`; expect
   bad runner commands or incomplete review coverage to terminate before repair.
   Wrap only these deterministic checks; preserve genuine semantic rejection.
   Keep execution-disabled exports' proposed-command behavior unchanged. Adapt
   the scripted fixture to the explicitly supplied runner policy when enabled.
-- [ ] Update prompts with the retrospective's concise, general fidelity guidance.
+- [x] Update prompts with the retrospective's concise, general fidelity guidance.
   No counter-specific decision, source quote or requirement is synthesized.
-- [ ] Rehearse the complete plan pipeline using the real retained ledger with a
+- [x] Rehearse the complete plan pipeline using the real retained ledger with a
   mocked transport and injected failures. Assert exact source preservation, no
   approval, all runner checks compatible and a single shared repair per pass.
   Test results are offline protocol evidence only.
-- [ ] Run focused tests, `uv run pytest -q`, `uv run ruff check backend`,
+- [x] Run focused tests, `uv run pytest -q`, `uv run ruff check backend`,
   `uv run python -m backend.evals.run --demo`, and `git diff --check`. Persist full
   logs/JUnit under `.data/`. Review retry accounting, immutable history, API
   redaction, source/fidelity gates and cleanup; commit the verified checkpoint.
@@ -107,3 +107,19 @@ failure/cancel/restart -> preserve accepted prefix and all evidence; no ninth at
 - [ ] Restore the same demo database and sessions. Record the measured outcome,
   update README and the handoff, check paths/whitespace, and commit documentation
   separately. Report the plan or remaining blocker and checkpoint hashes.
+
+## Verified implementation checkpoint
+
+TDD reproduced the absent eighth grant, unrecovered HTTP 529 and late runner
+acceptance failures before implementation. The 95 focused checks pass. Seven
+full-pipeline rehearsals used a temporary copy of the retained ledger and mocked
+HTTP, with zero provider calls and no live-state changes. All 16 demo evaluations
+pass. The complete backend suite passed with 640 tests, one Windows symlink skip
+and one existing Starlette deprecation warning in 554.87 seconds. Ruff and
+`git diff --check` pass. No frontend source changed.
+
+Manual review checked immutable historical hashes, operator-only CAS issuance,
+private grant redaction, append-only retry records, shared retry and budget limits,
+SDK retry disabling, and genuine semantic rejection. Cleanup retained the existing
+grant pattern and acceptance wrapper. The live eighth attempt remains unstarted
+at this checkpoint; rehearsals do not establish live model quality.

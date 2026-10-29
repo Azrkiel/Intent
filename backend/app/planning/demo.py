@@ -95,6 +95,13 @@ def demo_response(session, role, payload):
                 package("api", "api", ["contracts"], consumes=interface),
             ]
         )
+        if payload.get("execution_policy"):
+            for packet in packages:
+                for task in packet["tasks"]:
+                    task["checks"] = [{
+                        "command": list(payload["execution_policy"]["allowed_commands"][0]),
+                        "expected": "No whitespace errors",
+                    }]
         return {
             "ref": ref,
             "goal": statement(f"Complete the proposed {ref} phase"),
