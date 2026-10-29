@@ -24,6 +24,8 @@ status="confirmed" for every listed ID. Prefer one statement per ID, including I
 text overlaps another item. Citations in vision, journeys, choices or common_rules do not
 replace specification coverage. Do not mark a settled requirement as a proposal.
 Use unconfirmed_ledger_ids as the choices checklist; those items must never become confirmed.
+Use constraint_ledger_ids as the common_rules checklist: include every listed ID in
+common_rules with its actual constraint or exclusion, even if already in specification.
 """
 )
 

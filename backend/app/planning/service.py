@@ -2,7 +2,7 @@ import asyncio
 from typing import Literal
 from uuid import uuid4
 
-from pydantic import create_model
+from pydantic import create_model, model_validator
 
 from ..domain import gate_for
 from ..execution.verification import POLICY, TRUSTED_COMMAND
@@ -122,10 +122,24 @@ class PlanningService:
             "requirements_revision": session.revision,
             "confirmed_ledger_ids": [x.id for x in session.ledger if x.status == "confirmed"],
             "unconfirmed_ledger_ids": [x.id for x in session.ledger if x.status != "confirmed"],
+            "constraint_ledger_ids": [
+                x.id for x in session.ledger
+                if x.status == "confirmed" and x.type in {"constraint", "non-goal"}
+            ],
         }
+
+        @model_validator(mode="after")
+        def grounded_outline(proposal):
+            return accept_outline(proposal, session.ledger)
+
+        # Deterministic outline failures must use the same single repair as schema errors.
+        outline_schema = create_model(
+            "GroundedOutline", __base__=OutlineProposal,
+            __validators__={"grounded_outline": grounded_outline},
+        )
         try:
             yield self.event(session, "plan_started")
-            outline = await self.call(session, "planner:outline", OutlineProposal, prompts.OUTLINE, context)
+            outline = await self.call(session, "planner:outline", outline_schema, prompts.OUTLINE, context)
             attempt.outline = accept_outline(outline, session.ledger)
             self.store.save(session)
             yield self.event(session, "plan_section")
