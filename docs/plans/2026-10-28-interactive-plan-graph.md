@@ -58,7 +58,7 @@ Select current node -> load source-bound thread -> type / dictate / edit
   Run `uv run pytest -q`, `uv run ruff check backend`, `npm test`,
   `npm run typecheck`, `npm run build`, and `npm run eval:demo`.
   Stop owned servers before building; browser-check an isolated labeled fixture.
-- [ ] Lead: update spec/README/current handoff with actual evidence and limits;
+- [x] Lead: update spec/README/current handoff with actual evidence and limits;
   commit coherent verified milestones. Keep keys, sessions, reports and generated
   artifacts ignored. Push the named branch and open/attach a PR against main,
   preserving the existing checkout and honest failed live-qualification history.
@@ -78,3 +78,7 @@ stale gating, current-vision entry, Unicode and keyboard selection. QA exposed a
 fixed cached planning state after direction. Speech lifecycle uses simulated tests;
 real microphone and live explanation quality remain unverified. The retained live
 session's raw SQLite bytes and all attempt/usage counts match the pre-change audit.
+
+Published [PR #3](https://github.com/Azrkiel/Intent/pull/3) against `main` and attached
+it to the chat. Checkpoint details and remaining limits are in the
+[latest handoff](../../.Codex/handoffs/2026-10-29-0035.md). No merge or release occurred.
