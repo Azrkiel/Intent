@@ -46,18 +46,18 @@ Files and ownership:
   `uv run pytest -q`, `uv run ruff check backend`, and the demo evaluations.
   Review binding, redaction, immutable history and retry bounds; commit the
   verified implementation before any provider request.
-- [ ] Capture a fresh read-only preflight, SQLite backup and private approval.
+- [x] Capture a fresh read-only preflight, SQLite backup and private approval.
   Stop the owned demo server for operator exclusivity. Issue one grant against
   the fresh state hash and full implementation commit.
-- [ ] Run a new exclusive, single-invocation qualifier with the existing trusted
+- [x] Run a new exclusive, single-invocation qualifier with the existing trusted
   certificate bundle. Do not replay earlier attempt drivers. Save the result,
   validated sections, usage and failure details privately.
-- [ ] Check all six earlier attempts, four prior grants, 70 prior usage records,
+- [x] Check all six earlier attempts, four prior grants, 70 prior usage records,
   requirements/playback revision 3, ledger, transcript, brief and compiler count.
   Verify attempt 8 is rejected before provider or save. On success, audit the
   graph, both views, source coverage, constraints, artifacts and runner checks,
   then present the exact plan for review. On failure, stop and record it.
-- [ ] Restore the local demo preview, update README with the measured outcome,
+- [x] Restore the local demo preview, update README with the measured outcome,
   check paths and `git diff --check`, and commit documentation separately.
 
 Offline verification: the first new regression failed because `preflight` did
@@ -75,3 +75,37 @@ revision 3, one compiled brief and estimated cumulative spend of $0.14736118.
 The configured Codex profile qualified without inference; no plan is approved for
 execution. Diff, security and cleanup review retained the existing source checks,
 budget, repair limits, CAS reservation, private grant fields and human review gates.
+
+## Observed result: provider overload; live qualification incomplete
+
+Implementation checkpoint `86bbe93` was committed before issuance. A fresh
+compare-and-swap preflight issued one seventh-attempt grant with the exact approval
+quote and full implementation hash. The qualifier was invoked once with verified
+TLS, the original model/settings and no automatic HTTP retries.
+
+The outline passed schema and deterministic validation. The screen request then
+returned **HTTP 529**, with provider error type `server_error` and message
+`worker overloaded`. It produced no accepted screen or phase. The repaired phase
+validation boundary was therefore not reached; this run does not qualify that
+repair against a live phase response. The session is blocked with no complete
+plan or plan approval, and no Codex worker was dispatched.
+
+One successful response recorded 2,576 input and 2,350 output tokens, estimated
+new spend **$0.0028878**, bringing cumulative recorded spend to **$0.15024898**
+and usage to 71 responses. The failed HTTP response is retained separately from
+successful-response usage. Two logical passes were reserved. The grant is consumed;
+attempt 8 is rejected before constructing a provider or saving state.
+
+Postflight verified all six previous attempts, four previous grants, 70 earlier
+usage records, ledger, transcript, approved requirements/playback revision 3,
+compiled brief and compiler count are unchanged. Raw provider response bodies,
+validated outline, redacted report, backup and postflight evidence remain ignored
+under `.data/live-check/2026-10-29/attempt-7/`. Do not replay `run.py`.
+
+The currently running demo was backed up and restored against its existing
+`C:/Users/jiang/Intent/.data/prompt-caller.sqlite3`, preserving all three sessions.
+Both `/` and `/workspace` returned HTTP 200 and API health remained `demo`.
+Both primary local checkouts are synced to merged `main` at `13b06f8`; the retest
+implementation and this outcome remain on `codex/live-planning-retest`. Further
+provider inference requires a separately bounded authorization; no eighth grant
+was issued. Plan, context and phase approval gates remain intact.

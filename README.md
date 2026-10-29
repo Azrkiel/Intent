@@ -794,7 +794,32 @@ checkpoints were subsequently published in
 bounded section repair", after the human authorized publication and merge. The PR
 records the final merge state. A fresh pre-publication run passed 97 grant/repair
 tests and Ruff; the fetched base matched the verified base. No seventh attempt or
-coding-agent dispatch occurred.
+coding-agent dispatch occurred at that checkpoint.
+
+**Seventh-attempt retest (2026-10-29):** after the user authorized a bounded
+retest, `86bbe93` added one separately audited seventh grant bound to the six
+retained failures and consumed sixth grant. The normal two-attempt policy,
+nine-pass cap, shared single JSON repair and cumulative $2 session budget are
+unchanged. A fresh full run passed 571 backend tests, with one existing skip and
+deprecation warning; 52 focused grant/section-repair checks, Ruff and all 16 demo
+cases passed without provider calls.
+
+The one live invocation accepted its outline, then received **HTTP 529** from the
+screen request: the provider reported `worker overloaded`. No screen or phase was
+accepted and no complete plan was produced. The phase-validation repair remains
+unqualified against a live phase response. One successful response recorded 2,576
+input and 2,350 output tokens, estimated $0.0028878; cumulative recorded spend is
+$0.15024898 across 71 successful responses. The failed HTTP response is retained
+separately. All six earlier attempts, four previous grants, 70 earlier usage
+records, approved requirements/playback revision 3 and compiled brief are intact.
+
+The seventh grant is consumed and attempt 8 is refused before provider or save.
+The configured Codex profile passed a read-only check; no Codex inference or phase
+dispatch occurred. The local demo was restored with its existing database and
+sessions. The [retest record](docs/plans/2026-10-29-live-planning-retest.md) contains
+the measured outcome; private evidence remains ignored under
+`.data/live-check/2026-10-29/attempt-7/`. No additional live retry is authorized by
+this record.
 
 ## Claude Code handoff
 
