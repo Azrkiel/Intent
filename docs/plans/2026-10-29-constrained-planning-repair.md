@@ -157,3 +157,31 @@ failure remains the historical outcome. A future live qualification needs separa
 explicit authorization and cannot reuse its consumed grant. Reliable live semantic
 judgment remains unproven; field preservation and scripted rejection are the
 offline evidence established here.
+
+## Follow-up review fixes
+
+A later review of `fa00240` found four issues, fixed in `a8cfd62` and `2d4b54d`:
+
+- **Late review-capacity failure.** Schema-valid plans can need about 2,000 review
+  entries, but the 500-entry limit was checked only after every section was paid for.
+  Each outline, screen and phase now reserves the fewest entries its remaining sections
+  need (a screen: purpose plus one wireframe per state; a phase: `MIN_PHASE_ENTRIES`,
+  14). An oversized section fails its own validation, and the payload carries
+  `review_entries_available`. The limit and the final catalog guard are unchanged.
+- **No retry for unscopable output.** Extra keys, duplicate keys and unscoped root
+  checks were blocked with no second response. They now get the one complete retry.
+  Unresolvable application scopes and historical-section failures (now an unscoped
+  `ScopedError`) still block. Field-scoped errors still use typed replacements only.
+- **Cleanup.** Removed the `unchanged()` check, which could never fail, and the second
+  copy of the replacement schema (it stays in the system message only).
+- **MAX_PATH policy gap.** With `LongPathsEnabled` off, `exists()`/`is_symlink()` return
+  False beyond 259 characters, so the worktree policy silently skipped deep metadata.
+  Those calls now use extended-length paths; a regression shows a junction beyond
+  MAX_PATH was previously accepted and is now rejected. Git itself still cannot open a
+  worktree whose gitdir exceeds MAX_PATH, so the long-basetemp failure of the long-path
+  regression remains an OS limit, not something fixed here.
+
+Verification: 682 passed, one existing Windows skip and the existing Starlette warning,
+in 499.04 seconds under a short `C:/Users/Public/ir-*` root; Ruff passes; all 16 demo
+evaluations pass. The local branch was renamed `codex/constrained-planning-repair`.
+Still offline only: no live call, grant, approval or dispatch.
