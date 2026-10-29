@@ -17,6 +17,7 @@ from backend.app.planning.contracts import (
     PlanningExtension,
     PlanningFifthAttempt,
     PlanningRequalification,
+    PlanningSixthAttempt,
     content_hash,
 )
 from backend.app.planning.service import PlanningService
@@ -36,13 +37,29 @@ def read_session(config, session_id):
         db.close()
 
 
-def eligible(config, session, *, requalification=False, fifth_attempt=False):
-    if requalification and fifth_attempt:
+def eligible(config, session, *, requalification=False, fifth_attempt=False, sixth_attempt=False):
+    if sum((requalification, fifth_attempt, sixth_attempt)) > 1:
         raise ValueError("Select only one planning grant")
     if config.mode != "live" or config.planning_max_attempts != 2:
         raise ValueError("Extension requires live mode and the ordinary two-attempt policy")
     PlanningService(None, None, config).guard(session)
     state = session.planning
+    if sixth_attempt:
+        if state.sixth_attempt:
+            raise ValueError("A sixth-attempt planning grant is already recorded")
+        if (
+            state.status != "blocked" or state.active or state.approval
+            or not state.fifth_attempt or state.fifth_attempt.status != "consumed"
+            or len(state.attempts) != 5
+            or [attempt.revision for attempt in state.attempts] != [1, 2, 3, 4, 5]
+            or len({attempt.plan_id for attempt in state.attempts}) != 1
+            or any(
+                attempt.requirements_revision != session.revision or not attempt.error
+                for attempt in state.attempts
+            )
+        ):
+            raise ValueError("Sixth-attempt grant requires five failures and consumed prior grants")
+        return
     if fifth_attempt:
         if state.fifth_attempt:
             raise ValueError("A fifth-attempt planning grant is already recorded")
@@ -103,14 +120,18 @@ def summary(config, session):
         "fifth_attempt_status": (
             session.planning.fifth_attempt.status if session.planning.fifth_attempt else None
         ),
+        "sixth_attempt_status": (
+            session.planning.sixth_attempt.status if session.planning.sixth_attempt else None
+        ),
     }
 
 
-def preflight(config, session_id, *, requalification=False, fifth_attempt=False):
+def preflight(config, session_id, *, requalification=False, fifth_attempt=False, sixth_attempt=False):
     session = read_session(config, session_id)
     result = summary(config, session)
     try:
-        eligible(config, session, requalification=requalification, fifth_attempt=fifth_attempt)
+        eligible(config, session, requalification=requalification,
+                 fifth_attempt=fifth_attempt, sixth_attempt=sixth_attempt)
         result["eligible"] = True
     except ValueError:
         result["eligible"] = False
@@ -118,12 +139,21 @@ def preflight(config, session_id, *, requalification=False, fifth_attempt=False)
 
 
 def issue(config, session_id, *, expected_state_hash, approval_text, reason, implementation_commit,
-          requalification=False, fifth_attempt=False):
+          requalification=False, fifth_attempt=False, sixth_attempt=False):
     session = read_session(config, session_id)
     if state_hash(session) != expected_state_hash:
         raise ValueError("Session changed; repeat preflight before issuing an extension")
-    eligible(config, session, requalification=requalification, fifth_attempt=fifth_attempt)
-    if fifth_attempt:
+    eligible(config, session, requalification=requalification,
+             fifth_attempt=fifth_attempt, sixth_attempt=sixth_attempt)
+    if sixth_attempt:
+        grant_type = PlanningSixthAttempt
+        extra = {
+            "fifth_attempt_id": session.planning.fifth_attempt.id,
+            "fifth_attempt_hash": content_hash(
+                session.planning.fifth_attempt.model_dump(mode="json", round_trip=True)
+            ),
+        }
+    elif fifth_attempt:
         grant_type = PlanningFifthAttempt
         extra = {
             "requalification_id": session.planning.requalification.id,
@@ -150,7 +180,9 @@ def issue(config, session_id, *, expected_state_hash, approval_text, reason, imp
         implementation_commit=implementation_commit, approval_text=approval_text,
         **extra,
     )
-    if fifth_attempt:
+    if sixth_attempt:
+        session.planning.sixth_attempt = grant
+    elif fifth_attempt:
         session.planning.fifth_attempt = grant
     elif requalification:
         session.planning.requalification = grant
@@ -179,6 +211,9 @@ def main(argv=None):
     grant_mode.add_argument(
         "--fifth-attempt", action="store_true", help="Separate one-time fifth-attempt grant"
     )
+    grant_mode.add_argument(
+        "--sixth-attempt", action="store_true", help="Separate one-time sixth-attempt grant"
+    )
     parser.add_argument("--expected-state-hash")
     parser.add_argument("--approval-file", type=Path)
     parser.add_argument("--reason")
@@ -197,16 +232,19 @@ def main(argv=None):
                 approval_text=args.approval_file.read_text(encoding="utf-8").strip(),
                 reason=args.reason, implementation_commit=args.implementation_commit,
                 requalification=args.requalify, fifth_attempt=args.fifth_attempt,
+                sixth_attempt=args.sixth_attempt,
             )
         else:
             result = preflight(
-                config, session_id, requalification=args.requalify, fifth_attempt=args.fifth_attempt
+                config, session_id, requalification=args.requalify,
+                fifth_attempt=args.fifth_attempt, sixth_attempt=args.sixth_attempt
             )
         result["status"] = "recorded" if args.issue else "preflight"
     except (ValueError, OSError, sqlite3.Error):
         result = {
             "status": "blocked", "model_requests_possible": False,
             "failure": (
+                "sixth_attempt_preconditions_failed" if args.sixth_attempt else
                 "fifth_attempt_preconditions_failed" if args.fifth_attempt else
                 "requalification_preconditions_failed" if args.requalify else "extension_preconditions_failed"
             ),

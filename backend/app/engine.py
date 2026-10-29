@@ -73,7 +73,8 @@ class Engine:
         session.revision += 1
         session.approved_revision = None
         for grant in (
-            session.planning.extension, session.planning.requalification, session.planning.fifth_attempt
+            session.planning.extension, session.planning.requalification,
+            session.planning.fifth_attempt, session.planning.sixth_attempt
         ):
             if grant and grant.status == "granted":
                 grant.status = "invalidated"

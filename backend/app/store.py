@@ -70,7 +70,7 @@ class Store:
             ):
                 raise ValueError("Session changed; repeat preflight before planning")
             if previous:
-                for field in ("extension", "requalification", "fifth_attempt"):
+                for field in ("extension", "requalification", "fifth_attempt", "sixth_attempt"):
                     old, new = getattr(previous.planning, field), getattr(session.planning, field)
                     if not old:
                         continue
@@ -91,6 +91,10 @@ class Store:
                     session.planning.attempts[:4] != previous.planning.attempts[:4]
                 ):
                     raise ValueError("Planning fifth-attempt prior attempts cannot be replaced")
+                if session.planning.sixth_attempt and (
+                    session.planning.attempts[:5] != previous.planning.attempts[:5]
+                ):
+                    raise ValueError("Planning sixth-attempt prior attempts cannot be replaced")
             db.execute(
                 "INSERT INTO sessions(id,state) VALUES(?,?) ON CONFLICT(id) DO UPDATE "
                 "SET state=excluded.state, updated_at=CURRENT_TIMESTAMP",

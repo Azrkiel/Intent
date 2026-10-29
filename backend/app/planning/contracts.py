@@ -222,12 +222,21 @@ class PlanningFifthAttempt(PlanningExtension):
     requalification_hash: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 
 
+class PlanningSixthAttempt(PlanningExtension):
+    prior_attempt_hashes: list[Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]] = Field(
+        min_length=5, max_length=5
+    )
+    fifth_attempt_id: Text
+    fifth_attempt_hash: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+
+
 class PlanningState(PlanningModel):
     status: Literal["draft", "planning", "review_ready", "approved", "blocked", "stale"] = "draft"
-    attempts: list[PlanAttempt] = Field(default_factory=list, max_length=5)
+    attempts: list[PlanAttempt] = Field(default_factory=list, max_length=6)
     extension: PlanningExtension | None = None
     requalification: PlanningRequalification | None = None
     fifth_attempt: PlanningFifthAttempt | None = None
+    sixth_attempt: PlanningSixthAttempt | None = None
     active: PlanApproval | None = None
     approval: PlanApproval | None = None
 
@@ -279,7 +288,7 @@ class PlanningState(PlanningModel):
                 ):
                     raise ValueError("Planning requalification fourth attempt identity does not match")
         fifth = self.fifth_attempt
-        if len(self.attempts) == 5 and not fifth:
+        if len(self.attempts) >= 5 and not fifth:
             raise ValueError("A fifth planning attempt requires a separate grant")
         if fifth:
             if (
@@ -295,9 +304,9 @@ class PlanningState(PlanningModel):
                 ]
             ):
                 raise ValueError("Planning fifth-attempt history or requalification does not match")
-            if (fifth.status == "consumed") != (len(self.attempts) == 5):
+            if (fifth.status == "consumed") != (len(self.attempts) >= 5):
                 raise ValueError("Planning fifth-attempt consumption does not match attempts")
-            if len(self.attempts) == 5:
+            if len(self.attempts) >= 5:
                 attempt = self.attempts[4]
                 if (
                     attempt.revision != 5
@@ -305,7 +314,34 @@ class PlanningState(PlanningModel):
                     or attempt.requirements_revision != fifth.requirements_revision
                 ):
                     raise ValueError("Planning fifth-attempt identity does not match")
+        sixth = self.sixth_attempt
+        if len(self.attempts) == 6 and not sixth:
+            raise ValueError("A sixth planning attempt requires a separate grant")
+        if sixth:
+            if (
+                not fifth or fifth.status != "consumed" or len(self.attempts) < 5
+                or sixth.fifth_attempt_id != fifth.id
+                or sixth.fifth_attempt_hash != content_hash(fifth.model_dump(mode="json", round_trip=True))
+                or sixth.requirements_revision != self.attempts[4].requirements_revision
+                or sixth.prior_attempt_hashes != [
+                    content_hash(attempt.model_dump(mode="json", round_trip=True))
+                    for attempt in self.attempts[:5]
+                ]
+            ):
+                raise ValueError("Planning sixth-attempt history or fifth grant does not match")
+            if (sixth.status == "consumed") != (len(self.attempts) == 6):
+                raise ValueError("Planning sixth-attempt consumption does not match attempts")
+            if len(self.attempts) == 6:
+                attempt = self.attempts[5]
+                if (
+                    attempt.revision != 6
+                    or attempt.plan_id != self.attempts[0].plan_id
+                    or attempt.requirements_revision != sixth.requirements_revision
+                ):
+                    raise ValueError("Planning sixth-attempt identity does not match")
         return self
 
     def public(self):
-        return self.model_dump(mode="json", exclude={"extension", "requalification", "fifth_attempt"})
+        return self.model_dump(
+            mode="json", exclude={"extension", "requalification", "fifth_attempt", "sixth_attempt"}
+        )
