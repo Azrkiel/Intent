@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
+from .discussion.contracts import DiscussionTarget
 from .planning.contracts import PlanningState
 
 ItemType = Literal[
@@ -62,6 +63,7 @@ class Turn(Contract):
     number: int
     text: str
     question_id: str | None = None
+    scope: DiscussionTarget | None = Field(default=None, exclude_if=lambda value: value is None)
     at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
