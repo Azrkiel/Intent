@@ -843,6 +843,22 @@ All previous history and approved sources are intact. The eighth grant is
 consumed and a ninth is refused before provider/save. The demo was restored with
 the same three sessions. No further live inference is authorized by this record.
 
+**Offline repair follow-up (2026-10-29):** the approved
+[design](docs/specs/2026-10-29-constrained-planning-repair.md) and
+[implementation record](docs/plans/2026-10-29-constrained-planning-repair.md)
+replace whole-object repair for complete planning proposals with typed values
+bound to application-owned invalid field paths. Valid sibling content is preserved;
+the reconstructed proposal still passes the full original checks. Unmapped or
+ambiguous errors stop. Malformed or output-limited originals retain one complete
+retry, and no pass gets a third response.
+
+Semantic review now explicitly covers architecture, flows, wireframes, task steps,
+inputs/readiness and other plan prose. Uncited text receives no invented citations
+or confirmed status. The review limit remains 500 entries; genuine rejection
+blocks readiness. Captured-response rehearsals exercise preservation and scripted
+rejection offline. They do not qualify live model judgment or create a complete
+live plan. No new grant, live invocation, approval or dispatch is included.
+
 ## Claude Code handoff
 
 After approving and compiling the brief, set `ALLOW_CLAUDE_BUILD=true` and restart.

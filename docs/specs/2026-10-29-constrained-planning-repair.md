@@ -1,6 +1,6 @@
 # Constrained planning repair and complete prose review
 
-Status: approved by the user: "approve, please continue". Offline implementation authorized.
+Status: approved by the user: "approve, please continue"; implemented and verified offline at `fa00240`.
 Scope: offline continuation of the [eighth-attempt handoff](../../.Codex/handoffs/2026-10-29-1610.md).
 This design grants no additional live attempt, plan approval, export or dispatch.
 
@@ -190,9 +190,11 @@ framework evidence may correctly be blocked under the newer readiness gate;
 never fabricate that evidence to replay it. Requalification of the combined
 checkout is separate from this branch's checks.
 
-The next checkpoint is user review of this concrete design, followed by an
-implementation plan and test-first offline changes. No ninth invocation, limit
-reset, live session clone, source alteration or human approval is implied.
+The user approved this concrete design and offline implementation. The
+[implementation record](../plans/2026-10-29-constrained-planning-repair.md) captures
+test-first changes, captured-response rehearsals and verification outcomes.
+No ninth invocation, limit reset, live session clone, source alteration or human
+plan approval is implied.
 
 ## Design-checkpoint validation
 
