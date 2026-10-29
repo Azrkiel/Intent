@@ -8,7 +8,6 @@ from openai import AsyncOpenAI, OpenAIError
 from pydantic import BaseModel, ValidationError
 
 from .domain import Session, Usage
-from .planning.response import diagram_response
 from .settings import Settings
 
 T = TypeVar("T", bound=BaseModel)
@@ -109,7 +108,7 @@ class LiveModels:
                     detail = "The response reached its output limit. Return a more concise complete object."
                 else:
                     try:
-                        return schema.model_validate_json(diagram_response(role, content))
+                        return schema.model_validate_json(content)
                     except ValidationError as error:
                         validation_error = error
                         detail = str(error)[:2500]
@@ -125,7 +124,8 @@ class LiveModels:
                         "content": "Correct all schema validation errors, including field values, "
                         "patterns, lengths, and exact references. Return the complete JSON object. "
                         "Be concise; remove repetition without dropping required coverage or changing "
-                        "requirements. Use short ASCII diagrams. Validation: " + detail,
+                        "requirements. Prefer concise plain-language descriptions over drawn diagrams. "
+                        "Unicode text is supported. Validation: " + detail,
                     }
                 )
             except OpenAIError as error:

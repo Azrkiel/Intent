@@ -18,7 +18,10 @@ Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 Ref = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9-]{0,39}$")]
 Diagram = Annotated[
     str,
-    StringConstraints(strip_whitespace=True, min_length=1, max_length=12000, pattern=r"^[\t\n\r -~]+$"),
+    StringConstraints(
+        strip_whitespace=True, min_length=1, max_length=12000,
+        pattern=r"^[^\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]+$",
+    ),
 ]
 Texts = Annotated[list[Text], Field(max_length=20)]
 

@@ -35,7 +35,7 @@ def provider_for(handle):
 
 
 @pytest.mark.parametrize("section", ["outline", "screen", "phase", "package"])
-async def test_known_diagram_glyphs_are_rendered_as_ascii_without_spending_a_repair(section):
+async def test_unicode_descriptions_are_preserved_without_spending_a_repair(section):
     glyphs = (
         "\u250c\u2500Input\u2500\u2510\n\u2502 Save \u2192 Read \u2190 Retry \u2502\n"
         "\u2514\u2500\u2534\u2500\u2518\nFail \u2193 Error"
@@ -54,7 +54,7 @@ async def test_known_diagram_glyphs_are_rendered_as_ascii_without_spending_a_rep
         else:
             data["packages"][0]["flow"] = glyphs
         data["packages"][0]["tasks"][0]["steps"][0] = "Keep \u2192 in product instructions"
-    expected = "+-Input-+\n| Save -> Read <- Retry |\n+-+-+\nFail v Error"
+    expected = glyphs
     requests = []
 
     def handle(request):
@@ -82,10 +82,10 @@ async def test_known_diagram_glyphs_are_rendered_as_ascii_without_spending_a_rep
 
 
 @pytest.mark.parametrize(
-    "bad_value", ["[\u4fdd\u5b58] -> [Read]", "[Input]\u200b -> [Read]", "\u2192" * 12000],
-    ids=["unknown-glyphs", "hidden-control", "expanded-size-limit"],
+    "bad_value", ["[Input]\x00 -> [Read]", "[Input]\x1b -> [Read]", "\u2192" * 12001],
+    ids=["nul-control", "escape-control", "size-limit"],
 )
-async def test_unknown_characters_controls_and_oversized_diagrams_still_fail_closed(bad_value):
+async def test_controls_and_oversized_descriptions_still_fail_closed(bad_value):
     data = {**outline(), "architecture": bad_value}
     requests = []
 

@@ -108,11 +108,18 @@ def test_unknown_phase_and_duplicate_outline_references_rejected():
         )
 
 
-def test_unicode_diagrams_are_rejected_before_section_acceptance():
+def test_unicode_descriptions_are_preserved_before_section_acceptance():
     session = ready_session()
     proposal = OutlineProposal.model_validate(outline())
     proposal.architecture = "[Save] → [Read]"
-    with pytest.raises(ValueError, match="ASCII"):
+    assert accept_outline(proposal, session.ledger).architecture == "[Save] → [Read]"
+
+
+def test_mutated_control_characters_are_rejected_before_section_acceptance():
+    session = ready_session()
+    proposal = OutlineProposal.model_validate(outline())
+    proposal.architecture = "[Save]\x00[Read]"
+    with pytest.raises(ValueError):
         accept_outline(proposal, session.ledger)
 
 

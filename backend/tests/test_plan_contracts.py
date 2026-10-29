@@ -37,7 +37,7 @@ def test_leaf_requires_steps_acceptance_and_verification():
 
 
 @pytest.mark.parametrize("section", ["outline", "screen", "phase"])
-def test_diagrams_reject_non_ascii_in_the_provider_schema(section):
+def test_descriptions_preserve_unicode_in_the_provider_schema(section):
     from backend.tests.planning_fixtures import outline, phase, screen
 
     if section == "outline":
@@ -49,8 +49,15 @@ def test_diagrams_reject_non_ascii_in_the_provider_schema(section):
     else:
         schema, data = PhaseProposal, phase()
         data["flow"] = "[Input] \u2192 [Save]"
-    with pytest.raises(ValidationError, match="pattern"):
-        schema.model_validate(data)
+    assert schema.model_validate(data).model_dump() == data
+
+
+@pytest.mark.parametrize("value", ["\x00", "text\x1b", "x" * 12001, "\ud800", "   "])
+def test_descriptions_reject_controls_invalid_unicode_and_excess_size(value):
+    from backend.tests.planning_fixtures import outline
+
+    with pytest.raises(ValidationError):
+        OutlineProposal.model_validate({**outline(), "architecture": value})
 
 
 def test_user_facing_statements_still_allow_unicode():
