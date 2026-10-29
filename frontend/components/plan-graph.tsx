@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -18,7 +18,9 @@ import {
   rootCamera,
   type GraphKind,
   type PlanGraphData,
+  type PlanGraphNode,
 } from "@/lib/plan-graph";
+import type { DiscussionActivity } from "@/lib/discussion";
 
 const kindNames: Record<GraphKind, string> = {
   root: "Project",
@@ -72,10 +74,17 @@ function BodyValue({ value }: { value: unknown }) {
 export function PlanGraph({
   graph,
   stale = false,
+  discussion,
+  activity = {},
 }: {
   graph: PlanGraphData;
   stale?: boolean;
+  discussion?: (node: PlanGraphNode) => ReactNode;
+  activity?: DiscussionActivity;
 }) {
+  const [inspectorTab, setInspectorTab] = useState<"discuss" | "details">(
+    "discuss",
+  );
   const [selectedId, setSelectedId] = useState(graph.root_id);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<GraphKind | "all">("all");
@@ -162,11 +171,14 @@ export function PlanGraph({
           {graph.source.mode === "demo" ? "DEMO · synthetic plan" : "Live plan"}{" "}
           · {readable(graph.state)}
         </strong>
-        <span>
-          {graph.source.plan_id} · plan revision {graph.source.revision} ·
-          requirements {graph.source.requirements_revision}
-        </span>
-        <code>SHA-256 {graph.source.content_hash}</code>
+        <details>
+          <summary>Revision {graph.source.revision} · plan identity</summary>
+          <span>
+            {graph.source.plan_id} · plan revision {graph.source.revision} ·
+            requirements {graph.source.requirements_revision}
+          </span>
+          <code>SHA-256 {graph.source.content_hash}</code>
+        </details>
       </div>
       {(graph.partial ||
         stale ||
@@ -406,6 +418,26 @@ export function PlanGraph({
                       details pending
                     </text>
                   )}
+                  {(activity[node.id]?.messages > 0 ||
+                    activity[node.id]?.pending_direction) && (
+                    <g
+                      className="graph-activity-bubble"
+                      transform={`translate(${width / 2 - 2},${root ? -40 : task ? -19 : -30})`}
+                    >
+                      <title>
+                        {activity[node.id].messages} discussion messages
+                        {activity[node.id].pending_direction
+                          ? " · direction awaiting plan review"
+                          : ""}
+                      </title>
+                      <circle r={11} />
+                      <text textAnchor="middle" y={4}>
+                        {activity[node.id].pending_direction
+                          ? "!"
+                          : Math.min(activity[node.id].messages, 99)}
+                      </text>
+                    </g>
+                  )}
                 </g>
               );
             })}
@@ -465,6 +497,19 @@ export function PlanGraph({
                     </small>
                     <span>{node.title}</span>
                     {node.status === "pending" && <em>Pending</em>}
+                    {!!activity[node.id]?.messages && (
+                      <span
+                        className="graph-discussion-badge"
+                        aria-label={`${activity[node.id].messages} discussion messages`}
+                      >
+                        {activity[node.id].messages}
+                      </span>
+                    )}
+                    {activity[node.id]?.pending_direction && (
+                      <span className="graph-direction-badge">
+                        Needs review
+                      </span>
+                    )}
                     {collapsed.has(node.id) && !searching && (
                       <em>{visible.descendantCounts[node.id] ?? 0} hidden</em>
                     )}
@@ -493,48 +538,78 @@ export function PlanGraph({
               : "VALIDATED SECTION"}
           </div>
           <h4>{selected.title}</h4>
-          <p className="graph-read-policy">
-            {selected.kind === "root"
-              ? "Overall intent, shared design, orchestration, and phase gates."
-              : selected.kind === "package"
-                ? "Assigned scope and planned handoff. A worker receives this subtree and its ancestors."
-                : "Containment defines ancestry. Dependency links describe input obligations."}
-          </p>
-          <BodyValue value={selected.body} />
-          <details className="graph-provenance">
-            <summary>Source fields and exact node data</summary>
-            <ul>
-              {selected.source_paths.map((path) => (
-                <li key={path}>
-                  <code>{path}</code>
-                </li>
-              ))}
-            </ul>
-            <pre>{JSON.stringify(selected.body, null, 2)}</pre>
-          </details>
-          <details className="graph-links">
-            <summary>Connections ({links.length})</summary>
-            <ul>
-              {links.map((edge) => (
-                <li key={edge.id}>
-                  <strong>
-                    {edge.source} {readable(edge.type)} {edge.target}
-                  </strong>
-                  <p>{edge.provenance}</p>
-                  <button
-                    onClick={() =>
-                      choose(
-                        edge.source === selected.id ? edge.target : edge.source,
-                      )
-                    }
-                  >
-                    Inspect{" "}
-                    {edge.source === selected.id ? edge.target : edge.source}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </details>
+          {discussion && (
+            <div
+              className="graph-inspector-tabs"
+              role="group"
+              aria-label="Selected section view"
+            >
+              <button
+                aria-pressed={inspectorTab === "discuss"}
+                onClick={() => setInspectorTab("discuss")}
+              >
+                Discuss this section
+              </button>
+              <button
+                aria-pressed={inspectorTab === "details"}
+                onClick={() => setInspectorTab("details")}
+              >
+                Details & sources
+              </button>
+            </div>
+          )}
+          {discussion && inspectorTab === "discuss" ? (
+            discussion(selected)
+          ) : (
+            <>
+              <p className="graph-read-policy">
+                {selected.kind === "root"
+                  ? "Overall intent, shared design, orchestration, and phase gates."
+                  : selected.kind === "package"
+                    ? "Assigned scope and planned handoff. A worker receives this subtree and its ancestors."
+                    : "Containment defines ancestry. Dependency links describe input obligations."}
+              </p>
+              <BodyValue value={selected.body} />
+              <details className="graph-provenance">
+                <summary>Source fields and exact node data</summary>
+                <ul>
+                  {selected.source_paths.map((path) => (
+                    <li key={path}>
+                      <code>{path}</code>
+                    </li>
+                  ))}
+                </ul>
+                <pre>{JSON.stringify(selected.body, null, 2)}</pre>
+              </details>
+              <details className="graph-links">
+                <summary>Connections ({links.length})</summary>
+                <ul>
+                  {links.map((edge) => (
+                    <li key={edge.id}>
+                      <strong>
+                        {edge.source} {readable(edge.type)} {edge.target}
+                      </strong>
+                      <p>{edge.provenance}</p>
+                      <button
+                        onClick={() =>
+                          choose(
+                            edge.source === selected.id
+                              ? edge.target
+                              : edge.source,
+                          )
+                        }
+                      >
+                        Inspect{" "}
+                        {edge.source === selected.id
+                          ? edge.target
+                          : edge.source}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </>
+          )}
         </article>
       </div>
     </section>
