@@ -1,4 +1,5 @@
 import type { PlanningState } from "./planning";
+import type { FrameworkReview } from "./framework";
 
 export type Slot =
   "goal" | "core-flow" | "data" | "access" | "non-goals" | "success-criterion";
@@ -65,6 +66,7 @@ export interface Session {
     lines: { section: string; text: string; ledger_ids: string[] }[];
   } | null;
   analysis_complete: boolean;
+  framework_review?: FrameworkReview | null;
   warnings: string[];
   estimated_usd: number;
   usage: {

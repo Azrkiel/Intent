@@ -28,6 +28,7 @@ import {
 import { api, consumeEvents } from "@/lib/stream";
 import { PlanPanel } from "@/components/plan-panel";
 import { ExecutionPanel } from "@/components/execution-panel";
+import { FrameworkReviewPanel } from "@/components/framework-review";
 import {
   recognitionConstructor,
   speak,
@@ -1224,6 +1225,14 @@ export default function Home() {
               </div>
               {hasTurns && (
                 <>
+                  {session && (
+                    <FrameworkReviewPanel
+                      session={session}
+                      busy={busy}
+                      disabled={disabled}
+                      onRetry={() => void action("analyze")}
+                    />
+                  )}
                   <div
                     className="ledger-tabs"
                     role="group"

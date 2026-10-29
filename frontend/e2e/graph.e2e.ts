@@ -35,6 +35,30 @@ async function approvedDemo(request: APIRequestContext) {
   return { id: session.id as string, base };
 }
 
+test("clarity exposes its scripted framework, proposal labels and reload state", async ({
+  page, request,
+}, testInfo) => {
+  const session = await approvedDemo(request);
+  await page.addInitScript(
+    (id) => localStorage.setItem("prompt-caller-session", id), session.id,
+  );
+  await page.goto("/workspace");
+  const framework = page.getByRole("region", { name: "Product framework", exact: true });
+  await expect(framework).toContainText("Scripted example · no model reasoning");
+  await expect(framework).toContainText("Scripted map available");
+  await framework.getByText("Explore framework (8 areas)", { exact: true }).click();
+  const structure = framework.locator(".framework-area").filter({ hasText: "Components & connections" });
+  await structure.locator("summary").click();
+  await expect(structure.getByText("Proposal", { exact: true }).first()).toBeVisible();
+  await expect(structure.getByText(/Sources: L/).first()).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("framework-desktop.png"), fullPage: true });
+  await page.reload();
+  await expect(framework).toContainText("Scripted map available");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(framework).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("framework-mobile.png"), fullPage: true });
+});
+
 test("the current project page exposes discussions and editable graph notes before planning", async ({
   page,
 }) => {
