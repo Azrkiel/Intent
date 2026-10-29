@@ -7,6 +7,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 from .discussion.contracts import DiscussionTarget
+from .framework import FrameworkReview, framework_blockers, framework_progress
 from .planning.contracts import PlanningState
 
 ItemType = Literal[
@@ -179,6 +180,7 @@ class Session(Contract):
     rejected_candidates: list[Candidate] = Field(default_factory=list)
     current_question: Candidate | None = None
     analysis_complete: bool = False
+    framework_review: FrameworkReview | None = None
     playback: Playback | None = None
     playback_revision: int | None = None
     approved_revision: int | None = None
@@ -262,12 +264,19 @@ def gate_for(session: Session) -> Gate:
     missing = [slot for slot in SLOTS if slot not in filled]
     blockers = [f"Clarify: {q.question}" for q in session.candidates if q.impact >= 12]
     blockers.extend(f"Resolve conflict: {item.text}" for item in session.ledger if item.status == "conflict")
+    blockers.extend(framework_blockers(session))
     if not session.analysis_complete:
         blockers.append("All six lenses must finish before building.")
     ready = not missing and not blockers
+    if session.mode == "live" or session.framework_review:
+        progress = len(filled) / 6 * 45 + framework_progress(session) * 40
+        if session.framework_review and not framework_blockers(session):
+            progress += 15
+    else:
+        progress = len(filled) / 6 * 85
     return Gate(
         ready=ready,
-        percent=100 if ready else min(95, round(len(filled) / 6 * 85)),
+        percent=100 if ready else min(95, round(progress)),
         filled=filled,
         missing=missing,
         blockers=blockers,
