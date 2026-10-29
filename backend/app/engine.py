@@ -72,7 +72,10 @@ class Engine:
     async def turn(self, session: Session, text: str, *, scope=None):
         session.revision += 1
         session.approved_revision = None
-        for grant in (session.planning.extension, session.planning.requalification):
+        for grant in (
+            session.planning.extension, session.planning.requalification,
+            session.planning.fifth_attempt, session.planning.sixth_attempt
+        ):
             if grant and grant.status == "granted":
                 grant.status = "invalidated"
         if session.planning.attempts:

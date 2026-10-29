@@ -1,8 +1,9 @@
 import asyncio
+from functools import partial
 from typing import Literal
 from uuid import uuid4
 
-from pydantic import create_model
+from pydantic import create_model, model_validator
 
 from ..domain import gate_for
 from ..execution.verification import POLICY, TRUSTED_COMMAND
@@ -27,6 +28,19 @@ from .validation import (
     statement_catalog,
     validate_plan,
 )
+
+
+def checked_schema(schema, *checks):
+    """Keep deterministic section failures inside the adapter's existing repair."""
+    @model_validator(mode="after")
+    def checked(proposal):
+        for check in checks:
+            check(proposal)
+        return proposal
+
+    return create_model(
+        f"Checked{schema.__name__}", __base__=schema, __validators__={"checked": checked}
+    )
 
 
 class PlanningService:
@@ -58,6 +72,16 @@ class PlanningService:
                 for x in session.ledger
             ],
         )
+
+    def accepted_phase(self, session, attempt, index, proposal):
+        check_citations(proposal, session.ledger)
+        accepted = accept_phase(proposal, attempt.outline, index)
+        phases = [*attempt.phases, accepted]
+        validate_plan(
+            self.document(session, attempt, phases), session.ledger,
+            complete=len(phases) == len(attempt.outline.phases),
+        )
+        return accepted
 
     def event(self, session, kind, message=None):
         state = session.planning
@@ -112,6 +136,10 @@ class PlanningService:
             state.extension.status = "consumed"
         elif attempt.revision == 4:
             state.requalification.status = "consumed"
+        elif attempt.revision == 5:
+            state.fifth_attempt.status = "consumed"
+        elif attempt.revision == 6:
+            state.sixth_attempt.status = "consumed"
         state.status, state.approval, state.active = "planning", None, None
         self.store.save(session, expected_state_hash=expected)
         finished = False
@@ -120,10 +148,16 @@ class PlanningService:
             "requirements_revision": session.revision,
             "confirmed_ledger_ids": [x.id for x in session.ledger if x.status == "confirmed"],
             "unconfirmed_ledger_ids": [x.id for x in session.ledger if x.status != "confirmed"],
+            "constraint_ledger_ids": [
+                x.id for x in session.ledger
+                if x.status == "confirmed" and x.type in {"constraint", "non-goal"}
+            ],
         }
+
+        outline_schema = checked_schema(OutlineProposal, partial(accept_outline, ledger=session.ledger))
         try:
             yield self.event(session, "plan_started")
-            outline = await self.call(session, "planner:outline", OutlineProposal, prompts.OUTLINE, context)
+            outline = await self.call(session, "planner:outline", outline_schema, prompts.OUTLINE, context)
             attempt.outline = accept_outline(outline, session.ledger)
             self.store.save(session)
             yield self.event(session, "plan_section")
@@ -131,7 +165,13 @@ class PlanningService:
                 draft = await self.call(
                     session,
                     f"planner:screen:{screen.ref}",
-                    create_model("RequestedScreen", __base__=ScreenProposal, ref=(Literal[screen.ref], ...)),
+                    checked_schema(
+                        create_model(
+                            "RequestedScreen", __base__=ScreenProposal, ref=(Literal[screen.ref], ...)
+                        ),
+                        partial(check_citations, ledger=session.ledger),
+                        partial(accept_screen, outline=outline, ref=screen.ref),
+                    ),
                     prompts.SCREEN,
                     {**context, "outline": outline.model_dump(), "screen": screen.model_dump()},
                 )
@@ -143,7 +183,10 @@ class PlanningService:
                 draft = await self.call(
                     session,
                     f"planner:phase:{phase.ref}",
-                    create_model("RequestedPhase", __base__=PhaseProposal, ref=(Literal[phase.ref], ...)),
+                    checked_schema(
+                        create_model("RequestedPhase", __base__=PhaseProposal, ref=(Literal[phase.ref], ...)),
+                        partial(self.accepted_phase, session, attempt, index),
+                    ),
                     prompts.PHASE,
                     {
                         **context,
@@ -161,13 +204,7 @@ class PlanningService:
                         ),
                     },
                 )
-                check_citations(draft, session.ledger)
-                accepted = accept_phase(draft, outline, index)
-                validate_plan(
-                    self.document(session, attempt, [*attempt.phases, accepted]),
-                    session.ledger,
-                    complete=False,
-                )
+                accepted = self.accepted_phase(session, attempt, index, draft)
                 attempt.phases.append(accepted)
                 self.store.save(session)
                 yield self.event(session, "plan_section")

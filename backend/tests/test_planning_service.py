@@ -63,7 +63,12 @@ async def test_outline_receives_application_owned_coverage_checklists(setup):
             if role == "planner:outline":
                 self.checklist_received = payload.get("confirmed_ledger_ids") == [
                     x.id for x in current.ledger if x.status == "confirmed"
-                ] and payload.get("unconfirmed_ledger_ids") == ["L7"]
+                ] and payload.get("unconfirmed_ledger_ids") == ["L7"] and payload.get(
+                    "constraint_ledger_ids"
+                ) == [
+                    x.id for x in current.ledger
+                    if x.status == "confirmed" and x.type in {"constraint", "non-goal"}
+                ]
                 if not self.checklist_received:
                     result.specification.pop()
             return result

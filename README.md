@@ -654,6 +654,81 @@ draft restoration, stale gating, keyboard selection and Unicode. Speech lifecycl
 was tested with simulated recognition; real microphone and live explanations remain
 unverified. The retained live session's stored bytes and usage counts are unchanged.
 
+**Fifth-attempt authorization (2026-10-29):** the human subsequently authorized one
+fifth attempt to qualify the merged Unicode fixes. A separate `fifth_attempt` grant
+binds the retained session, approved revision, all four prior attempt hashes and
+the consumed fourth-attempt grant. Neither earlier grant is reset. The existing
+local operator command accepts `--fifth-attempt` for preflight and issuance; issuance
+still requires a stopped server, fresh state hash, exact approval file, reason and
+verified implementation commit. The grant is consumed atomically before dispatch;
+failure, interruption, restart or correction never replenishes it. The ordinary
+two-attempt policy, nine-pass cap, one repair per pass and session budget remain.
+No sixth attempt is provided. See the [bounded execution plan](docs/plans/2026-10-29-fifth-planning-attempt.md).
+
+The sole fifth attempt **failed outline coverage** after one schema-valid Super
+response: `common_rules` omitted L4, "No login, network, backend, or sync", although
+the specification covered all seven confirmed IDs. Unicode was accepted. The call
+used 2,531 input and 2,416 output tokens, costing an estimated $0.00293370; cumulative
+usage is 66 responses and $0.13555108. The fifth grant is consumed. No active plan,
+plan approval or coding-agent dispatch exists; attempt 6 is refused before provider
+or save. Prior attempts, grants, usage, requirements revision 3, playback approval
+and compiled brief were preserved. Private evidence is under
+`.data/live-check/2026-10-29/attempt-5/`.
+
+Manual inspection also found unsupported first-launch behavior: the architecture
+would treat an absent saved value as a storage failure and disable both buttons.
+It also promoted a non-negative-integer restriction and per-tab storage keys to
+confirmed rules without explicit support. These observations are fidelity failures,
+not reasons to bypass coverage validation or accept the outline.
+
+The failure exposed a repair boundary: deterministic outline checks previously ran
+after the adapter had accepted the response, so a coverage failure received no
+repair. The follow-up binds the existing outline validator to the response schema
+and supplies an explicit constraint-ID checklist. JSON, schema and deterministic
+outline failures now share the existing single repair; two failed responses still
+close the gate. This is an offline correction, not a sixth live attempt or evidence
+that the model's fidelity issues are resolved. No allowance or prior failure was reset.
+Checkpoint `8f51a9a` contains the audited fifth-attempt grant; `219b1eb` contains the
+repair correction. Fresh verification after the correction passed 459 backend tests
+(one existing Windows symlink skip and deprecation warning), Ruff and all 16 scripted
+demo evaluations with zero provider calls. These checkpoints were subsequently
+included in PR #4, linked below.
+
+**Sixth-attempt qualification (2026-10-29):** the human authorized one sixth
+attempt with the outline repair fix. Checkpoint `b1ab901` adds a separate audited
+`sixth_attempt` grant and local `--sixth-attempt` operator mode, preserving the
+ordinary two-attempt policy and every earlier grant. Its 33 new tests passed;
+fresh full verification passed 492 backend tests (one existing skip and warning),
+Ruff and all 16 scripted demos.
+
+The sole sixth attempt accepted the outline and one screen, then **failed at the
+first phase** with `Package misses scope exclusions`: both returned packages had
+empty exclusions, missing L4 (no login, network, backend or sync). The phase had
+already used its one JSON/schema repair, so no third response was permitted.
+Three logical passes used four Super responses, costing an estimated $0.01181010.
+Cumulative usage is 70 responses and $0.14736118. All prior evidence, approved
+requirements/playback revision 3 and the compiled brief remain intact. All four
+grants are consumed; attempt 7 is refused before provider/save. No complete plan,
+plan approval or coding-agent dispatch exists.
+
+The offline follow-up applies the existing deterministic checks to screen and phase
+responses inside the same single repair limit, including full coverage at the last
+phase. The phase prompt explicitly requires all constraint IDs in every package's
+exclusions. Post-call guards and the final semantic reviewer remain; no validation
+is weakened, no extra response is added, and the failed sixth attempt is preserved.
+This change has no new live qualification evidence. See the
+[sixth-attempt record](docs/plans/2026-10-29-sixth-planning-attempt.md); private
+diagnostics remain ignored under `.data/live-check/2026-10-29/attempt-6/`.
+Repair checkpoint `dfc707a` passed 512 backend tests (one existing Windows symlink
+skip and deprecation warning), Ruff and all 16 scripted demos with zero provider
+calls. The live sixth-attempt state is unchanged by the correction. These
+checkpoints were subsequently published in
+[PR #4](https://github.com/Azrkiel/Intent/pull/4), "Add audited planning retries and
+bounded section repair", after the human authorized publication and merge. The PR
+records the final merge state. A fresh pre-publication run passed 97 grant/repair
+tests and Ruff; the fetched base matched the verified base. No seventh attempt or
+coding-agent dispatch occurred.
+
 ## Claude Code handoff
 
 After approving and compiling the brief, set `ALLOW_CLAUDE_BUILD=true` and restart.

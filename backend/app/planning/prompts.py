@@ -24,6 +24,8 @@ status="confirmed" for every listed ID. Prefer one statement per ID, including I
 text overlaps another item. Citations in vision, journeys, choices or common_rules do not
 replace specification coverage. Do not mark a settled requirement as a proposal.
 Use unconfirmed_ledger_ids as the choices checklist; those items must never become confirmed.
+Use constraint_ledger_ids as the common_rules checklist: include every listed ID in
+common_rules with its actual constraint or exclusion, even if already in specification.
 """
 )
 
@@ -46,7 +48,10 @@ checks with command argv and expected results, artifacts, exclusions, and open c
 Every confirmed requirement must map to package acceptance across the completed plan.
 Acceptance for a confirmed requirement must use status="confirmed" and include its ledger ID;
 check confirmed_ledger_ids against acceptance in this phase and earlier accepted phases.
-Carry applicable constraints/non-goals in package exclusions. Ownership is relative
+Use constraint_ledger_ids as the exclusions checklist for every package, including
+setup packages: cite every listed ID with its actual constraint/non-goal in each
+package's exclusions, even when already present in outline common_rules.
+Ownership is relative
 to the generated project. Shared interfaces require one producer and dependent consumers.
 When execution_policy is supplied, every task check command must exactly match one of
 its allowed_commands argv arrays. Do not use shell strings, chaining, placeholder commands,

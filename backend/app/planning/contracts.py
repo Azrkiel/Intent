@@ -214,11 +214,29 @@ class PlanningRequalification(PlanningExtension):
     extension_hash: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 
 
+class PlanningFifthAttempt(PlanningExtension):
+    prior_attempt_hashes: list[Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]] = Field(
+        min_length=4, max_length=4
+    )
+    requalification_id: Text
+    requalification_hash: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+
+
+class PlanningSixthAttempt(PlanningExtension):
+    prior_attempt_hashes: list[Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]] = Field(
+        min_length=5, max_length=5
+    )
+    fifth_attempt_id: Text
+    fifth_attempt_hash: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+
+
 class PlanningState(PlanningModel):
     status: Literal["draft", "planning", "review_ready", "approved", "blocked", "stale"] = "draft"
-    attempts: list[PlanAttempt] = Field(default_factory=list, max_length=4)
+    attempts: list[PlanAttempt] = Field(default_factory=list, max_length=6)
     extension: PlanningExtension | None = None
     requalification: PlanningRequalification | None = None
+    fifth_attempt: PlanningFifthAttempt | None = None
+    sixth_attempt: PlanningSixthAttempt | None = None
     active: PlanApproval | None = None
     approval: PlanApproval | None = None
 
@@ -243,7 +261,7 @@ class PlanningState(PlanningModel):
                 ):
                     raise ValueError("Planning extension third attempt identity does not match")
         qualification = self.requalification
-        if len(self.attempts) == 4 and not qualification:
+        if len(self.attempts) >= 4 and not qualification:
             raise ValueError("A fourth planning attempt requires requalification")
         if qualification:
             if (
@@ -259,9 +277,9 @@ class PlanningState(PlanningModel):
                 ]
             ):
                 raise ValueError("Planning requalification history or extension does not match")
-            if (qualification.status == "consumed") != (len(self.attempts) == 4):
+            if (qualification.status == "consumed") != (len(self.attempts) >= 4):
                 raise ValueError("Planning requalification consumption does not match attempts")
-            if len(self.attempts) == 4:
+            if len(self.attempts) >= 4:
                 fourth = self.attempts[3]
                 if (
                     fourth.revision != 4
@@ -269,7 +287,61 @@ class PlanningState(PlanningModel):
                     or fourth.requirements_revision != qualification.requirements_revision
                 ):
                     raise ValueError("Planning requalification fourth attempt identity does not match")
+        fifth = self.fifth_attempt
+        if len(self.attempts) >= 5 and not fifth:
+            raise ValueError("A fifth planning attempt requires a separate grant")
+        if fifth:
+            if (
+                not qualification or qualification.status != "consumed" or len(self.attempts) < 4
+                or fifth.requalification_id != qualification.id
+                or fifth.requalification_hash != content_hash(
+                    qualification.model_dump(mode="json", round_trip=True)
+                )
+                or fifth.requirements_revision != self.attempts[3].requirements_revision
+                or fifth.prior_attempt_hashes != [
+                    content_hash(attempt.model_dump(mode="json", round_trip=True))
+                    for attempt in self.attempts[:4]
+                ]
+            ):
+                raise ValueError("Planning fifth-attempt history or requalification does not match")
+            if (fifth.status == "consumed") != (len(self.attempts) >= 5):
+                raise ValueError("Planning fifth-attempt consumption does not match attempts")
+            if len(self.attempts) >= 5:
+                attempt = self.attempts[4]
+                if (
+                    attempt.revision != 5
+                    or attempt.plan_id != self.attempts[0].plan_id
+                    or attempt.requirements_revision != fifth.requirements_revision
+                ):
+                    raise ValueError("Planning fifth-attempt identity does not match")
+        sixth = self.sixth_attempt
+        if len(self.attempts) == 6 and not sixth:
+            raise ValueError("A sixth planning attempt requires a separate grant")
+        if sixth:
+            if (
+                not fifth or fifth.status != "consumed" or len(self.attempts) < 5
+                or sixth.fifth_attempt_id != fifth.id
+                or sixth.fifth_attempt_hash != content_hash(fifth.model_dump(mode="json", round_trip=True))
+                or sixth.requirements_revision != self.attempts[4].requirements_revision
+                or sixth.prior_attempt_hashes != [
+                    content_hash(attempt.model_dump(mode="json", round_trip=True))
+                    for attempt in self.attempts[:5]
+                ]
+            ):
+                raise ValueError("Planning sixth-attempt history or fifth grant does not match")
+            if (sixth.status == "consumed") != (len(self.attempts) == 6):
+                raise ValueError("Planning sixth-attempt consumption does not match attempts")
+            if len(self.attempts) == 6:
+                attempt = self.attempts[5]
+                if (
+                    attempt.revision != 6
+                    or attempt.plan_id != self.attempts[0].plan_id
+                    or attempt.requirements_revision != sixth.requirements_revision
+                ):
+                    raise ValueError("Planning sixth-attempt identity does not match")
         return self
 
     def public(self):
-        return self.model_dump(mode="json", exclude={"extension", "requalification"})
+        return self.model_dump(
+            mode="json", exclude={"extension", "requalification", "fifth_attempt", "sixth_attempt"}
+        )
