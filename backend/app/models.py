@@ -12,7 +12,7 @@ from pydantic import BaseModel, ValidationError
 
 from .domain import Session, Usage
 from .planning.contracts import PlanningTransportRetry
-from .planning.repair import FieldRepair, UnsafeJSON, strict_json
+from .planning.repair import FieldRepair, UnsafeJSON, application_scoped, strict_json
 from .settings import Settings
 
 T = TypeVar("T", bound=BaseModel)
@@ -197,15 +197,17 @@ class LiveModels:
                     raise ModelError(
                         f"{role} failed {category} after one repair retry."
                     ) from validation_error
-                if constrained and not limited and category != "JSON parsing":
+                if constrained and isinstance(validation_error, ValidationError):
                     try:
-                        if not isinstance(validation_error, ValidationError):
-                            raise ValueError("No unambiguous field errors")
                         repair = FieldRepair(schema, original, validation_error)
                     except ValueError as error:
-                        raise ModelError(
-                            f"{role} validation failure cannot be safely scoped for repair."
-                        ) from error
+                        # Unresolvable application scopes are defects; model-side errors without
+                        # a field scope (extra keys, root checks) get the one complete retry.
+                        if application_scoped(validation_error):
+                            raise ModelError(
+                                f"{role} validation failure cannot be safely scoped for repair."
+                            ) from error
+                if repair:
                     messages[0] = {
                         "role": "system",
                         "content": instruction + "\nFor this repair return only the replacement object "

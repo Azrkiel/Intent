@@ -22,7 +22,13 @@ from .contracts import (
     SourceItem,
 )
 from .repair import ScopedError
-from .review import review_catalog
+from .review import (
+    available_entries,
+    check_outline_budget,
+    check_review_budget,
+    reserved_entries,
+    review_catalog,
+)
 from .validation import (
     accept_outline,
     accept_phase,
@@ -94,7 +100,8 @@ class PlanningService:
             )
         except ScopedError as error:
             if not error.paths or any(path[:2] != ("phases", index) for path in error.paths):
-                raise ValueError(
+                    # Application-owned and unscoped: never offered to the model for any repair.
+                raise ScopedError(
                     "Accepted section failed validation; current phase cannot repair it"
                 ) from error
             raise ScopedError(str(error), *(path[2:] for path in error.paths)) from error
@@ -182,14 +189,18 @@ class PlanningService:
             ],
         }
 
-        outline_schema = checked_schema(OutlineProposal, partial(accept_outline, ledger=session.ledger))
+        outline_schema = checked_schema(
+            OutlineProposal, partial(accept_outline, ledger=session.ledger), check_outline_budget
+        )
         try:
             yield self.event(session, "plan_started")
             outline = await self.call(session, "planner:outline", outline_schema, prompts.OUTLINE, context)
             attempt.outline = accept_outline(outline, session.ledger)
             self.store.save(session)
             yield self.event(session, "plan_section")
-            for screen in outline.screens:
+            for index, screen in enumerate(outline.screens):
+                accepted = [attempt.outline, *attempt.screens]
+                reserved = reserved_entries(outline, index + 1)
                 draft = await self.call(
                     session,
                     f"planner:screen:{screen.ref}",
@@ -199,21 +210,30 @@ class PlanningService:
                         ),
                         partial(check_citations, ledger=session.ledger),
                         partial(accept_screen, outline=outline, ref=screen.ref),
+                        partial(check_review_budget, accepted, reserved),
                     ),
                     prompts.SCREEN,
-                    {**context, "outline": outline.model_dump(), "screen": screen.model_dump()},
+                    {
+                        **context,
+                        "outline": outline.model_dump(),
+                        "screen": screen.model_dump(),
+                        "review_entries_available": available_entries(accepted, reserved),
+                    },
                 )
                 check_citations(draft, session.ledger)
                 attempt.screens.append(accept_screen(draft, outline, screen.ref))
                 self.store.save(session)
                 yield self.event(session, "plan_section")
             for index, phase in enumerate(outline.phases):
+                accepted = [attempt.outline, *attempt.screens, *attempt.phases]
+                reserved = reserved_entries(outline, len(outline.screens), index + 1)
                 draft = await self.call(
                     session,
                     f"planner:phase:{phase.ref}",
                     checked_schema(
                         create_model("RequestedPhase", __base__=PhaseProposal, ref=(Literal[phase.ref], ...)),
                         partial(self.accepted_phase, session, attempt, index),
+                        partial(check_review_budget, accepted, reserved),
                     ),
                     prompts.PHASE,
                     {
@@ -221,6 +241,7 @@ class PlanningService:
                         "outline": outline.model_dump(),
                         "phase": phase.model_dump(),
                         "accepted_phases": [x.model_dump() for x in attempt.phases],
+                        "review_entries_available": available_entries(accepted, reserved),
                         "execution_policy": (
                             {
                                 "name": POLICY,

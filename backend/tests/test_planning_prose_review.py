@@ -153,3 +153,82 @@ def test_review_capacity_includes_uncited_prose():
     packet.inputs = [f"Input {i}" for i in range(501)]
     with pytest.raises(ValueError, match="semantic verification capacity"):
         review_catalog(plan)
+
+
+def minimal_phase():
+    """Every list at its schema minimum; optional lists empty."""
+    value = phase()
+    packet = value["packages"][0]
+    for field in ("owned_paths", "preconditions", "inputs", "outputs", "acceptance", "artifacts"):
+        packet[field] = packet[field][:1]
+    packet["exclusions"] = packet["choices"] = []
+    packet["tasks"][0]["steps"] = packet["tasks"][0]["steps"][:1]
+    return value
+
+
+def test_minimum_phase_reservation_matches_smallest_schema_valid_phase():
+    from backend.app.planning.contracts import OutlineProposal, PhaseProposal
+    from backend.app.planning.review import MIN_PHASE_ENTRIES, reserved_entries, review_catalog, review_count
+
+    assert review_count(PhaseProposal.model_validate(minimal_phase())) == MIN_PHASE_ENTRIES
+    proposed = OutlineProposal.model_validate(outline())
+    # One screen with four states, two phases.
+    assert reserved_entries(proposed) == 5 + 2 * MIN_PHASE_ENTRIES
+    assert reserved_entries(proposed, 1, 1) == MIN_PHASE_ENTRIES
+    plan = plan_fixture()
+    assert review_count(plan.outline, plan.screens, plan.phases) == len(review_catalog(plan))
+
+
+def test_section_budget_accepts_the_limit_and_rejects_one_more_entry():
+    from backend.app.planning.contracts import PhaseProposal
+    from backend.app.planning.review import CAPACITY, check_review_budget, review_count
+
+    section = PhaseProposal.model_validate(phase())
+    size = review_count(section)
+    check_review_budget([], CAPACITY - size, section)
+    with pytest.raises(ValueError, match=f"at most {size - 1} fit the {CAPACITY}-entry"):
+        check_review_budget([], CAPACITY - size + 1, section)
+
+
+async def test_oversized_first_phase_fails_before_later_phases_or_verification(tmp_path, monkeypatch):
+    from backend.app.planning import review
+    from backend.app.planning.contracts import PhaseProposal
+
+    session = ready_session()
+    session.mode = "live"
+    store = Store(str(tmp_path / "test.sqlite3"))
+    store.save(session)
+    seen = Counter()
+    retries = []
+
+    def handle(request):
+        body = json.loads(request.content)
+        payload = json.loads(body["messages"][1]["content"])
+        role = ("planner:verify" if "statements" in payload else
+                f"planner:phase:{payload['phase']['ref']}" if "phase" in payload else
+                f"planner:screen:{payload['screen']['ref']}" if "screen" in payload else "planner:outline")
+        seen[role] += 1
+        result = demo_response(session, role, payload)
+        if role.startswith("planner:phase:"):
+            if seen[role] == 1:
+                # Leave room for one fewer entry than this schema-valid phase contains.
+                size = review.review_count(PhaseProposal.model_validate(result))
+                monkeypatch.setattr(review, "CAPACITY",
+                                    review.CAPACITY - payload["review_entries_available"] + size - 1)
+            else:
+                retries.append(body["messages"][-1]["content"])
+        return httpx.Response(200, json=completion(json.dumps(result)))
+
+    client = AsyncOpenAI(api_key="offline", base_url="https://test.invalid/v1", max_retries=0,
+                         http_client=httpx.AsyncClient(transport=httpx.MockTransport(handle)))
+    models = LiveModels(Settings(mode="live", _env_file=None), client=client)
+    try:
+        events = [event async for event in PlanningService(store, models, models.settings).generate(session)]
+        assert events[-1]["type"] == "plan_error"
+        phases = [role for role in seen if role.startswith("planner:phase:")]
+        assert len(phases) == 1 and seen[phases[0]] == 2
+        assert len(retries) == 1 and "plan review limit" in retries[0]
+        assert seen["planner:verify"] == 0
+        assert session.planning.active is None
+    finally:
+        await models.close()

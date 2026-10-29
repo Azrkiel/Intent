@@ -105,17 +105,36 @@ async def test_full_object_duplicate_task_response_cannot_replace_a_valid_task_l
         await models.close()
 
 
-async def test_unscoped_root_failure_stops_before_a_rewrite_request():
+async def test_unscoped_root_failure_gets_one_complete_retry_and_no_field_repair():
     def root_failure(value):
         raise ValueError("Unmapped cross-field failure")
 
     requests = []
-    models = provider([phase()], requests)
+    models = provider([phase(), phase()], requests)
     try:
-        with pytest.raises(ModelError, match="cannot be safely scoped"):
+        with pytest.raises(ModelError, match="deterministic acceptance after one repair"):
             await models.call(Session(), "planner:phase:core", checked_schema(PhaseProposal, root_failure),
                               "Plan.", {})
-        assert len(requests) == 1
+        assert len(requests) == 2
+        retry = requests[1]["messages"][-1]["content"]
+        assert retry.startswith("Correct all schema validation errors") and "field_repair" not in retry
+    finally:
+        await models.close()
+
+
+@pytest.mark.parametrize("original", [
+    {**phase(), "notes": "Unexpected key"},
+    json.dumps(phase())[:-1] + ', "ref": "core"}',
+])
+async def test_unscopable_model_output_gets_one_complete_retry(original):
+    requests = []
+    session = Session()
+    models = provider([original, phase()], requests)
+    try:
+        result = await models.call(session, "planner:phase:core", PhaseProposal, "Plan.", {})
+        assert result.model_dump() == phase()
+        assert len(requests) == len(session.usage) == 2
+        assert "field_repair" not in requests[1]["messages"][-1]["content"]
     finally:
         await models.close()
 
@@ -203,8 +222,9 @@ async def test_independent_task_limit_is_preserved_in_replacement_schema():
     try:
         with pytest.raises(ModelError, match="schema validation after one repair"):
             await models.call(Session(), "planner:phase:core", PhaseProposal, "Plan.", {})
-        repair = json.loads(requests[-1]["messages"][-1]["content"])
-        assert repair["schema"]["properties"]["R3"]["maxItems"] == 3
+        schema = json.loads(requests[-1]["messages"][0]["content"].rsplit("\n", 1)[1])
+        assert schema["properties"]["R3"]["maxItems"] == 3
+        assert "schema" not in json.loads(requests[-1]["messages"][-1]["content"])
     finally:
         await models.close()
 
