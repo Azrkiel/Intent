@@ -20,6 +20,7 @@ from .planning.routes import planning_router
 from .planning.service import PlanningService
 from .settings import Settings
 from .store import Store
+from .vault.routes import vault_router
 
 
 class Utterance(BaseModel):
@@ -261,6 +262,7 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
         )
 
     app.include_router(planning_router(store, planner, locks, load, guard_edit))
+    app.include_router(vault_router(store, planner, locks, load, guard_edit))
     app.include_router(execution_router(executor, locks, load))
     return app
 
