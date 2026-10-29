@@ -22,6 +22,18 @@ from .domain import (
     rank_candidates,
     trace_brief,
 )
+from .framework import (
+    ASPECTS,
+    FrameworkAssessment,
+    FrameworkMap,
+    FrameworkReview,
+    entry_catalog,
+    missing_coverage,
+    reviewed_context,
+    source_hash,
+    validate_assessment,
+    validate_evidence,
+)
 from .models import ModelError
 from .store import Store
 
@@ -33,6 +45,8 @@ def context(session: Session) -> dict:
         "active_question": session.current_question.model_dump(round_trip=True)
         if session.current_question
         else None,
+        "turns": [{"number": turn.number, "text": turn.text} for turn in session.turns],
+        "reviewed_framework": reviewed_context(session),
     }
 
 
@@ -57,6 +71,27 @@ def missing_slot_question(slot: str, mode: str) -> Candidate:
     return question
 
 
+def invalidate_understanding(session: Session):
+    """A new framework can change a handoff even without a new user revision."""
+    session.approved_revision = None
+    for grant in (
+        session.planning.extension, session.planning.requalification,
+        session.planning.fifth_attempt, session.planning.sixth_attempt,
+    ):
+        if grant and grant.status == "granted":
+            grant.status = "invalidated"
+    if session.planning.attempts:
+        session.planning.status = "stale"
+        session.planning.approval = None
+    session.playback_revision = None
+    session.playback = None
+    session.brief = None
+    session.build = Build()
+    session.analysis_complete = False
+    session.framework_review = None
+    session.warnings = []
+
+
 class Engine:
     def __init__(self, store: Store, models, critic_mode="lenses"):
         self.store, self.models = store, models
@@ -71,22 +106,7 @@ class Engine:
 
     async def turn(self, session: Session, text: str, *, scope=None):
         session.revision += 1
-        session.approved_revision = None
-        for grant in (
-            session.planning.extension, session.planning.requalification,
-            session.planning.fifth_attempt, session.planning.sixth_attempt
-        ):
-            if grant and grant.status == "granted":
-                grant.status = "invalidated"
-        if session.planning.attempts:
-            session.planning.status = "stale"
-            session.planning.approval = None
-        session.playback_revision = None
-        session.playback = None
-        session.brief = None
-        session.build = Build()
-        session.analysis_complete = False
-        session.warnings = []
+        invalidate_understanding(session)
         number = len(session.turns) + 1
         session.turns.append(
             Turn(
@@ -140,8 +160,7 @@ class Engine:
         self.store.save(session)
 
     async def analyze(self, session: Session):
-        session.analysis_complete = False
-        session.warnings = []
+        invalidate_understanding(session)
         self.store.save(session)
         payload = context(session)
 
@@ -183,6 +202,71 @@ class Engine:
                 if not task.done():
                     task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+        mandatory_questions = []
+        if session.ledger:
+            yield stage("Mapping journeys, components, data and recovery paths…", session)
+            try:
+                map_payload = {
+                    **context(session),
+                    "required_aspects": ASPECTS,
+                    "critic_questions": [q.model_dump(round_trip=True) for q in candidates],
+                }
+                for attempt in range(2):
+                    session.framework_review = None
+                    framework = await self.call(
+                        session, "framework:map", FrameworkMap, prompts.FRAMEWORK_MAP, map_payload
+                    )
+                    validate_evidence(framework, session)
+                    session.framework_review = FrameworkReview(
+                        revision=session.revision, source_hash=source_hash(session),
+                        mode=session.mode, framework=framework,
+                    )
+                    self.store.save(session)
+                    yield stage("Reviewing the complete framework for gaps and vague behavior…", session)
+                    assessment = await self.call(
+                        session, "framework:review", FrameworkAssessment, prompts.FRAMEWORK_REVIEW,
+                        {
+                            **map_payload,
+                            "framework": framework.model_dump(mode="json"),
+                            "entry_catalog": {
+                                key: entry.model_dump(mode="json")
+                                for key, entry in entry_catalog(framework).items()
+                            },
+                        },
+                    )
+                    validate_assessment(assessment, framework, session)
+                    session.framework_review.assessment = assessment
+                    missing = missing_coverage(framework, session)
+                    if (
+                        attempt or framework.questions or assessment.questions
+                        or not (assessment.issues or missing)
+                    ):
+                        break
+                    map_payload = {
+                        **map_payload, "previous_framework": framework.model_dump(mode="json"),
+                        "review_feedback": {"issues": [issue.model_dump() for issue in assessment.issues],
+                                            "missing": missing},
+                    }
+                    yield stage("Correcting the framework from the independent review…", session)
+                lenses = {
+                    "purpose": "done-ness", "journeys": "behaviour", "structure": "behaviour",
+                    "data": "data", "access": "identity", "failure-recovery": "edges",
+                    "verification": "done-ness", "scope": "edges",
+                }
+                seen = set()
+                for question in [*framework.questions, *assessment.questions]:
+                    key = question.question.strip().casefold()
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    mandatory_questions.append(Candidate(
+                        id=f"Q{session.revision}-framework-{len(mandatory_questions) + 1}",
+                        lens=lenses[question.area], targets=question.targets,
+                        question=question.question, options=question.options, code_diff=question.code_diff,
+                        divergence=3, uncertainty=3, cost_to_change=3,
+                    ))
+            except (ModelError, ValueError) as error:
+                failures.append(f"framework: {error}")
         for index, question in enumerate(candidates):
             question.id = f"Q{session.revision}-{index + 1}"
         yield stage("Ranking questions by what would change in the build…")
@@ -212,7 +296,13 @@ class Engine:
                 question = missing_slot_question(slot, session.mode)
                 question.id = f"Q{session.revision}-slot-{slot}"
                 ranked.append(question)
-        session.candidates = rank_candidates(ranked, session.questions)
+        # Critical framework gaps are authoritative blockers, not optional ranker
+        # suggestions. Ranking or answer deduplication cannot erase them.
+        mandatory_text = {q.question.strip().casefold() for q in mandatory_questions}
+        session.candidates = mandatory_questions + [
+            q for q in rank_candidates(ranked, session.questions)
+            if q.question.strip().casefold() not in mandatory_text
+        ]
         session.analysis_complete = not failures
         session.warnings = failures
         if not gate_for(session).ready:

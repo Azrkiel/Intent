@@ -133,3 +133,182 @@ def test_semantic_review_can_reject_a_structurally_complete_but_vague_map():
     )]
     assert not gate_for(session).ready
     assert any("saved result" in text for text in gate_for(session).blockers)
+
+
+@pytest.mark.parametrize("condition", [
+    "complete", "map-fails", "review-fails", "partial-review", "vague", "missing-data", "critical"
+])
+async def test_engine_maps_reviews_and_keeps_failures_or_critical_gaps_closed(tmp_path, condition):
+    from backend.app.demo import DemoModels
+    from backend.app.engine import Engine
+    from backend.app.framework import FrameworkIssue, FrameworkQuestion
+    from backend.app.models import ModelError
+    from backend.app.store import Store
+
+    template = mapped_session().framework_review
+    session = mapped_session()
+    session.framework_review = None
+    calls = []
+
+    class Models(DemoModels):
+        async def call(self, session, role, schema, instruction, payload):
+            calls.append((role, payload))
+            if role.startswith("critic:"):
+                return schema(candidates=[])
+            if role == "framework:map":
+                if condition == "map-fails":
+                    raise ModelError("Framework provider timed out")
+                result = template.framework.model_copy(deep=True)
+                if condition == "missing-data":
+                    result.sections = [section for section in result.sections if section.area != "data"]
+                return result
+            if role == "framework:review":
+                if condition == "review-fails":
+                    raise ModelError("Independent reviewer timed out")
+                result = template.assessment.model_copy(deep=True)
+                if condition == "partial-review":
+                    result.reviewed_entry_ids.pop()
+                if condition == "vague":
+                    result.issues = [FrameworkIssue(
+                        area="journeys", detail="Actions have no concrete result."
+                    )]
+                if condition == "critical":
+                    result.questions = [FrameworkQuestion(
+                        area="data", question="Where must the completion survive a reload?",
+                        options=["In this browser", "On a shared server"],
+                        code_diff="A local browser persistence adapter versus server write and read routes",
+                        targets=["L3"],
+                    )]
+                return result
+            return await super().call(session, role, schema, instruction, payload)
+
+    store = Store(str(tmp_path / "sessions.db"))
+    events = [event async for event in Engine(store, Models()).analyze(session)]
+    restored = store.get(session.id)
+    assert gate_for(restored).ready is (condition == "complete")
+    assert any(role == "framework:map" for role, _ in calls)
+    assert events[-1]["session"]["gate"]["ready"] is (condition == "complete")
+    if condition == "complete":
+        review_payload = next(payload for role, payload in calls if role == "framework:review")
+        assert review_payload["entry_catalog"]
+        assert review_payload["turns"][0]["text"] == session.turns[0].text
+    if condition == "critical":
+        assert restored.current_question.targets == ["L3"]
+        assert "survive a reload" in restored.current_question.question
+
+
+async def test_new_utterance_invalidates_framework_before_extraction(tmp_path):
+    from backend.app.demo import DemoModels
+    from backend.app.engine import Engine
+    from backend.app.models import ModelError
+    from backend.app.store import Store
+
+    class FailedExtraction(DemoModels):
+        async def call(self, session, role, schema, instruction, payload):
+            raise ModelError("Extraction failed")
+
+    session = mapped_session()
+    session.approved_revision = session.revision
+    stream = Engine(Store(str(tmp_path / "db")), FailedExtraction()).turn(session, "Change the users")
+    first = await anext(stream)
+    assert first["session"]["framework_review"] is None
+    assert first["session"]["gate"]["ready"] is False
+    assert first["session"]["approved_revision"] is None
+    await stream.aclose()
+
+
+def test_framework_proposals_survive_in_brief_without_becoming_confirmed_requirements():
+    from backend.app.domain import Brief, trace_brief
+
+    session = mapped_session()
+    brief = trace_brief(session, Brief())
+    assert "Framework proposal" in brief.markdown
+    assert "components:" in brief.markdown
+    assert all(item.type == "decision" for item in session.ledger)
+
+
+@pytest.mark.parametrize("action", ["approve", "compile", "build", "plan"])
+def test_legacy_live_approval_cannot_bypass_the_new_gate(tmp_path, action):
+    from fastapi.testclient import TestClient
+
+    from backend.app.domain import Brief, Playback
+    from backend.app.main import create_app
+    from backend.app.settings import Settings
+
+    app = create_app(Settings(mode="live", database_path=str(tmp_path / "db")))
+    session = mapped_session()
+    session.framework_review = None
+    session.approved_revision = session.playback_revision = session.revision
+    session.playback = Playback(sentences=["An older approved summary."])
+    session.brief = Brief()
+    app.state.store.save(session)
+    with TestClient(app) as client:
+        payload = {} if action == "plan" else {"revision": session.revision}
+        response = client.post(f"/api/sessions/{session.id}/{action}", json=payload)
+        assert response.status_code == 409
+
+
+async def test_map_defects_receive_one_bounded_repair_without_asking_user_to_design_it(tmp_path):
+    from backend.app.demo import DemoModels
+    from backend.app.engine import Engine
+    from backend.app.framework import FrameworkIssue
+    from backend.app.store import Store
+
+    session = mapped_session()
+    template = session.framework_review
+    calls, feedback = [], []
+
+    class Models(DemoModels):
+        async def call(self, session, role, schema, instruction, payload):
+            calls.append(role)
+            if role.startswith("critic:"):
+                return schema(candidates=[])
+            if role == "framework:map":
+                feedback.append(payload.get("review_feedback"))
+                return template.framework.model_copy(deep=True)
+            if role == "framework:review":
+                result = template.assessment.model_copy(deep=True)
+                if calls.count(role) == 1:
+                    result.issues = [FrameworkIssue(area="structure", detail="Name the storage interface.")]
+                return result
+            return await super().call(session, role, schema, instruction, payload)
+
+    events = [event async for event in Engine(Store(str(tmp_path / "db")), Models()).analyze(session)]
+    assert events[-1]["session"]["gate"]["ready"]
+    assert calls.count("framework:map") == calls.count("framework:review") == 2
+    assert feedback[0] is None
+    assert feedback[1]["issues"][0]["detail"] == "Name the storage interface."
+
+
+async def test_reanalysis_requires_fresh_playback_approval_and_brief(tmp_path):
+    from backend.app.demo import DemoModels
+    from backend.app.domain import Brief, Build, Playback
+    from backend.app.engine import Engine
+    from backend.app.store import Store
+
+    session = mapped_session()
+    session.approved_revision = session.playback_revision = session.revision
+    session.playback = Playback(sentences=["Old approved summary."])
+    session.brief = Brief()
+    session.build = Build(status="complete")
+    events = [event async for event in Engine(Store(str(tmp_path / "db")), DemoModels()).analyze(session)]
+    assert events[-1]["session"]["approved_revision"] is None
+    assert session.playback_revision is None and session.brief is None
+    assert session.build.status == "idle"
+
+
+def test_large_reviewed_map_does_not_consume_requirement_line_allowance():
+    from backend.app.domain import Brief, trace_brief
+    from backend.app.framework import entry_catalog
+
+    session = mapped_session()
+    for section in session.framework_review.framework.sections:
+        section.entries.extend(
+            section.entries[0].model_copy(deep=True) for _ in range(20 - len(section.entries))
+        )
+    session.framework_review.assessment.reviewed_entry_ids = list(
+        entry_catalog(session.framework_review.framework)
+    )
+    brief = trace_brief(session, Brief())
+    assert len(brief.lines) == len(session.ledger)
+    assert len(brief.framework_lines) == 160

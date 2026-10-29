@@ -8,7 +8,7 @@ from backend.app.domain import Usage
 from backend.app.models import ModelError
 from backend.app.settings import Settings
 from backend.app.store import Store
-from backend.tests.planning_fixtures import ready_session
+from backend.tests.planning_fixtures import ready_session, reviewed_framework
 
 
 def settings(tmp_path, **changes):
@@ -48,6 +48,7 @@ async def test_planning_failure_retains_usage_and_allowance_without_leaking(tmp_
     store = Store(config.database_path)
     session = ready_session()
     session.mode = "live"
+    reviewed_framework(session)
     store.save(session)
 
     class Failing:
@@ -86,6 +87,7 @@ async def test_planning_preserves_review_gate_and_exports_only_after_approval(tm
     store = Store(config.database_path)
     session = ready_session()
     session.mode = "live"
+    reviewed_framework(session)
     store.save(session)
 
     class Offline(DemoModels):
@@ -280,6 +282,7 @@ async def test_planning_cleanup_failure_cannot_exit_as_success(tmp_path):
     store = Store(config.database_path)
     session = ready_session()
     session.mode = "live"
+    reviewed_framework(session)
     store.save(session)
 
     class Offline(DemoModels):

@@ -1,6 +1,27 @@
 from backend.app.domain import LedgerItem, Session, Turn
 
 
+def reviewed_framework(session):
+    """Synthetic precondition for tests focused on the post-clarity planner."""
+    from backend.app.framework import (
+        ASPECTS,
+        FrameworkAssessment,
+        FrameworkReview,
+        entry_catalog,
+        source_hash,
+    )
+    from backend.app.framework_demo import demo_framework
+
+    framework = demo_framework(session)
+    session.framework_review = FrameworkReview(
+        revision=session.revision, source_hash=source_hash(session), mode=session.mode,
+        framework=framework, assessment=FrameworkAssessment(
+            reviewed_entry_ids=list(entry_catalog(framework)), reviewed_areas=list(ASPECTS),
+        ),
+    )
+    return session
+
+
 def statement(text="Save notes", ids=None, status="proposal"):
     return {"text": text, "ledger_ids": ids or ["L1"], "status": status}
 

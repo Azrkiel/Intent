@@ -12,7 +12,7 @@ from backend.app.planning.demo import demo_response
 from backend.app.planning.service import PlanningService
 from backend.app.settings import Settings
 from backend.app.store import Store
-from backend.tests.planning_fixtures import ready_session
+from backend.tests.planning_fixtures import ready_session, reviewed_framework
 from backend.tests.test_models import completion
 
 
@@ -28,6 +28,7 @@ async def test_section_errors_share_one_repair_and_keep_prior_sections(tmp_path,
     original_sources = session.model_dump(mode="json")["ledger"]
     config = Settings(mode="live", database_path=str(tmp_path / "sessions.db"))
     store = Store(config.database_path)
+    reviewed_framework(session)
     store.save(session)
     target = (
         "planner:screen:main" if failure.startswith("screen") else

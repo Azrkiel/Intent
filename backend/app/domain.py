@@ -7,7 +7,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 from .discussion.contracts import DiscussionTarget
-from .framework import FrameworkReview, framework_blockers, framework_progress
+from .framework import FrameworkReview, framework_blockers, framework_progress, reviewed_context
 from .planning.contracts import PlanningState
 
 ItemType = Literal[
@@ -128,12 +128,13 @@ class BriefLine(Contract):
 
 class Brief(Contract):
     lines: list[BriefLine] = Field(default_factory=list, max_length=150)
+    framework_lines: list[BriefLine] = Field(default_factory=list, max_length=160)
 
     @computed_field
     @property
     def markdown(self) -> str:
         sections: dict[str, list[str]] = {}
-        for line in self.lines:
+        for line in [*self.lines, *self.framework_lines]:
             section = " ".join(line.section.split())
             text = " ".join(line.text.split())
             sections.setdefault(section, []).append(f"- {text} [{', '.join(line.ledger_ids)}]")
@@ -322,7 +323,17 @@ def trace_brief(session: Session, brief: Brief, rejected: list[int] | None = Non
                     "and list the choice in your final summary.",
                 )
             )
-    return Brief(lines=lines)
+    framework_lines = []
+    review = reviewed_context(session)
+    if review:
+        for section in session.framework_review.framework.sections:
+            for entry in section.entries:
+                label = "confirmed" if entry.status == "confirmed" else "proposal"
+                framework_lines.append(BriefLine(
+                    section=f"Framework {label}: {section.area}",
+                    text=f"{entry.aspect}: {entry.text}", ledger_ids=entry.ledger_ids,
+                ))
+    return Brief(lines=lines, framework_lines=framework_lines)
 
 
 def public_session(session: Session) -> dict:

@@ -7,6 +7,7 @@ from pydantic import create_model, model_validator
 
 from ..domain import gate_for
 from ..execution.verification import POLICY, TRUSTED_COMMAND
+from ..framework import reviewed_context
 from ..models import ModelError
 from . import prompts
 from .allowance import attempt_limit, state_hash
@@ -54,7 +55,9 @@ class PlanningService:
         if session.mode != self.settings.mode:
             raise ValueError("This session uses a different mode")
         if not gate_for(session).ready or session.approved_revision != session.revision:
-            raise ValueError("Approve the current requirements before planning")
+            raise ValueError(
+                "Requirements changed or are incomplete. Approve the current requirements before planning."
+            )
         if session.build.status == "running":
             raise ValueError("Wait for the current build to finish")
 
@@ -145,6 +148,7 @@ class PlanningService:
         finished = False
         context = {
             "ledger": [x.model_dump(mode="json") for x in session.ledger],
+            "reviewed_framework": reviewed_context(session),
             "requirements_revision": session.revision,
             "confirmed_ledger_ids": [x.id for x in session.ledger if x.status == "confirmed"],
             "unconfirmed_ledger_ids": [x.id for x in session.ledger if x.status != "confirmed"],

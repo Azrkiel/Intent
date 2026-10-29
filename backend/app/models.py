@@ -41,7 +41,7 @@ class LiveModels:
             else self.settings.super_model
         )
         input_rate, output_rate = (1, 3) if compiler else (0.06, 0.24) if fast else (0.30, 0.90)
-        max_tokens = 8192 if compiler else 4096
+        max_tokens = 8192 if compiler or role == "framework:map" else 4096
         messages = [
             {
                 "role": "system",
@@ -102,7 +102,10 @@ class LiveModels:
                 content = re.sub(r"<think>.*?</think>", "", content, flags=re.S).strip()
                 if content.startswith("```"):
                     content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content).strip()
-                limited = role.startswith("planner:") and response.choices[0].finish_reason == "length"
+                limited = (
+                    role.startswith(("planner:", "framework:"))
+                    and response.choices[0].finish_reason == "length"
+                )
                 validation_error = None
                 if limited:
                     detail = "The response reached its output limit. Return a more concise complete object."

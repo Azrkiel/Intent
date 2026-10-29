@@ -38,6 +38,8 @@ def offline_live(tmp_path, monkeypatch):
             "Playback": "playback",
             "Brief": "compiler",
             "Verification": "verifier",
+            "FrameworkMap": "framework:map",
+            "FrameworkAssessment": "framework:review",
         }.get(title)
         if title == "Critique":
             role = next(f"critic:{lens}" for lens in LENSES if system.startswith(prompts.critic_prompt(lens)))

@@ -170,6 +170,7 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
             guard_edit(session)
             if not session.turns:
                 raise HTTPException(409, "Describe your idea first.")
+            await executor.invalidate(id)
             await engine.extract_latest(session)
             async for _ in engine.analyze(session):
                 pass

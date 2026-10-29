@@ -10,6 +10,7 @@ from backend.app.execution.worker import Executor
 from backend.app.planning.contracts import PlanApproval
 from backend.app.settings import Settings
 from backend.app.store import Store
+from backend.tests.planning_fixtures import reviewed_framework
 from backend.tests.test_plan_validation import plan
 
 FAKE = Path(__file__).parent / "fixtures/codex/fake_server.py"
@@ -86,6 +87,7 @@ def fixture(tmp_path, scenario="success"):
         codex_worktree_root=str(tmp_path / "workers"),
     )
     store = Store(settings.database_path)
+    reviewed_framework(session)
     store.save(session)
     store.save_plan(session.id, document)
 

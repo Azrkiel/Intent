@@ -857,6 +857,41 @@ change the ranking. Playback is generated after every four answered questions an
 can be requested for final review. Any new utterance invalidates playback approval,
 the compiled brief, and the displayed build output.
 
+### Framework-backed clarity
+
+Live readiness also requires a current product framework and an independent review.
+After extracting intent and running the six critics, Super drafts eight connected
+areas: purpose/users, end-to-end journeys, component structure, data lifecycle,
+access, failure/recovery, acceptance checks, and scope. Each area has named aspects
+and cited statements. Concrete implementation defaults are labeled **proposals**;
+they do not become confirmed user requirements. A separate Super pass checks the
+entire map for specificity, consistency, missing behavior and unsupported commitments.
+
+The server requires every area/aspect, coverage of every confirmed requirement,
+valid citations and a review of every map entry. Critical framework questions remain
+blocking independently of the question ranker. Vague six-slot coverage alone cannot
+reach 100% in live mode. Failed/partial reviews, missing details, conflicts and stale
+source revisions keep readiness blocked. New utterances and analysis retries clear
+the old review. Older live sessions need reanalysis before new approval or building.
+
+The workspace's **Product framework** panel exposes the map, proposed choices and
+remaining blockers. **Review framework again** reruns analysis after a failed or
+inadequate map. A successful reviewed map accompanies the brief and is supplied as
+proposal context to the later phase planner. User playback approval still precedes
+compilation and phase planning; framework review does not approve execution.
+
+These two extra model passes share the existing session budget and request limits.
+When the reviewer finds a map defect that needs no user decision, Intent makes one
+bounded map/review repair attempt. Remaining defects still block readiness.
+They use the existing Super route; mapper output is bounded at 8192 tokens. Reasoning
+controls retain their configured provider-compatibility behavior. No artificial delay
+or reasoning-mode switch substitutes for coverage and review checks.
+
+Demo mode shows a **scripted example**, including canned implementation proposals.
+It makes no reasoning calls and is not evidence of product-specific understanding.
+Historical demo fixtures retain their scripted checklist behavior. Offline regression
+tests verify the gate and lifecycle, not actual provider judgment or product quality.
+
 The semantic verifier rejects unsupported brief lines. Structural validation removes
 invalid citations, retains all confirmed items, and renders unanswered questions and
 inferences as **Undecided — choose the simplest option and report the choice**.
