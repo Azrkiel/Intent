@@ -693,6 +693,36 @@ repair correction. Fresh verification after the correction passed 459 backend te
 (one existing Windows symlink skip and deprecation warning), Ruff and all 16 scripted
 demo evaluations with zero provider calls. These checkpoints remain local.
 
+**Sixth-attempt qualification (2026-10-29):** the human authorized one sixth
+attempt with the outline repair fix. Checkpoint `b1ab901` adds a separate audited
+`sixth_attempt` grant and local `--sixth-attempt` operator mode, preserving the
+ordinary two-attempt policy and every earlier grant. Its 33 new tests passed;
+fresh full verification passed 492 backend tests (one existing skip and warning),
+Ruff and all 16 scripted demos.
+
+The sole sixth attempt accepted the outline and one screen, then **failed at the
+first phase** with `Package misses scope exclusions`: both returned packages had
+empty exclusions, missing L4 (no login, network, backend or sync). The phase had
+already used its one JSON/schema repair, so no third response was permitted.
+Three logical passes used four Super responses, costing an estimated $0.01181010.
+Cumulative usage is 70 responses and $0.14736118. All prior evidence, approved
+requirements/playback revision 3 and the compiled brief remain intact. All four
+grants are consumed; attempt 7 is refused before provider/save. No complete plan,
+plan approval or coding-agent dispatch exists.
+
+The offline follow-up applies the existing deterministic checks to screen and phase
+responses inside the same single repair limit, including full coverage at the last
+phase. The phase prompt explicitly requires all constraint IDs in every package's
+exclusions. Post-call guards and the final semantic reviewer remain; no validation
+is weakened, no extra response is added, and the failed sixth attempt is preserved.
+This change has no new live qualification evidence. See the
+[sixth-attempt record](docs/plans/2026-10-29-sixth-planning-attempt.md); private
+diagnostics remain ignored under `.data/live-check/2026-10-29/attempt-6/`.
+Repair checkpoint `dfc707a` passed 512 backend tests (one existing Windows symlink
+skip and deprecation warning), Ruff and all 16 scripted demos with zero provider
+calls. The live sixth-attempt state is unchanged by the correction. These
+checkpoints remain local; no seventh attempt, new publication or execution occurred.
+
 ## Claude Code handoff
 
 After approving and compiling the brief, set `ALLOW_CLAUDE_BUILD=true` and restart.
