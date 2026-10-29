@@ -173,11 +173,14 @@ case, not a hardcoded product rule.
 ## Integration boundary and checkpoints
 
 The clean continuation branch starts at `f325d97` in the phase-four worktree.
-The separate `C:/Users/jiang/Intent` checkout is at `18edcde`, with a modified
-`frontend/next-env.d.ts`. Its five commits add framework review, alter live
+The separate `C:/Users/jiang/Intent` checkout was first inspected at `18edcde`
+and advanced to `7fad434` during this investigation, with a modified
+`frontend/next-env.d.ts`. Its five feature/documentation commits add framework review, alter live
 readiness, pass reviewed framework context into planning, and change model token
 and finish-reason handling. It is a separate checkout; this worktree's local
 `main` still points at `13b06f8`. Inspect actual commits, not the stale ref.
+The sixth commit adds only its framework-clarity handoff; the overlapping source
+diff remains the one inspected at `18edcde`.
 
 Implement and verify offline here first, using small local commits. Before any
 later integration, preserve both histories and inspect the actual overlapping
@@ -190,3 +193,14 @@ checkout is separate from this branch's checks.
 The next checkpoint is user review of this concrete design, followed by an
 implementation plan and test-first offline changes. No ninth invocation, limit
 reset, live session clone, source alteration or human approval is implied.
+
+## Design-checkpoint validation
+
+The draft's relative links and referenced implementation paths exist, and the
+staged whitespace check passed before the design commit. The existing baseline
+command `uv run pytest backend/tests/test_models.py backend/tests/test_planning_acceptance_repair.py -q`
+passed all 18 tests in 4.44 seconds. This checks existing adapter and acceptance
+behavior, not the proposed implementation. No full suite was rerun for this
+documentation-only checkpoint. The captured after-state still validates as eight
+attempts, effective allowance eight, a consumed eighth grant, and no active or
+approved plan. No retained driver was executed.
