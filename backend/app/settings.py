@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     reasoning_budget: int = Field(default=2048, ge=256, le=8192)
     session_budget_usd: float = Field(default=2, gt=0, le=100)
     database_path: str = ".data/prompt-caller.sqlite3"
+    frontend_port: int = Field(default=3000, ge=1, le=65535)
     build_root: str = ".data/builds"
     claude_command: str = "claude"
     claude_max_budget_usd: float = Field(default=2, gt=0, le=100)

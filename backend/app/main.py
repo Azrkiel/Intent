@@ -63,10 +63,11 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
     app.state.engine = engine
     app.state.store = store
     app.state.executor = executor
+    web_origins = [f"http://{host}:{settings.frontend_port}" for host in ("127.0.0.1", "localhost")]
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver"])
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://127.0.0.1:3000", "http://localhost:3000"],
+        allow_origins=web_origins,
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type"],
     )
@@ -79,8 +80,7 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
             and origin
             and origin
             not in {
-                "http://127.0.0.1:3000",
-                "http://localhost:3000",
+                *web_origins,
                 "http://127.0.0.1:8000",
                 "http://localhost:8000",
             }

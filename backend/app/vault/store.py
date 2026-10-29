@@ -29,8 +29,8 @@ class VaultStore:
                         id="plan",
                         kind="plan",
                         path="Plan.md",
-                        body=f"# {session.title}\n\nWrite your plan here. Connect notes with [[Note name]] "
-                        "or [a Markdown link](Notes.md).\n",
+                        body=f"# {session.title}\n\nWrite your plan here. Connect notes with `[[Note name]]` "
+                        "or `[a Markdown link](Notes.md)`.\n",
                     )
                 ],
             )

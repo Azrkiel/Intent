@@ -1,7 +1,8 @@
+from posixpath import dirname, relpath
 from urllib.parse import quote
 
 from ..planning.contracts import PlanApproval, PlanDocument
-from ..planning.render import claim, claims, render_package
+from ..planning.render import claim, claims
 from .contracts import Note, Vault
 
 
@@ -51,7 +52,13 @@ def seed_vault(vault: Vault, plan: PlanDocument, *, partial: bool) -> Vault:
                 link(package_paths[w.ref], w.goal.text) for w in phase.packages
             )
             for package in phase.packages:
-                body_package = render_package(plan, package)
+                body_package = (
+                    f"# Work package {package.id}\n\n"
+                    + claim(package.goal)
+                    + "\n\n## Packet details\n\n```json\n"
+                    + package.model_dump_json(indent=2)
+                    + "\n```\n"
+                )
                 body_package += "\n## Prerequisites\n" + "\n".join(
                     link(package_paths[d], d) for d in package.depends_on if d in package_paths
                 )
@@ -64,7 +71,7 @@ def seed_vault(vault: Vault, plan: PlanDocument, *, partial: bool) -> Vault:
                         task.id,
                         f"{task.id}.md",
                         "task",
-                        f"# {task.title}\n\n"
+                        f"# {task.id}: {task.title}\n\n"
                         + "\n".join(f"{i}. {step}" for i, step in enumerate(task.steps, 1))
                         + claims("Acceptance", task.acceptance)
                         + "\n## Checks (proposed; not executed)\n```json\n"
@@ -98,7 +105,12 @@ def seed_vault(vault: Vault, plan: PlanDocument, *, partial: bool) -> Vault:
         "Editable notes do not change canonical plan approval.\n\n"
     )
     root = root.model_copy(
-        update={"body": root.body + provenance + "\n".join(link(n.path, n.path[:-3]) for n in notes) + "\n"}
+        update={
+            "body": root.body
+            + provenance
+            + "\n".join("- " + link(relpath(n.path, dirname(root.path) or "."), n.path[:-3]) for n in notes)
+            + "\n"
+        }
     )
     return Vault(
         revision=vault.revision,

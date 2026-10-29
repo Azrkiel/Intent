@@ -163,6 +163,23 @@ def test_seed_links_canonical_plan_and_preserves_it_after_note_edits(vault_clien
     assert client.get(f"/api/sessions/{session.id}/plan").json() == detail
 
 
+def test_seed_resolves_root_links_when_main_note_is_in_a_folder(vault_client):
+    from backend.tests.planning_fixtures import ready_session
+    from backend.tests.test_planning_api import generate
+
+    client, _, _ = vault_client
+    session = ready_session()
+    client.app.state.store.save(session)
+    generate(client, session)
+    base = f"/api/sessions/{session.id}/vault"
+    notes = client.get(base).json()["notes"]
+    notes[0]["path"] = "project/Main.md"
+    client.post(base, json={"expected_revision": 0, "notes": notes})
+    result = client.post(base + "/seed", json={"expected_revision": 1}).json()
+    root = next(n for n in result["notes"] if n["id"] == "plan")
+    assert "(../Vision.md)" in root["body"]
+
+
 def test_symlink_and_oversized_archive_are_rejected(vault_client):
     import stat
 
@@ -184,3 +201,15 @@ def test_multibyte_note_limit_and_forged_source_are_rejected(vault_client):
     assert client.post(base, json={"expected_revision": 0, "notes": notes}).status_code == 422
     notes[0]["body"] = "# Allowed"
     assert client.post(base, json={"expected_revision": 0, "notes": notes, "source": {}}).status_code == 422
+
+
+def test_configured_loopback_frontend_port_can_save(tmp_path):
+    settings = Settings(database_path=str(tmp_path / "port.db"), mode="demo", frontend_port=3001)
+    with TestClient(create_app(settings)) as client:
+        session = client.post("/api/sessions", json={}).json()
+        base = f"/api/sessions/{session['id']}/vault"
+        notes = client.get(base).json()["notes"]
+        response = client.post(
+            base, json={"expected_revision": 0, "notes": notes}, headers={"Origin": "http://127.0.0.1:3001"}
+        )
+        assert response.status_code == 200
