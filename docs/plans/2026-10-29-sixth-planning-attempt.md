@@ -119,6 +119,11 @@ no dependency or extra retry mechanism was introduced.
 Read-only postflight confirms the stored sixth-attempt state remains byte-for-byte
 unchanged during this offline correction. No seventh grant, request or coding-agent
 dispatch was made. The correction has no live qualification evidence. The grant,
-repair and documentation checkpoints remain local on `codex/sixth-live-planning`;
-no push, PR, merge or release was requested or made. A complete plan and its view,
-export, fidelity and runner audits remain pending.
+repair and documentation checkpoints were subsequently published from
+`codex/sixth-live-planning` in [PR #4](https://github.com/Azrkiel/Intent/pull/4),
+following separate human authorization to commit, open a PR and merge all work.
+The PR is the authoritative merge record. Fresh pre-publication checks passed 97
+grant/repair regressions and Ruff, and the fetched base matched the verified base.
+The existing checkout and ignored evidence are preserved. A complete plan and its
+view, export, fidelity and runner audits remain pending; publication authorizes no
+further live planning or coding-agent dispatch.

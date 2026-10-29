@@ -117,6 +117,7 @@ unchanged through the offline correction.
 This correction has no new live evidence and does not repair or replay attempt 5.
 No complete plan, rendered plan views or approved export was produced; those audits
 remain pending. Further live qualification needs separate human authorization.
-The two code checkpoints are local on `codex/fifth-live-planning`; no new push, PR,
-merge or release was requested or made. The retained checkout is clean after the
-documentation checkpoint that records this result.
+The two code checkpoints were subsequently included with the sixth-attempt work
+in [PR #4](https://github.com/Azrkiel/Intent/pull/4), after separate human
+authorization to publish and merge. See the latest handoff publication note for
+that scope. The checkout and ignored runtime evidence are preserved.

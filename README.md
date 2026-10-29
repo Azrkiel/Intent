@@ -691,7 +691,8 @@ that the model's fidelity issues are resolved. No allowance or prior failure was
 Checkpoint `8f51a9a` contains the audited fifth-attempt grant; `219b1eb` contains the
 repair correction. Fresh verification after the correction passed 459 backend tests
 (one existing Windows symlink skip and deprecation warning), Ruff and all 16 scripted
-demo evaluations with zero provider calls. These checkpoints remain local.
+demo evaluations with zero provider calls. These checkpoints were subsequently
+included in PR #4, linked below.
 
 **Sixth-attempt qualification (2026-10-29):** the human authorized one sixth
 attempt with the outline repair fix. Checkpoint `b1ab901` adds a separate audited
@@ -721,7 +722,12 @@ diagnostics remain ignored under `.data/live-check/2026-10-29/attempt-6/`.
 Repair checkpoint `dfc707a` passed 512 backend tests (one existing Windows symlink
 skip and deprecation warning), Ruff and all 16 scripted demos with zero provider
 calls. The live sixth-attempt state is unchanged by the correction. These
-checkpoints remain local; no seventh attempt, new publication or execution occurred.
+checkpoints were subsequently published in
+[PR #4](https://github.com/Azrkiel/Intent/pull/4), "Add audited planning retries and
+bounded section repair", after the human authorized publication and merge. The PR
+records the final merge state. A fresh pre-publication run passed 97 grant/repair
+tests and Ruff; the fetched base matched the verified base. No seventh attempt or
+coding-agent dispatch occurred.
 
 ## Claude Code handoff
 
