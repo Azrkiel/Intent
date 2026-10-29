@@ -149,8 +149,9 @@ run a backend or synchronize across devices.
 
 ## Visual phase plans and instruction bundles
 
-After approving the current requirements playback, open **Phase plan** (or
-**Plan phases** from the compiled brief) and choose **Generate phase plan**.
+Open **Project graph** (or **Explore project graph** from the compiled brief).
+A draft-vision root is available before a plan exists. After approving the current
+requirements playback, choose **Generate phase plan**.
 Validated outline, wireframe, and phase sections appear progressively. Switch
 between **Project graph**, **Vision & wireframes**, and **Engineering & work
 packages** to inspect the same revision. The graph starts at the project root;
@@ -158,6 +159,28 @@ use search, filters, the keyboard outline, and the node inspector to reach every
 scope, source quote, acceptance condition, proposed check, and planned handoff.
 Use **Fit** for the whole overview or **Center root** to return to the project
 intent and orchestration. Proposed choices and unresolved questions remain explicit.
+
+Select a node and use **Discuss this section** to ask about that part or add your
+direction. Questions use the section, its ancestors and cited requirements without
+changing intent or approvals. Live explanations use Super and the existing session
+budget; demo explanations are labeled and scripted. **Add direction** previews your
+exact words before saving them as a scoped user turn through normal intent analysis.
+It clears approvals, stops affected execution and makes the old plan read-only.
+Use **Shape your current draft vision** to continue while reviewing a stale plan.
+Generating and approving a replacement plan remain explicit actions.
+
+Each section keeps its own saved conversation and browser draft. Reloading a saved
+request reuses its ID; interrupted requests are never automatically replayed. For a
+server-confirmed uncertain result, **Start a different message** leaves the original
+in history. Dictation is optional, uses the browser speech service and leaves an
+editable transcript; sending still requires a click. Plain text descriptions,
+Unicode arrows and multilingual labels are supported. Diagrams are optional;
+control characters and oversized descriptions remain invalid.
+
+The source-bound API is `GET /api/sessions/{id}/discussion?node_id=root` (or
+`node_id=intent` for the current vision), followed by `POST` to the same path with
+`{request_id,target,mode,text}`. Echo the exact GET target; mode is `question` or
+`direction`. Stale sources, mismatched reused IDs and cross-mode writes are rejected.
 
 Choose **Approve this revision**, then **Export instruction bundle**. The ZIP
 contains the canonical `plan.json`, a hashed manifest, cited specification, vision,
@@ -616,6 +639,20 @@ the retained session remains exhausted. See the [current handoff](.Codex/handoff
 Checkpoint `23acab5` passed 387 backend tests with one existing skip and warning,
 Ruff, 23 frontend tests, type checking, production build, and all 16 labeled demo
 evaluations. No new provider request was made and the retained live state is unchanged.
+
+**Interactive graph update (2026-10-29):** the ASCII conversion described above is
+superseded by bounded Unicode descriptions; the adapter preserves Unicode unchanged.
+Graph sections now support cited questions, exact scoped direction, saved history,
+per-section drafts and optional dictation. These changes do not authorize a fifth
+planning attempt or establish live model quality. The retained live session still
+has four consumed attempts and no approved plan. See the
+[latest handoff](.Codex/handoffs/2026-10-29-0035.md) for final checks and publication.
+Offline verification passed 415 backend tests (one existing skip and warning), Ruff,
+31 frontend tests, type checking, production build and all 16 scripted demo runs.
+Isolated demo browser checks covered desktop/mobile, scoped questions and direction,
+draft restoration, stale gating, keyboard selection and Unicode. Speech lifecycle
+was tested with simulated recognition; real microphone and live explanations remain
+unverified. The retained live session's stored bytes and usage counts are unchanged.
 
 ## Claude Code handoff
 

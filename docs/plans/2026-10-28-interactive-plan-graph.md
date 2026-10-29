@@ -15,7 +15,8 @@ authorize another live planning attempt, generated execution, merging or release
 
 `GET /api/sessions/{id}/discussion?node_id=root` resolves a graph node on the server.
 Use `node_id=intent` for the current draft-vision root, including before any plan.
-Response: `{target,title,breadcrumbs,can_write,reason,messages,history}`.
+Response: `{target,title,breadcrumbs,can_write,reason,messages,history,activity}`.
+Activity is a revision-bound overlay of message counts and direction awaiting review.
 
 `target` is `{kind: "plan"|"intent", requirements_revision: number,
 plan_id: string|null, plan_revision: number|null, plan_hash: string|null,
@@ -42,18 +43,18 @@ Select current node -> load source-bound thread -> type / dictate / edit
 
 ## Tasks and ownership
 
-- [ ] Lead: write failing Unicode/control/size/preservation tests; remove ASCII
+- [x] Lead: write failing Unicode/control/size/preservation tests; remove ASCII
   schema/application checks, conversion helper and ASCII-only prompts/labels.
   Keep bounded repair and output-limit handling. Run focused contract/model tests.
-- [ ] Backend worker: own new discussion contracts/service/store/routes and tests;
+- [x] Backend worker: own new discussion contracts/service/store/routes and tests;
   own integration in `main.py`, `domain.py`, `engine.py`, `demo.py`, `store.py`.
   Test source binding, citations, idempotency, restart, budget, history, direction
   evidence/invalidation, and mode guards before implementing each behavior.
-- [ ] Frontend worker: own frontend components/helpers/styles/tests. Promote graph,
+- [x] Frontend worker: own frontend components/helpers/styles/tests. Promote graph,
   add selected-node discussion and draft root, per-node persisted drafts, explicit
   direction preview, and safe text/dictation lifecycle. Read frontend instructions
   and installed Next.js guides. Run Vitest/typecheck and report build needs.
-- [ ] Lead: integrate, test request/selection races, review security and simplify.
+- [x] Lead: integrate, test request/selection races, review security and simplify.
   Run `uv run pytest -q`, `uv run ruff check backend`, `npm test`,
   `npm run typecheck`, `npm run build`, and `npm run eval:demo`.
   Stop owned servers before building; browser-check an isolated labeled fixture.
@@ -63,3 +64,17 @@ Select current node -> load source-bound thread -> type / dictate / edit
   preserving the existing checkout and honest failed live-qualification history.
 
 Reference: [approved design](../specs/2026-10-28-interactive-plan-graph.md).
+
+## Verification, 2026-10-29
+
+Full backend: 415 passed, one existing Windows symlink skip and one deprecation
+warning; Ruff passed. Frontend: 31 tests, typecheck and production build passed.
+Demo pipeline: 16/16, zero provider calls. Independent review findings on uncertain
+requests and worker-limit source hashes were fixed and verified. Security inspection
+covered source/mode guards, SQL parameters, text-only rendering and paid-call gates;
+cleanup retained the existing adapter and intent flow without new runtime dependencies.
+Browser checks covered desktop/mobile, drafts/reload, scoped answers, exact direction,
+stale gating, current-vision entry, Unicode and keyboard selection. QA exposed and
+fixed cached planning state after direction. Speech lifecycle uses simulated tests;
+real microphone and live explanation quality remain unverified. The retained live
+session's raw SQLite bytes and all attempt/usage counts match the pre-change audit.

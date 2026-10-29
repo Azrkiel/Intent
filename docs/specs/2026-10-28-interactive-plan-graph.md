@@ -1,7 +1,8 @@
 # Interactive project graph and section conversations
 
 Date: 2026-10-28 (America/New_York).
-Status: approved for implementation and PR by the subsequent human instruction to
+Status: implemented; offline verification and publication are recorded in the
+[current handoff](../../.Codex/handoffs/2026-10-29-0035.md). The human authorized
 "continue where you left off" and "finish the handoff and commit and PR everything".
 Worktree: `C:/Users/jiang/.codex/worktrees/phase-four/intent`.
 Baseline: `6bf9461`, branch `codex/phase-five-live-qualification`.
@@ -217,8 +218,8 @@ subsequent PR instruction authorizes pushing and opening a PR, not merging/relea
    exhaustion, model error and uncertain restart preserve evidence and gates.
 8. Run full backend pytest/Ruff; frontend tests/typecheck/build; and labeled demo
    evaluation. Browser-check desktop/mobile, keyboard selection, questions, direction,
-   stale review state and dictation via a simulated recognition interface. Real
-   microphone and live model behavior remain separately qualified.
+   stale review state. Test dictation lifecycle via a simulated recognition interface;
+   real microphone and live model behavior remain separately qualified.
 
 No live retry or additional planning grant is included in this design approval.
 The earlier exported-viewer `file://` policy rejection remains in force.
