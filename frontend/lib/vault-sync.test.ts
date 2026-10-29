@@ -11,6 +11,21 @@ const document: VaultDocument = {
 };
 
 describe("vault save serialization", () => {
+  it("does not resave identical notes when the server changes JSON field order", async () => {
+    const sync = new VaultSync(document, async (revision, notes) => ({
+      ...document,
+      revision: revision + 1,
+      notes: notes.map((n) => ({
+        body: n.body,
+        kind: n.kind,
+        path: n.path,
+        id: n.id,
+      })),
+    }));
+    sync.update([{ ...document.notes[0], body: "Updated" }]);
+    await sync.save();
+    expect(sync.dirty).toBe(false);
+  });
   it("retains edits made during a save and uses the returned revision for the next save", async () => {
     let complete!: (value: VaultDocument) => void;
     const calls: number[] = [];

@@ -24,9 +24,18 @@ export class VaultSync {
     };
   }
   get dirty() {
+    const { notes, saved } = this.state;
     return (
-      JSON.stringify(this.state.notes) !==
-      JSON.stringify(this.state.saved.notes)
+      notes.length !== saved.notes.length ||
+      notes.some((note, index) => {
+        const other = saved.notes[index];
+        return (
+          note.id !== other.id ||
+          note.path !== other.path ||
+          note.body !== other.body ||
+          note.kind !== other.kind
+        );
+      })
     );
   }
   private emit(change: Partial<VaultState>) {

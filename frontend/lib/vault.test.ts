@@ -17,6 +17,20 @@ const note = (id: string, path: string, body = ""): VaultNote => ({
 });
 
 describe("Markdown vault links", () => {
+  it("ignores unused reference definitions and bounds missing-node expansion", () => {
+    expect(
+      graphFromNotes([note("plan", "Plan.md", "[unused]: Missing.md")]).edges,
+    ).toHaveLength(0);
+    const graph = graphFromNotes([
+      note(
+        "plan",
+        "Plan.md",
+        Array.from({ length: 800 }, (_, i) => `[[Missing-${i}]]`).join(" "),
+      ),
+    ]);
+    expect(graph.nodes.length).toBeLessThanOrEqual(750);
+    expect(graph.truncated).toBe(true);
+  });
   it("builds edges from real inline, reference and wiki links, skipping code, images and external URLs", () => {
     const notes = [
       note(

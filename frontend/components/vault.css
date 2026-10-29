@@ -1,0 +1,978 @@
+.vault-workspace {
+  --vault-bg: #202521;
+  --vault-panel: #262c27;
+  --vault-line: #39423a;
+  --vault-ink: #e1e7df;
+  --vault-muted: #99a698;
+  --vault-accent: #bce3b4;
+  container: vault / inline-size;
+  margin-top: 20px;
+  border: 1px solid #39443a;
+  border-radius: 10px;
+  color: var(--vault-ink);
+  background: var(--vault-bg);
+  font-family: var(--sans);
+  overflow: hidden;
+  min-width: 0;
+  color-scheme: dark;
+}
+.vault-workspace.is-expanded {
+  position: fixed;
+  inset: 16px;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  box-shadow: 0 20px 100px #0007;
+}
+.vault-workspace[hidden],
+.vault-workspace [hidden] {
+  display: none !important;
+}
+.vault-toolbar {
+  min-height: 69px;
+  padding: 15px 19px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  background: #282f29;
+  border-bottom: 1px solid var(--vault-line);
+}
+.vault-toolbar-title {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--vault-accent);
+}
+.vault-toolbar-title strong {
+  color: var(--vault-ink);
+  font-size: 14px;
+  font-weight: 550;
+  display: block;
+}
+.vault-toolbar-title span {
+  color: var(--vault-muted);
+  font-size: 11px;
+  display: block;
+  margin-top: 4px;
+}
+.vault-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vault-save-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: #b4c4ac;
+  margin-right: 10px;
+  white-space: nowrap;
+}
+.vault-save-status.has-error {
+  color: #f3be96;
+}
+.vault-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #b6c2b3;
+  border-radius: 5px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.vault-icon-button:hover:not(:disabled),
+.vault-icon-button[aria-pressed="true"] {
+  background: #39433a;
+  color: #edf3e8;
+}
+.vault-workspace button:focus-visible,
+.vault-workspace a:focus-visible,
+.vault-workspace input:focus-visible,
+.vault-workspace textarea:focus-visible,
+.vault-workspace svg:focus-visible,
+.vault-dialog :focus-visible {
+  outline: 2px solid #bce3b4;
+  outline-offset: 2px;
+}
+.vault-workspace button:disabled,
+.vault-dialog button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.vault-context {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 9px 19px;
+  background: #232a24;
+  border-bottom: 1px solid var(--vault-line);
+}
+.vault-context > span {
+  font: 8px var(--mono);
+  letter-spacing: 0.7px;
+  color: #c7d5bb;
+  white-space: nowrap;
+  padding: 4px 5px;
+  background: #354030;
+  border: 1px solid #48593f;
+  border-radius: 3px;
+}
+.vault-context p {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--vault-muted);
+}
+.vault-grid {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) 320px;
+  min-height: 570px;
+}
+.vault-workspace:not(.show-files) .vault-grid {
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+.vault-workspace:not(.show-files) .vault-files {
+  display: none;
+}
+.is-expanded .vault-grid {
+  flex: 1;
+  min-height: 0;
+}
+.vault-files {
+  background: #262c27;
+  border-right: 1px solid var(--vault-line);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-height: 700px;
+}
+.is-expanded .vault-files {
+  max-height: none;
+  min-height: 0;
+}
+.vault-files-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 12px 6px 16px;
+}
+.vault-files-heading > span {
+  font: 9px var(--mono);
+  letter-spacing: 1.3px;
+  color: #a3af9e;
+}
+.vault-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 3px 12px 14px;
+  padding: 2px 7px;
+  border: 1px solid #414b40;
+  border-radius: 5px;
+  color: #95a38f;
+  background: #222823;
+  min-height: 32px;
+}
+.vault-search input {
+  min-width: 0;
+  width: 100%;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--vault-ink);
+  font-size: 10px;
+  outline-offset: 4px;
+}
+.vault-search input::placeholder {
+  color: #9ca996;
+}
+.vault-search .vault-icon-button {
+  width: 17px;
+  height: 20px;
+}
+.vault-note-list {
+  flex: 1;
+  overflow: auto;
+  min-height: 120px;
+  padding: 0 7px 12px;
+}
+.vault-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 9px;
+  border-radius: 4px;
+  color: #b5c0b0;
+  background: transparent;
+  border: 1px solid transparent;
+  font-size: 11px;
+  cursor: pointer;
+  min-width: 0;
+}
+.vault-file > svg {
+  flex-shrink: 0;
+  color: #8c9c86;
+}
+.vault-file > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vault-file small {
+  display: block;
+  font-size: 8px;
+  color: #96a58e;
+  margin-bottom: 3px;
+}
+.vault-file i {
+  margin-left: auto;
+  color: #c2d9b0;
+  font: normal 8px var(--mono);
+  background: #3b4b34;
+  padding: 3px 4px;
+  border-radius: 3px;
+}
+.vault-file:hover {
+  background: #303a30;
+  color: #e2e9db;
+}
+.vault-file.is-active {
+  border-color: #46543e;
+  background: #354130;
+  color: #e0edd7;
+}
+.vault-file.is-active > svg {
+  color: #bce3b4;
+}
+.vault-file-actions {
+  margin-top: auto;
+  padding: 13px 11px 8px;
+  border-top: 1px solid var(--vault-line);
+  display: grid;
+  gap: 7px;
+}
+.vault-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 7px 9px;
+  background: #303930;
+  border: 1px solid #495443;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 450;
+  color: #dce5d5;
+  cursor: pointer;
+  text-decoration: none;
+  line-height: 1.4;
+}
+.vault-button:hover:not(:disabled) {
+  background: #3c4936;
+  border-color: #738867;
+}
+.vault-button.is-primary {
+  background: #c2deb2;
+  color: #233021;
+  border-color: #c2deb2;
+  font-weight: 600;
+}
+.vault-button.is-primary:hover:not(:disabled) {
+  background: #d8eccc;
+  border-color: #d8eccc;
+}
+.vault-file-actions p {
+  font: 9px var(--mono);
+  color: #a3b09b;
+  text-align: center;
+  margin: 5px 0;
+}
+.vault-graph {
+  position: relative;
+  min-width: 0;
+  min-height: 430px;
+  background: #202521;
+  overflow: hidden;
+  isolation: isolate;
+}
+.vault-graph > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+.vault-graph > svg:active {
+  cursor: grabbing;
+}
+.vault-graph-caption {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 9px var(--mono);
+  color: #b4c0ad;
+  z-index: 1;
+  pointer-events: none;
+}
+.vault-graph-caption > span:not(.vault-live-dot) {
+  color: #6f7b68;
+}
+.vault-live-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  background: #b4d7a5;
+  border-radius: 50%;
+  box-shadow: 0 0 7px #bce3b425;
+}
+.vault-settings-button {
+  position: absolute;
+  right: 13px;
+  top: 12px;
+  z-index: 3;
+  border-color: #3c4839;
+  background: #283027;
+}
+.vault-node {
+  cursor: grab;
+  outline: none;
+}
+.vault-node:focus-visible > circle:not(.vault-node-hit) {
+  stroke: #f4f9ee;
+  stroke-width: 2;
+}
+.vault-node text {
+  font-family: var(--sans);
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: #202521;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.vault-graph-bottom {
+  position: absolute;
+  bottom: 13px;
+  left: 18px;
+  right: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  z-index: 2;
+  pointer-events: none;
+}
+.vault-graph-bottom > span {
+  font-size: 9px;
+  color: #a5b19d;
+}
+.vault-hint-divider {
+  margin: 0 8px;
+  color: #687760;
+}
+.vault-graph-bottom > div {
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid #3f4a39;
+  border-radius: 6px;
+  background: #252d24f5;
+  pointer-events: auto;
+}
+.vault-graph-bottom .vault-icon-button {
+  width: 27px;
+  height: 27px;
+}
+.vault-zoom-label {
+  color: #acbba3;
+  font: 9px var(--mono);
+  min-width: 36px;
+  text-align: center;
+}
+.vault-graph-settings {
+  position: absolute;
+  top: 48px;
+  right: 13px;
+  width: 230px;
+  max-height: calc(100% - 105px);
+  overflow: auto;
+  padding: 15px;
+  background: #293128f8;
+  border: 1px solid #4b5943;
+  border-radius: 7px;
+  box-shadow: 0 8px 25px #0004;
+  z-index: 3;
+}
+.vault-settings-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  margin-bottom: 14px;
+}
+.vault-text-button {
+  font-size: 9px;
+  background: transparent;
+  border: 0;
+  padding: 3px;
+  color: #c4dbb5;
+  cursor: pointer;
+}
+.vault-graph-settings fieldset {
+  border: 0;
+  border-top: 1px solid #424e3b;
+  padding: 10px 0 8px;
+  margin: 0;
+}
+.vault-graph-settings legend {
+  font-size: 9px;
+  color: #a9b99f;
+  padding: 0 5px 0 0;
+}
+.vault-graph-settings label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  font-size: 10px;
+  margin: 10px 0;
+  color: #d2ddc9;
+  text-transform: capitalize;
+}
+.vault-graph-settings input {
+  accent-color: #bddba9;
+  max-width: 102px;
+}
+.vault-graph-settings input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+}
+.vault-graph-settings p {
+  font-size: 10px;
+  color: #bdcbb2;
+  line-height: 1.6;
+}
+.vault-inspector {
+  min-width: 0;
+  background: #272d28;
+  border-left: 1px solid var(--vault-line);
+  display: flex;
+  flex-direction: column;
+  max-height: 700px;
+}
+.is-expanded .vault-inspector {
+  max-height: none;
+  min-height: 0;
+}
+.vault-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 17px 15px 11px 18px;
+  gap: 5px;
+}
+.vault-note-header > div:first-child {
+  min-width: 0;
+}
+.vault-note-header > div:last-child {
+  display: flex;
+}
+.vault-kind {
+  display: block;
+  font: 8px var(--mono);
+  letter-spacing: 1px;
+  color: #b0c49f;
+}
+.vault-note-header h4 {
+  color: #dce5d6;
+  font-size: 12px;
+  font-weight: 500;
+  margin: 8px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vault-editor-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 15px;
+  border-bottom: 1px solid var(--vault-line);
+}
+.vault-editor-tabs button {
+  background: transparent;
+  padding: 10px 9px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: #a1b096;
+  font-size: 10px;
+  cursor: pointer;
+}
+.vault-editor-tabs button[aria-pressed="true"] {
+  color: #d0e9bf;
+  border-bottom-color: #bddba9;
+}
+.vault-editor-tabs > span {
+  margin-left: auto;
+  font: 9px var(--mono);
+  color: #a4b09e;
+}
+.vault-editor {
+  resize: none;
+  width: 100%;
+  flex: 1;
+  min-height: 280px;
+  border: 0;
+  background: #232924;
+  padding: 20px;
+  font: 11px/1.9 var(--mono);
+  color: #c9d8c0;
+  outline-offset: -3px !important;
+  tab-size: 2;
+  overflow: auto;
+}
+.vault-markdown {
+  padding: 22px 20px;
+  flex: 1;
+  overflow: auto;
+  min-height: 250px;
+  font-size: 11px;
+  line-height: 1.9;
+  color: #c1ceba;
+  overflow-wrap: anywhere;
+}
+.vault-markdown > :first-child {
+  margin-top: 0;
+}
+.vault-markdown h1 {
+  font: 500 25px/1.3 var(--serif);
+  letter-spacing: -0.35px;
+  color: #eef2e8;
+  margin: 0 0 20px;
+}
+.vault-markdown h2 {
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 550;
+  color: #e5eddc;
+  margin-top: 27px;
+}
+.vault-markdown h3 {
+  font-size: 12px;
+  font-weight: 550;
+  color: #d5e3c9;
+  margin-top: 20px;
+}
+.vault-markdown p {
+  margin: 12px 0;
+}
+.vault-markdown a {
+  color: #c0dbae;
+  text-decoration: underline;
+  text-decoration-color: #6b855a;
+  text-underline-offset: 3px;
+}
+.vault-markdown a:hover {
+  color: #e2f5d4;
+}
+.vault-markdown a.is-unresolved {
+  text-decoration-style: dashed;
+  color: #d3bc9a;
+}
+.vault-markdown sup {
+  font-size: 8px;
+  margin-left: 2px;
+}
+.vault-markdown code {
+  font: 10px/1.7 var(--mono);
+  background: #364030;
+  color: #d4e5c8;
+  border-radius: 3px;
+  padding: 2px 4px;
+}
+.vault-markdown pre {
+  overflow: auto;
+  padding: 12px;
+  background: #1f261f;
+  border: 1px solid #3b4735;
+  border-radius: 5px;
+  white-space: pre;
+}
+.vault-markdown pre code {
+  padding: 0;
+  background: transparent;
+}
+.vault-markdown ul,
+.vault-markdown ol {
+  padding-left: 20px;
+}
+.vault-markdown li {
+  margin: 6px 0;
+}
+.vault-markdown blockquote {
+  margin: 15px 0;
+  padding: 2px 13px;
+  border-left: 2px solid #90aa7c;
+  color: #b9cbb0;
+}
+.vault-markdown table {
+  border-collapse: collapse;
+  display: block;
+  overflow: auto;
+}
+.vault-markdown th,
+.vault-markdown td {
+  border: 1px solid #4b5943;
+  padding: 6px 9px;
+}
+.vault-markdown hr {
+  border: 0;
+  border-top: 1px solid #46533f;
+  margin: 23px 0;
+}
+.vault-image-placeholder {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #b4c4a8;
+  border: 1px dashed #526347;
+  padding: 10px;
+  border-radius: 4px;
+}
+.vault-empty-note {
+  color: #a0b195;
+  font-style: italic;
+}
+.vault-backlinks {
+  border-top: 1px solid var(--vault-line);
+  padding: 14px 18px;
+  max-height: 130px;
+  overflow: auto;
+}
+.vault-backlinks h5 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 9px;
+  color: #b2c0a7;
+  font: 8px var(--mono);
+  letter-spacing: 1px;
+}
+.vault-backlinks h5 span {
+  letter-spacing: 0;
+  color: #9cae90;
+}
+.vault-backlinks p {
+  font-size: 10px;
+  color: #a1b295;
+  margin: 0;
+}
+.vault-backlinks button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  color: #c6d7ba;
+  padding: 6px 0;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+.vault-backlinks button > svg:last-child {
+  margin-left: auto;
+}
+.vault-note-footer {
+  display: flex;
+  justify-content: space-between;
+  font: 8px var(--mono);
+  color: #a6b69a;
+  padding: 11px 18px;
+  border-top: 1px solid var(--vault-line);
+  background: #242b24;
+}
+.vault-missing {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  padding: 24px;
+  color: #bccead;
+}
+.vault-missing h4 {
+  margin: 20px 0 5px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.vault-missing p {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #a9bc9a;
+  max-width: 30ch;
+}
+.vault-missing .vault-button {
+  margin-top: 10px;
+}
+.vault-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #282f28;
+  border-top: 1px solid var(--vault-line);
+  color: #a9b99f;
+  font-size: 9px;
+}
+.vault-statusbar > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 8px var(--mono);
+  letter-spacing: 0.5px;
+}
+.vault-error {
+  background: #493a2b;
+  padding: 14px 18px;
+  color: #ffe3c3;
+  border-bottom: 1px solid #735238;
+}
+.vault-error p {
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 0 0 9px;
+}
+.vault-error > div {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.vault-loading {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 13px;
+  color: var(--text);
+  font-size: 13px;
+}
+.vault-graph-limit {
+  margin: 0;
+  padding: 10px 18px;
+  color: #d1ddc7;
+  background: #36412f;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.vault-dialog {
+  width: min(450px, calc(100vw - 32px));
+  border: 1px solid #617251;
+  border-radius: 11px;
+  padding: 24px;
+  background: #293127;
+  color: #e5efdc;
+  color-scheme: dark;
+  box-shadow: 0 20px 60px #0006;
+  font-family: var(--sans);
+}
+.vault-dialog::backdrop {
+  background: #101b14bb;
+  backdrop-filter: blur(3px);
+}
+.vault-dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 23px;
+}
+.vault-dialog h3 {
+  margin: 0;
+  font: 500 24px var(--serif);
+}
+.vault-dialog label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.vault-dialog input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 5px;
+  border: 1px solid #677b55;
+  background: #21291f;
+  font: 12px var(--mono);
+  color: #e0eed6;
+}
+.vault-dialog p {
+  font-size: 11px;
+  color: #bccfb0;
+  line-height: 1.7;
+  margin: 12px 0;
+}
+.vault-dialog p.vault-form-error {
+  color: #ffc49d;
+}
+.vault-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 24px;
+}
+.vault-dialog .vault-button {
+  font-size: 12px;
+  min-height: 36px;
+  padding: 8px 13px;
+}
+@container vault (max-width: 1000px) {
+  .vault-grid {
+    grid-template-columns: 160px minmax(0, 1fr);
+  }
+  .vault-workspace:not(.show-files) .vault-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .vault-inspector {
+    grid-column: 1 / -1;
+    border-left: 0;
+    border-top: 1px solid var(--vault-line);
+    max-height: 480px;
+  }
+  .vault-graph {
+    min-height: 430px;
+  }
+  .vault-files {
+    max-height: 430px;
+  }
+  .vault-editor,
+  .vault-markdown {
+    min-height: 250px;
+  }
+  .vault-graph-bottom > span {
+    display: none;
+  }
+  .vault-graph-bottom {
+    justify-content: flex-end;
+  }
+  .is-expanded .vault-grid {
+    overflow: auto;
+  }
+  .is-expanded .vault-files {
+    max-height: 430px;
+  }
+  .is-expanded .vault-inspector {
+    min-height: 420px;
+    max-height: 480px;
+  }
+}
+@container vault (max-width: 500px) {
+  .vault-grid {
+    grid-template-columns: 125px minmax(0, 1fr);
+  }
+  .vault-toolbar {
+    padding: 13px 11px;
+    gap: 6px;
+  }
+  .vault-toolbar-title {
+    gap: 7px;
+  }
+  .vault-toolbar-title span,
+  .vault-save-status > svg {
+    display: none;
+  }
+  .vault-toolbar-title strong {
+    font-size: 12px;
+  }
+  .vault-toolbar-actions {
+    gap: 3px;
+  }
+  .vault-save-status {
+    margin-right: 2px;
+    font-size: 8px;
+  }
+  .vault-context {
+    padding: 9px 11px;
+    gap: 7px;
+  }
+  .vault-context > span {
+    font-size: 7px;
+  }
+  .vault-context p {
+    font-size: 9px;
+  }
+  .vault-file {
+    font-size: 10px;
+    padding: 8px 5px;
+    gap: 5px;
+  }
+  .vault-file i {
+    display: none;
+  }
+  .vault-button {
+    font-size: 9px;
+    padding: 7px 5px;
+    gap: 5px;
+  }
+  .vault-graph-caption {
+    left: 12px;
+    font-size: 8px;
+    top: 18px;
+    gap: 5px;
+  }
+  .vault-graph-bottom {
+    left: 5px;
+    right: 5px;
+  }
+  .vault-graph-bottom .vault-icon-button {
+    width: 22px;
+  }
+  .vault-zoom-label {
+    min-width: 28px;
+  }
+  .vault-graph-settings {
+    right: 5px;
+    width: min(230px, calc(100% - 10px));
+  }
+  .vault-statusbar > span:last-child {
+    display: none;
+  }
+  .vault-file-actions {
+    padding: 10px 7px;
+  }
+  .vault-note-list {
+    padding: 0 3px 12px;
+  }
+}
+@media (max-width: 600px) {
+  .vault-workspace.is-expanded {
+    inset: 0;
+    border-radius: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vault-workspace *,
+  .vault-dialog * {
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}

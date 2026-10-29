@@ -13,6 +13,7 @@ import {
   type PlanDetail,
 } from "@/lib/planning";
 import type { Session } from "@/lib/types";
+import { VaultWorkspace } from "./vault-workspace";
 
 export function PlanPanel({
   session,
@@ -28,7 +29,7 @@ export function PlanPanel({
   modeMismatch: boolean;
 }) {
   const [detail, setDetail] = useState<PlanDetail | null>(null);
-  const [view, setView] = useState<"human" | "engineering">("human");
+  const [view, setView] = useState<"human" | "engineering" | "vault">("vault");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const alive = useRef(true);
@@ -167,10 +168,10 @@ export function PlanPanel({
     <div className="plan-panel">
       <div className="plan-intro">
         <span className="eyebrow">FROM INTENT TO IMPLEMENTATION</span>
-        <h3>One plan. Two ways to see it.</h3>
+        <h3>One plan. Every connection.</h3>
         <p>
-          Review the vision and wireframes, then inspect the phases and work
-          packages. Both views share one revision.
+          Explore your plan as connected Markdown notes. Review the vision,
+          wireframes, phases and work packages from the same plan revision.
         </p>
         <div className="plan-badges">
           <span>
@@ -272,49 +273,63 @@ export function PlanPanel({
         </ol>
       )}
 
-      {detail?.views ? (
-        <>
-          <div className="plan-tabs" role="group" aria-label="Plan view">
-            <button
-              aria-pressed={view === "human"}
-              onClick={() => setView("human")}
+      <div className="plan-tabs" role="group" aria-label="Plan view">
+        <button
+          aria-pressed={view === "vault"}
+          onClick={() => setView("vault")}
+        >
+          Graph & notes
+        </button>
+        <button
+          aria-pressed={view === "human"}
+          onClick={() => setView("human")}
+        >
+          Vision & wireframes
+        </button>
+        <button
+          aria-pressed={view === "engineering"}
+          onClick={() => setView("engineering")}
+        >
+          Engineering & work packages
+        </button>
+      </div>
+      <div hidden={view !== "vault"}>
+        <VaultWorkspace
+          session={session}
+          canSeed={!!detail?.views}
+          readOnly={modeMismatch || busy}
+        />
+      </div>
+      {view !== "vault" &&
+        (detail?.views ? (
+          <>
+            <p className="plan-caption">
+              {detail.partial
+                ? "Draft sections · final validation and semantic review pending"
+                : `Revision ${detail.plan?.revision} · SHA-256 ${detail.plan?.content_hash}`}
+            </p>
+            <pre
+              className="plan-document"
+              tabIndex={0}
+              aria-label={
+                view === "human" ? "Vision and wireframes" : "Engineering plan"
+              }
             >
-              Vision & wireframes
-            </button>
-            <button
-              aria-pressed={view === "engineering"}
-              onClick={() => setView("engineering")}
-            >
-              Engineering & work packages
-            </button>
+              {detail.views[view]}
+            </pre>
+          </>
+        ) : (
+          <div className="plan-empty">
+            <GitBranch size={30} />
+            <h4>
+              {loading ? "Loading your plan…" : "Make the next steps visible."}
+            </h4>
+            <p>
+              Validated sections appear here as planning progresses. Approval
+              and export become available after all checks pass.
+            </p>
           </div>
-          <p className="plan-caption">
-            {detail.partial
-              ? "Draft sections · final validation and semantic review pending"
-              : `Revision ${detail.plan?.revision} · SHA-256 ${detail.plan?.content_hash}`}
-          </p>
-          <pre
-            className="plan-document"
-            tabIndex={0}
-            aria-label={
-              view === "human" ? "Vision and wireframes" : "Engineering plan"
-            }
-          >
-            {detail.views[view]}
-          </pre>
-        </>
-      ) : (
-        <div className="plan-empty">
-          <GitBranch size={30} />
-          <h4>
-            {loading ? "Loading your plan…" : "Make the next steps visible."}
-          </h4>
-          <p>
-            Validated sections appear here as planning progresses. Approval and
-            export become available after all checks pass.
-          </p>
-        </div>
-      )}
+        ))}
 
       {attempt && (
         <details className="plan-footer">

@@ -156,7 +156,16 @@ export function resolveLink(
 function noteLinks(body: string): NoteLink[] {
   const root = fromMarkdown(body) as unknown as AstNode;
   const links: NoteLink[] = [];
+  const references = new Set<string>();
+  function findReferences(node: AstNode) {
+    if (node.type === "linkReference" && node.identifier)
+      references.add(node.identifier);
+    node.children?.forEach(findReferences);
+  }
+  findReferences(root);
   function walk(node: AstNode) {
+    if (node.type === "definition" && !references.has(node.identifier || ""))
+      return;
     const start = node.position?.start.offset,
       end = node.position?.end.offset;
     if (
@@ -236,6 +245,7 @@ function noteLinks(body: string): NoteLink[] {
 export function graphFromNotes(notes: VaultNote[]): {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  truncated: boolean;
 } {
   const nodes: GraphNode[] = notes.map((n) => ({
     id: n.id,
@@ -245,13 +255,19 @@ export function graphFromNotes(notes: VaultNote[]): {
   }));
   const edges: GraphEdge[] = [],
     seen = new Set<string>();
+  const ids = new Set(nodes.map((n) => n.id));
+  let truncated = false;
   for (const note of notes)
     for (const link of noteLinks(note.body)) {
       const target = resolveLink(notes, note.path, link.href, link.wiki);
       if (!target) continue;
       const id = target.note?.id ?? `missing:${target.path.toLowerCase()}`;
       if (id === note.id) continue;
-      if (!nodes.some((n) => n.id === id))
+      if (!ids.has(id)) {
+        if (nodes.length >= 750) {
+          truncated = true;
+          continue;
+        }
         nodes.push({
           id,
           path: target.path,
@@ -259,13 +275,19 @@ export function graphFromNotes(notes: VaultNote[]): {
           title: target.path.replace(/\.md$/i, ""),
           missing: true,
         });
+        ids.add(id);
+      }
       const key = `${note.id}\0${id}`;
       if (!seen.has(key)) {
+        if (edges.length >= 5000) {
+          truncated = true;
+          continue;
+        }
         edges.push({ source: note.id, target: id });
         seen.add(key);
       }
     }
-  return { nodes, edges };
+  return { nodes, edges, truncated };
 }
 function replaceRanges(
   body: string,
