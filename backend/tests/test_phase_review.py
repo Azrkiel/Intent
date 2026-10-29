@@ -6,13 +6,14 @@ import pytest
 
 from backend.app.execution.review import transition
 from backend.app.main import create_app
+from backend.tests.test_codex_worker import drive_reviewed_phase
 from backend.tests.test_execution_verification import scoped_fixture
 
 
 async def ready(tmp_path):
     session, document, executor = scoped_fixture(tmp_path, "scoped_artifact")
     phase = executor.start_phase(session, session.planning.approval, "P1")
-    await executor.phase_tasks[phase.id]
+    await drive_reviewed_phase(session, document, executor, phase)
     phase = executor.runs.phase(session.id, phase.plan.content_hash, "P1")
     assert phase.status == "awaiting_phase_review", phase.error
     return session, document, executor, phase
@@ -22,7 +23,18 @@ async def ready(tmp_path):
     "kind,states",
     [
         ("run", ["queued", "running", "verifying", "integrated", "blocked", "cancelled"]),
-        ("phase", ["running", "verifying", "awaiting_phase_review", "accepted", "blocked", "cancelled"]),
+        (
+            "phase",
+            [
+                "running",
+                "awaiting_context_review",
+                "verifying",
+                "awaiting_phase_review",
+                "accepted",
+                "blocked",
+                "cancelled",
+            ],
+        ),
         ("plan", ["draft", "planning", "review_ready", "approved", "blocked", "stale"]),
     ],
 )
@@ -30,6 +42,8 @@ def test_explicit_transition_matrix(kind, states):
     allowed = {
         "run": {("queued", "running"), ("running", "verifying"), ("verifying", "integrated")},
         "phase": {
+            ("running", "awaiting_context_review"),
+            ("awaiting_context_review", "running"),
             ("running", "verifying"),
             ("verifying", "awaiting_phase_review"),
             ("awaiting_phase_review", "accepted"),
@@ -96,7 +110,7 @@ async def test_accept_promotes_exact_commit_once_and_only_enables_explicit_succe
     document = executor.sessions.get_plan(session.id, phase.plan.plan_id, phase.plan.revision)
     assert executor.scheduler.eligible(session.id, document, "P2")
     next_phase = executor.start_phase(session, phase.plan, "P2")
-    await executor.phase_tasks[next_phase.id]
+    await drive_reviewed_phase(session, document, executor, next_phase)
     records = [r for r in executor.runs.list(session.id) if r.package_id.startswith("P2-")]
     assert records and records[0].base_commit == phase.staging_commit
     await executor.close()
@@ -115,7 +129,7 @@ async def test_reject_and_repair_preserve_history_and_make_new_attempt_ids(tmp_p
     with pytest.raises(ValueError):
         executor.scheduler.eligible(session.id, document, "P2")
     repaired = executor.repair_phase(session, phase.plan, "P1", phase.review_hash)
-    await executor.phase_tasks[repaired.id]
+    await drive_reviewed_phase(session, document, executor, repaired)
     current = executor.runs.phase(session.id, phase.plan.content_hash, "P1")
     assert current.attempt == 2 and current.status == "awaiting_phase_review", current.error
     assert current.review_hash != phase.review_hash
@@ -222,13 +236,13 @@ async def test_phase_cancel_preserves_staging_and_stops_future_dispatch(tmp_path
 
 
 async def test_successor_completes_from_accepted_tree_without_rerunning_prior_packages(tmp_path):
-    session, _, executor = scoped_fixture(tmp_path, "scoped_artifact", successor=True)
+    session, document, executor = scoped_fixture(tmp_path, "scoped_artifact", successor=True)
     first = executor.start_phase(session, session.planning.approval, "P1")
-    await executor.phase_tasks[first.id]
+    await drive_reviewed_phase(session, document, executor, first)
     first = executor.runs.phase(session.id, first.plan.content_hash, "P1")
     await executor.review_phase(session.id, first.plan, "P1", first.review_hash, "accept")
     second = executor.start_phase(session, first.plan, "P2")
-    await executor.phase_tasks[second.id]
+    await drive_reviewed_phase(session, document, executor, second)
     second = executor.runs.phase(session.id, first.plan.content_hash, "P2")
     assert second.status == "awaiting_phase_review", second.error
     assert second.base_commit == first.staging_commit
@@ -239,7 +253,7 @@ async def test_successor_completes_from_accepted_tree_without_rerunning_prior_pa
 
 
 async def test_successor_never_starts_from_an_unreviewed_accepted_ref_movement(tmp_path):
-    session, _, executor, first = await ready(tmp_path)
+    session, document, executor, first = await ready(tmp_path)
     await executor.review_phase(session.id, first.plan, "P1", first.review_hash, "accept")
     project = await executor.worktrees.owned_project(session.id)
     tree = (await executor.worktrees.git(project, "rev-parse", first.staging_commit + "^{tree}")).strip()
@@ -250,7 +264,7 @@ async def test_successor_never_starts_from_an_unreviewed_accepted_ref_movement(t
     ).strip()
     await executor.worktrees.git(project, "update-ref", "refs/heads/accepted", other, first.staging_commit)
     second = executor.start_phase(session, first.plan, "P2")
-    await executor.phase_tasks[second.id]
+    await drive_reviewed_phase(session, document, executor, second)
     run = next(r for r in executor.runs.list(session.id) if r.package_id == "P2-W1")
     assert run.base_commit == first.staging_commit
     assert run.status == "blocked"

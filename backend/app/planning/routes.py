@@ -5,6 +5,7 @@ from fastapi.responses import Response, StreamingResponse
 
 from .contracts import PlanApproval, PlanningModel
 from .export import export_bundle
+from .graph import project_attempt, project_graph
 from .render import render_engineering, render_human
 from .validation import validate_plan
 
@@ -33,17 +34,30 @@ def planning_router(store, service, locks, load, guard_edit):
             attempt = state.attempts[-1]
             partial = True
             document = service.document(session, attempt)
+        worker_limits = {
+            "per_session": service.settings.codex_max_workers,
+            "global": service.settings.codex_global_max_workers,
+        }
+        graph = None
+        if document and not partial:
+            graph = project_graph(document, state=state.status, worker_limits=worker_limits)
+        elif partial:
+            graph = project_attempt(
+                state.attempts[-1], session.ledger, mode=session.mode, state=state.status,
+                current_revision=session.revision, worker_limits=worker_limits,
+            )
         return {
             "session_id": session.id,
             "requirements_revision": session.revision,
-            "planning": state.model_dump(mode="json"),
+            "planning": state.public(),
             "plan": document.model_dump(mode="json") if document and not partial else None,
             "views": {"human": render_human(document), "engineering": render_engineering(document)}
             if document
             else None,
             "partial": partial,
+            "graph": graph,
             "execution_enabled": False,
-            "attempt_limit": service.settings.planning_max_attempts,
+            "attempt_limit": service.attempt_limit(session),
             "pass_limit": service.settings.planning_max_passes,
             "estimated_usd": round(sum(x.estimated_usd for x in session.usage), 6),
             "usage": [x.model_dump() for x in session.usage if x.role.startswith("planner:")],
@@ -61,7 +75,7 @@ def planning_router(store, service, locks, load, guard_edit):
             raise HTTPException(409, "This conversation has an active operation")
         if (
             session.planning.status not in {"review_ready", "approved"}
-            and len(session.planning.attempts) >= service.settings.planning_max_attempts
+            and len(session.planning.attempts) >= service.attempt_limit(session)
         ):
             raise HTTPException(409, "Planning attempt allowance exhausted for this session")
 
@@ -119,7 +133,13 @@ def planning_router(store, service, locks, load, guard_edit):
                 raise HTTPException(409, "Approve the current complete plan before export")
             document = store.get_plan(id, state.active.plan_id, state.active.revision)
             try:
-                data = export_bundle(document, state.approval, session.revision, session.ledger)
+                data = export_bundle(
+                    document, state.approval, session.revision, session.ledger,
+                    worker_limits={
+                        "per_session": service.settings.codex_max_workers,
+                        "global": service.settings.codex_global_max_workers,
+                    },
+                )
             except ValueError as error:
                 raise HTTPException(409, str(error)) from None
             return Response(

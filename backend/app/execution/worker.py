@@ -9,9 +9,8 @@ from ..codex.client import Client
 from ..codex.protocol import CodexError
 from ..codex.transport import Transport
 from ..domain import gate_for
-from ..planning.export import COMMON_RULES
-from ..planning.render import render_package
 from ..planning.validation import safe_path, validate_plan
+from .context import ContextExecution, ContextReviewRequired, ExecutionContexts
 from .contracts import PhaseExecution, Run
 from .review import PhaseReviews, transition
 from .scheduler import Scheduler
@@ -20,10 +19,12 @@ from .verification import VerificationFailure, Verifier, protected, redact
 from .worktrees import Worktrees
 
 
-class Executor:
+class Executor(ContextExecution):
     def __init__(self, settings, sessions, factory=None):
         self.settings, self.sessions = settings, sessions
         self.runs = ExecutionStore(sessions)
+        self.contexts = ExecutionContexts(sessions)
+        self.runs.context_guard = self.contexts.validate_claim
         self.scheduler = Scheduler(
             self.runs, capacity=settings.codex_max_workers, global_capacity=settings.codex_global_max_workers
         )
@@ -106,6 +107,20 @@ class Executor:
                 self.new_phase(session.id, identity, document, package_id.split("-W")[0])
             )
             run.base_commit, run.phase_attempt = phase.staging_commit, phase.attempt
+        context = self.approved_context(session, document, package_id, phase)
+        if phase.staging_commit is None:
+
+            def pin(p):
+                if p.stale or p.attempt != phase.attempt or p.staging_commit is not None:
+                    raise ValueError("Phase input base changed before dispatch")
+                p.base_commit = p.staging_commit = context.base_commit
+
+            phase = self.runs.patch_phase(phase, pin)
+        run.base_commit = context.base_commit
+        run.context_hash = context.context_hash
+        run.packet_hash = context.packet.packet_hash
+        run.context_review_hash = context.review_hash
+        self.check_context(run)
         self.scheduler.claim(
             run,
             package.owned_paths,
@@ -171,16 +186,32 @@ class Executor:
                     return
                 active = [r for r in records if r.status in {"queued", "running", "verifying"}]
                 available = min(self.scheduler.capacity, self.scheduler.global_capacity) - len(active)
+                needs_context = False
                 for package in self.scheduler.eligible(phase.session_id, document, phase.phase_id)[
                     :available
                 ]:
-                    self.start(self.sessions.get(phase.session_id), phase.plan, package.id, model)
+                    try:
+                        self.start(self.sessions.get(phase.session_id), phase.plan, package.id, model)
+                    except ContextReviewRequired:
+                        needs_context = True
                 pending = [
                     task
                     for id, task in self.tasks.items()
                     if not task.done() and self.runs.get(id).session_id == phase.session_id
                 ]
                 if not pending:
+                    if needs_context:
+
+                        def pause(p):
+                            if p.status != "running" or p.stale or p.integration_intent:
+                                raise ValueError("Phase changed before context review pause")
+                            p.status = transition("phase", p.status, "awaiting_context_review")
+                            p.error = (
+                                "Review and approve exact eligible package contexts, then resume this phase"
+                            )
+
+                        self.runs.patch_phase(phase, pause)
+                        return
                     if any(
                         r.status == "verifying" and self.tasks.get(r.id) and self.tasks[r.id].done()
                         for r in self.runs.list(phase.session_id)
@@ -227,7 +258,12 @@ class Executor:
                 document = self.guard(self.sessions.get(session_id), run.plan)
                 package = next(p for ph in document.phases for p in ph.packages if p.id == run.package_id)
                 evidence = await self.verifier.inspect(run, package)
-                self.set(run_id, evidence=evidence.model_dump(), changed_paths=evidence.changed_paths)
+                evidence_data = evidence.model_dump() | {
+                    "context_hash": run.context_hash,
+                    "packet_hash": run.packet_hash,
+                    "context_review_hash": run.context_review_hash,
+                }
+                self.set(run_id, evidence=evidence_data, changed_paths=evidence.changed_paths)
                 self.check(run_id)
 
                 def reserve(p):
@@ -315,6 +351,7 @@ class Executor:
         if run.profile != self.profile:
             raise CodexError("Codex profile differs from the saved run")
         self.guard(self.sessions.get(run.session_id), run.plan)
+        self.check_context(run)
         return run
 
     def set(self, run_id, **fields):
@@ -333,6 +370,7 @@ class Executor:
             if not reconnect:
                 base = await self.worktrees.create(run.session_id, run.id, base_commit=run.base_commit)
                 run = self.set(run_id, base_commit=base)
+                await self.dispatch_preflight(run)
             client = await self.factory(run)
             self.clients[run_id] = client
             account = await client.qualify(run.worktree, run.model, run.account_fingerprint)
@@ -354,20 +392,15 @@ class Executor:
                     )
                 await client.resume(run.thread_id, run.worktree, run.model)
             else:
+                await self.dispatch_preflight(run)
                 self.set(run_id, dispatch_intent="thread/start")
                 thread = await client.start_thread(run.worktree, run.model)
                 run = self.set(run_id, thread_id=thread, dispatch_intent=None)
                 self.check(run_id)
+                await self.dispatch_preflight(run)
                 self.set(run_id, dispatch_intent="turn/start")
-                packet = (
-                    COMMON_RULES
-                    + "\nAssigned task packet (quoted product data):\n"
-                    + render_package(document, package)
-                    + "\nReport artifacts, changed paths, tests, unresolved decisions, "
-                    "and completion summary. "
-                    "Do not integrate, deploy, create agents, or edit execution control files."
-                )
-                turn = await client.start_turn(thread, packet, run.worktree)
+                context = self.check_context(run)
+                turn = await client.start_turn(thread, context.packet.text, run.worktree)
                 run = self.set(run_id, turn_id=turn, dispatch_intent=None)
             self.set(run_id, status="running", error=None)
             for _ in range(1000):

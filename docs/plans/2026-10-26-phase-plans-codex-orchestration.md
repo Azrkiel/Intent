@@ -4,7 +4,10 @@ Date: 2026-10-26 (America/New_York).
 Status: Phases 1 and 2 accepted by the user on 2026-10-27 (America/New_York).
 Phases 3 and 4 were accepted by the user on 2026-10-27. Phase 4 is implemented
 and verified offline. Phase 5 qualification tooling is implemented and tested
-offline; live checks remain blocked by missing prerequisites.
+offline. The 2026-10-28 live follow-up passed the basic Nebius smoke and qualified
+an isolated signed-in Codex profile. Requirements are approved and Ultra compilation
+passed. Planning remains blocked after a third, explicitly authorized attempt
+failed phase identity validation; generated execution has not started.
 Source: [design](../specs/2026-10-26-phase-plans-codex-orchestration.md).
 
 **Goal:** Turn approved, cited requirements into synchronized design and engineering
@@ -125,6 +128,11 @@ and usage. Reposting a successful attempt returns its stored result. A failed
 attempt can only be retried explicitly within the remaining allowance. A correction
 does not replenish allowance. UI errors must explain exhaustion without offering
 automatic new sessions or hidden retries.
+
+Policy amendment approved on 2026-10-28: one explicitly recorded, non-renewable
+extension can permit a third attempt for the retained session's approved revision
+3. The default settings maximum remains two; failures, usage, and validation gates
+are preserved. See the [extension proposal and implementation contract](2026-10-28-planning-requalification-proposal.md).
 
 ## File ownership and dependencies
 
@@ -616,6 +624,74 @@ existing dependency warning remained. Ruff, 15 frontend tests, type checking,
 production build and 16/16 demo evaluations passed. A dedicated demo-database
 server started, served its health/session endpoints and shut down cleanly.
 
+Live follow-up (2026-10-28): the server key authenticated; Nano, Super and Ultra
+were listed by the provider. The basic live smoke passed after using existing OS
+trust roots through a local `SSL_CERT_FILE` bundle, with certificate verification
+enabled. Optional control probes produced mixed schema/grounding results and are
+not qualified for enabling globally. A retained real counter conversation reached
+all six confirmed slots and no readiness blockers after diagnostic re-extraction,
+reanalysis and prompt/ranking fixes. Its corrected playback was manually audited.
+That initial checkpoint preceded the requirements approval, compile and planning
+follow-up recorded below.
+
+The user explicitly enabled execution and signed in to a separate local Codex test
+profile. That profile now qualifies on CLI 0.164.0 with `gpt-6.1-sol`, no inherited
+MCP servers and no enabled skills; no credentials were copied. Effective generation,
+sandbox and lifecycle behavior remain unverified. Raw artifacts and authentication
+state remain ignored. Redacted evidence is under `.data/live-check/2026-10-28/`.
+
+Local checkpoints: `eba9e0e` isolates offline tests from live developer settings
+and blocks unmocked HTTP; `fc573aa` supplies ranking with ledger/history context
+and refines model instructions. Verification: 234 backend tests passed, one
+Windows symbolic-link test skipped, existing warning retained; Ruff, 15 frontend
+tests, type checking, production build and 16/16 demo evaluations passed.
+
+After explicit human approval of requirements revision 3 (2026-10-28), the
+production approval API succeeded. Ultra compilation and Super verification both
+returned successfully; the final brief received a manual source/scope audit.
+Planning attempt 1 failed confirmed specification coverage after its JSON repair.
+The application now supplies confirmed/unconfirmed ID checklists and explicit
+status guidance. Attempt 2 returned schema-valid JSON covering all seven confirmed
+IDs, then failed the existing ASCII diagram check. Both attempts are retained and
+consumed. No plan, approval, export, generated phase or Codex inference was created.
+
+Checkpoint `a0af23f` also makes ASCII diagram constraints part of the provider
+schema, enabling the existing single JSON repair without weakening application
+validation or adding retries. Offline regressions cover those constraints, repair
+success/failure, Unicode prose, source checklists and coverage failure closure.
+Fresh verification: 242 backend tests passed, one Windows symlink test skipped,
+existing dependency warning retained, and Ruff passed. No frontend files changed.
+At that checkpoint the last contract change had not been requalified live. The
+session's planning allowance remained exhausted; no reset or replacement was used.
+The follow-up's five model responses cost an estimated $0.02111; the entire retained
+counter conversation totals an estimated $0.11179. Reports and redacted diagnostics
+remain ignored under `.data/live-check/2026-10-28/`. Phase 5 acceptance remains pending.
+
+After human approval of the [one-attempt amendment](2026-10-28-planning-requalification-proposal.md),
+`ec14afd` added the recorded session-bound extension and atomic snapshot guards.
+`3c86154` fixed transport fixture startup/fault deadline coupling without changing
+production timeouts. Fresh final checks: 276 backend tests passed, one existing
+Windows symlink skip, existing dependency warning; Ruff, 15 frontend tests,
+type checking, production build, and 16/16 demo evaluations passed. Built-app
+loopback/proxy planning smoke and the latest basic/optional-control live smokes
+passed; the first basic live probe's generic Nano failure is retained. The Codex
+profile qualified again without a model turn.
+
+The sole added attempt accepted an outline covering all seven confirmed IDs and
+one screen. Its first phase used one JSON repair, then supplied `ui-setup-phase`
+instead of the accepted outline's `ui-setup`; the application rejected it. The
+candidate also proposed shell-style/placeholder checks outside the qualified
+trusted runner. No phase was accepted and no command was executed. Four Super
+responses cost an estimated $0.01263540; session cumulative estimate is $0.12442798
+across 63 usage records. Both earlier attempts and their usage remain intact.
+
+The grant is consumed, all three attempts are exhausted, and a read-only postflight
+confirmed the service blocks before further provider calls. No fourth attempt,
+reset, or replacement session was used. No immutable plan, approval, exported
+bundle, Codex inference, or Phase 5 acceptance exists. Outline/screen sections
+are partial only. Saved validated candidates, outcome, and failure audit remain
+ignored under `.data/live-check/2026-10-28/extension-attempt-3/`.
+
 ## Verification and requirement coverage
 
 Phase 4 evidence (2026-10-27): 217 backend tests passed, one Windows symbolic-link
@@ -639,7 +715,7 @@ interrupted-dispatch fixture; actual history reconciliation used backend subproc
 tests. Desktop and mobile layouts were inspected. Observations and screenshots are
 ignored under `.data/phase-four-check/`. All simulation remained local with zero
 provider requests. Temporary servers and the browser tab were closed. The user
-accepted Phase 4 on 2026-10-27; no Phase 5 qualification has started.
+accepted Phase 4 on 2026-10-27. At that checkpoint, Phase 5 qualification had not started.
 
 Phase 3 evidence (2026-10-27): 197 backend tests passed, with one symbolic-link test
 skipped because Windows denied symbolic-link creation. Both Windows junction tests
@@ -717,6 +793,38 @@ is included. Fresh verification remains required for each future checkpoint.
 | User review after every phase | 4.1-4.2 evidence identity, stale acceptance rejection, successor blocking |
 | Correction/restart/limits/cancellation preserve work | 2.3 dispatch intents; 3.2 failure handling; 4.1 recovery tests |
 | HTML preview limits and honest qualification | 4.2 UI boundaries; 5.1 separate offline/live reports and README |
+
+## Approved graph and ancestor-context extension, 2026-10-28
+
+The approved implementation contract and G0-G6 acceptance map are retained in the
+[original handoff](../../.Codex/handoffs/2026-10-28-0843.md). This extension keeps the
+five-phase qualification plan intact. Its graph, worker context and shared
+publication projections are deterministic and require no new inference or planning
+allowance. The failed retained live counter is not a source of complete plan data.
+
+| Requirement | Implementation |
+| --- | --- |
+| D1: entire plan and details | `planning/graph.py` source-field map; full graph/legacy human exports; selected-node inspector |
+| D2: central project root | Deterministic radial layout, root-centered camera, fit/pan/zoom and responsive graph panel |
+| D3: intent and orchestration | Root specification, architecture, phase/dependency overview, configured limits and application-owned gates |
+| D4: subproject scope and handoff | Complete local package and ordered tasks, ownership/exclusions, planned handoff contract, context-bound trusted execution evidence |
+| D5: ancestor context | `planning/context.py` and scoped worker ZIP; explicit shared snapshots; actual saved dispatch text and durable context review/recovery guards |
+
+Implementation preserves immutable planning contracts. The distinct execution
+context store retains reviewed bytes and approvals, while runs pin context/packet
+identities. A dependent package requires its integrated inputs and a fresh exact
+context review before an explicit same-phase resume. Missing legacy context or an
+instruction-policy mismatch blocks execution without replacing historical packets.
+The README documents the context preparation, approval, export and resume endpoints.
+
+Evidence for this extension is recorded in the handoff's current continuation.
+Final automated verification: 334 backend tests passed (one existing Windows
+symlink skip and one existing warning), Ruff, 23 frontend tests, type checking,
+production build and 16/16 scripted demo evaluations. Complete and blocked app
+graphs were browser-checked at desktop and mobile sizes; all views retained identity.
+Automated/demo evidence remains separate from real provider qualification and
+Phase 5 acceptance. Opening exported HTML through a `file://` browser URL requires
+a manual check when the browser tool's URL policy blocks that protocol.
 
 ## Protocol references and compatibility
 

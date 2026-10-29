@@ -9,6 +9,7 @@ from pydantic import Field
 
 from ..codex.protocol import CodexError
 from ..planning.contracts import PlanApproval, PlanningModel
+from .context_routes import context_review_routes, current_context, package_context_options
 
 
 class StartExecution(PlanApproval):
@@ -46,6 +47,7 @@ class ReconcilePhase(PlanApproval):
 
 def execution_router(executor, locks, load):
     router = APIRouter(prefix="/api/sessions/{id}/execution")
+    context_review_routes(router, executor, locks, load)
 
     @router.get("")
     async def detail(id: str):
@@ -54,8 +56,10 @@ def execution_router(executor, locks, load):
         identity = session.planning.active
         document = executor.sessions.get_plan(id, identity.plan_id, identity.revision) if identity else None
         eligible = {}
+        context_options = {}
         if document:
             for phase in document.phases:
+                context_options.update(package_context_options(executor, session, document, phase.id))
                 try:
                     executor.guard(session, identity)
                     eligible[phase.id] = {
@@ -74,13 +78,21 @@ def execution_router(executor, locks, load):
             "requirements_revision": session.revision,
             "plan": identity.model_dump() if identity else None,
             "runs": [run.public() for run in executor.runs.list(id)],
+            "contexts": [
+                record.public()
+                | {"current": current_context(executor, session, document, record) if document else False}
+                for record in executor.contexts.list(id)
+            ],
             "phases": [phase.model_dump(mode="json") for phase in phases],
             "reviews": [executor.runs.review(p.review_hash).public() for p in phases if p.review_hash],
             "phase_options": [
                 {
                     "id": p.id,
                     "title": document.outline.phases[i].title,
-                    "packages": [{"id": w.id, "owned_paths": w.owned_paths} for w in p.packages],
+                    "packages": [
+                        {"id": w.id, "owned_paths": w.owned_paths, **context_options[w.id]}
+                        for w in p.packages
+                    ],
                     **eligible[p.id],
                 }
                 for i, p in enumerate(document.phases)
@@ -168,6 +180,18 @@ def execution_router(executor, locks, load):
             try:
                 return (await executor.cancel_phase(id, request, phase_id)).model_dump(mode="json")
             except (KeyError, ValueError, CodexError) as error:
+                raise HTTPException(409, str(error)) from None
+
+    @router.post("/phases/{phase_id}/resume")
+    async def resume_context_phase(id: str, phase_id: str, request: StartPhase):
+        async with locks[id]:
+            session = load(id)
+            identity = PlanApproval.model_validate(request.model_dump(exclude={"model"}))
+            try:
+                return executor.resume_context_phase(session, identity, phase_id, request.model).model_dump(
+                    mode="json"
+                )
+            except (ValueError, KeyError, CodexError) as error:
                 raise HTTPException(409, str(error)) from None
 
     @router.post("/phases/{phase_id}/reconcile")

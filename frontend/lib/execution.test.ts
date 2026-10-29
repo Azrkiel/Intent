@@ -5,6 +5,9 @@ import {
   canStartPhase,
   canAnswerPermission,
   canRepairPhase,
+  canApproveContext,
+  canResumeContextPhase,
+  type ExecutionContext,
   type ExecutionDetail,
   type ExecutionPhase,
   type ExecutionRun,
@@ -52,6 +55,89 @@ const detail = {
 } as unknown as ExecutionDetail;
 
 describe("execution gates", () => {
+  it("requires the exact current context and prevents approval after dispatch", () => {
+    const context = {
+      plan,
+      package_id: "P1-W1",
+      phase_attempt: 1,
+      context_hash: "c".repeat(64),
+      packet_hash: "d".repeat(64),
+      approved: false,
+      current: true,
+    } as ExecutionContext;
+    const preparing = {
+      ...detail,
+      phases: [{ ...phase, status: "awaiting_context_review" as const }],
+    };
+    expect(canApproveContext(preparing, context, true)).toBe(true);
+    expect(
+      canApproveContext(detail, { ...context, current: false }, true),
+    ).toBe(false);
+    expect(
+      canApproveContext(detail, { ...context, approved: true }, true),
+    ).toBe(false);
+    expect(
+      canApproveContext(detail, { ...context, packet_hash: "" }, true),
+    ).toBe(false);
+    expect(
+      canApproveContext(
+        detail,
+        { ...context, plan: { ...plan, revision: 2 } },
+        true,
+      ),
+    ).toBe(false);
+    expect(
+      canApproveContext(detail, { ...context, phase_attempt: 2 }, true),
+    ).toBe(false);
+    expect(
+      canApproveContext(
+        {
+          ...detail,
+          runs: [
+            { plan, package_id: "P1-W1", phase_attempt: 1 } as ExecutionRun,
+          ],
+        },
+        context,
+        true,
+      ),
+    ).toBe(false);
+    expect(canApproveContext(detail, context, false)).toBe(false);
+  });
+  it("resumes the same paused phase only with an approved eligible context", () => {
+    const paused = { ...phase, status: "awaiting_context_review" as const };
+    const ready = {
+      ...detail,
+      phases: [paused],
+      phase_options: [
+        {
+          id: "P1",
+          packages: [{ id: "P1-W1", can_prepare: true, context_ready: true }],
+          can_start: false,
+        },
+      ],
+    } as ExecutionDetail;
+    expect(canResumeContextPhase(ready, paused, true)).toBe(true);
+    const partiallyReviewed = structuredClone(ready);
+    partiallyReviewed.phase_options[0].packages.push({
+      id: "P1-W2",
+      owned_paths: ["api"],
+      can_prepare: true,
+      context_ready: false,
+    });
+    expect(canResumeContextPhase(partiallyReviewed, paused, true)).toBe(false);
+    partiallyReviewed.phase_options[0].packages[1].context_ready = true;
+    expect(canResumeContextPhase(partiallyReviewed, paused, true)).toBe(true);
+    expect(
+      canResumeContextPhase({ ...ready, phase_options: [] }, paused, true),
+    ).toBe(false);
+    expect(canResumeContextPhase(ready, { ...paused, stale: true }, true)).toBe(
+      false,
+    );
+    expect(
+      canResumeContextPhase(ready, { ...paused, status: "blocked" }, true),
+    ).toBe(false);
+    expect(canResumeContextPhase(ready, paused, false)).toBe(false);
+  });
   it("ignores responses from other sessions, plans, revisions, or older polls", () => {
     expect(acceptsExecutionResponse(detail, "session", plan, 2, 1)).toBe(true);
     expect(acceptsExecutionResponse(detail, "other", plan, 2, 1)).toBe(false);

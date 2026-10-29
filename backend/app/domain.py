@@ -4,8 +4,9 @@ from datetime import datetime, timezone
 from typing import Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
+from .discussion.contracts import DiscussionTarget
 from .planning.contracts import PlanningState
 
 ItemType = Literal[
@@ -62,6 +63,7 @@ class Turn(Contract):
     number: int
     text: str
     question_id: str | None = None
+    scope: DiscussionTarget | None = Field(default=None, exclude_if=lambda value: value is None)
     at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
@@ -187,6 +189,14 @@ class Session(Contract):
     build: Build = Field(default_factory=Build)
     planning: PlanningState = Field(default_factory=PlanningState)
 
+    @model_validator(mode="after")
+    def extension_session_binding(self):
+        for field in ("extension", "requalification"):
+            grant = getattr(self.planning, field)
+            if grant and grant.session_id != self.id:
+                raise ValueError(f"Planning {field} belongs to a different session")
+        return self
+
 
 class Gate(Contract):
     ready: bool
@@ -308,7 +318,7 @@ def trace_brief(session: Session, brief: Brief, rejected: list[int] | None = Non
 
 def public_session(session: Session) -> dict:
     return {
-        **session.model_dump(mode="json"),
+        **session.model_dump(mode="json", exclude={"planning": {"extension", "requalification"}}),
         "gate": gate_for(session).model_dump(),
         "estimated_usd": round(sum(item.estimated_usd for item in session.usage), 6),
     }

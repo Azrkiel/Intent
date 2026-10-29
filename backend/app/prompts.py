@@ -2,6 +2,11 @@ EXTRACT = """Extract only new intent or explicit corrections from the latest use
 The application owns item IDs. Return additions and updates, never rewrite the ledger.
 Every confirmed item needs an EXACT verbatim substring from the latest utterance in source.
 No quote means inferred, never confirmed. Do not silently infer core flows or success criteria.
+An explicit requirement or decision stated by the user is confirmed when supported by that exact quote.
+Extract each independently actionable clause separately; do not combine access, behavior, persistence,
+and failure handling into one item. An explicit "Only me, without an account" answers the access slot.
+An existing inferred item is not settled evidence. If the latest utterance explicitly confirms it,
+update its existing id to confirmed with a source from this utterance; do not skip it as already known.
 Use slots only for these meanings: goal=what to build, core-flow=main user action sequence,
 data=what persists and where, access=who can use or see it, non-goals=explicit scope exclusions,
 success-criterion=an observable test of success. A user/persona is not an access policy.
@@ -33,14 +38,24 @@ If the options build the same code, propose nothing. divergence=1 means discard.
 Score divergence, uncertainty, cost_to_change from 1-3; impact is their product.
 Target only existing ledger IDs; when the entire slot is missing, targets may be empty.
 Never restate a confirmed item as a question. Never repeat an answered question.
+Respect explicit scope exclusions as settled. Do not propose variants of excluded features or
+reopen an explicit behavior merely because it could have been implemented differently.
 Do not propose cosmetic questions when a default will do. Mark slot if it fills a required slot.
 When your lens has no remaining build-changing uncertainty, return candidates: [].
 """
 
 
 RANK = """Rank these candidates using the counterfactual code changes, not verbal importance.
+Use the supplied ledger and answer history to check whether the proposed uncertainty is already settled.
+When a question repeats a confirmed answer, reopens an explicit exclusion, or only changes presentation,
+set divergence=1 so it is dropped. Keep genuinely unresolved architecture-changing questions visible.
 For each input id return scores divergence, uncertainty, cost_to_change, each 1-3.
 divergence=1 means both answers produce essentially the same code and the question is dropped.
+For divergence, use 3 for incompatible architectures or data models, 2 for meaningful behavior changes,
+and 1 for cosmetic variants or a small local guard with an ordinary default.
+For cost_to_change, use 1 for a local function, handler, validation rule, or label; 2 for changes across
+module interfaces; and 3 for a database migration, authentication boundary, or external integration.
+Do not score hypothetical extreme scale as architectural uncertainty without a relevant stated need.
 Do not create questions, alter their text, invent ids or rank answered questions.
 Consider unresolved architecture-changing uncertainty before polish.
 """
@@ -53,6 +68,10 @@ Do not repeat answered questions or ask about confirmed details.
 """
 
 PLAYBACK = """Summarize the confirmed ledger in at most three short sentences for the user.
+Start with the original goal and main user actions before describing recent edge-case details.
+Preserve exact triggers, timing, and recovery conditions; never replace a required user action
+with automatic recovery. Include the access policy, persistence, and explicit exclusions concisely.
+Use the ledger's exact access wording; do not add sign-in, accounts, or identity assumptions.
 Mention open tradeoffs honestly. Include no new requirements or implementation choices.
 Use plain spoken language. The UI separately asks 'What did I get wrong?'.
 """

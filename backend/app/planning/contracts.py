@@ -4,11 +4,25 @@ import hashlib
 import json
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, computed_field
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    computed_field,
+    model_validator,
+)
 
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
 Ref = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9-]{0,39}$")]
-Diagram = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=12000)]
+Diagram = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, min_length=1, max_length=12000,
+        pattern=r"^[^\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]+$",
+    ),
+]
 Texts = Annotated[list[Text], Field(max_length=20)]
 
 
@@ -178,8 +192,84 @@ class PlanAttempt(PlanningModel):
     error: str | None = Field(default=None, max_length=500)
 
 
+class PlanningExtension(PlanningModel):
+    id: Text
+    session_id: Text
+    requirements_revision: int = Field(ge=0)
+    prior_attempt_hashes: list[Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]] = Field(
+        min_length=2, max_length=2
+    )
+    recorded_at: AwareDatetime
+    reason: Text
+    implementation_commit: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{40}$")]
+    approval_text: Text
+    status: Literal["granted", "consumed", "invalidated"] = "granted"
+
+
+class PlanningRequalification(PlanningExtension):
+    prior_attempt_hashes: list[Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]] = Field(
+        min_length=3, max_length=3
+    )
+    extension_id: Text
+    extension_hash: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+
+
 class PlanningState(PlanningModel):
     status: Literal["draft", "planning", "review_ready", "approved", "blocked", "stale"] = "draft"
-    attempts: list[PlanAttempt] = Field(default_factory=list, max_length=2)
+    attempts: list[PlanAttempt] = Field(default_factory=list, max_length=4)
+    extension: PlanningExtension | None = None
+    requalification: PlanningRequalification | None = None
     active: PlanApproval | None = None
     approval: PlanApproval | None = None
+
+    @model_validator(mode="after")
+    def bounded_extension(self):
+        grant = self.extension
+        if len(self.attempts) > 2 and not grant:
+            raise ValueError("A third planning attempt requires an extension")
+        if grant:
+            if len(self.attempts) < 2 or grant.prior_attempt_hashes != [
+                content_hash(x.model_dump(mode="json", round_trip=True)) for x in self.attempts[:2]
+            ]:
+                raise ValueError("Planning extension prior attempts do not match")
+            if (grant.status == "consumed") != (len(self.attempts) >= 3):
+                raise ValueError("Planning extension consumption does not match attempts")
+            if len(self.attempts) >= 3:
+                third = self.attempts[2]
+                if (
+                    third.revision != 3
+                    or third.plan_id != self.attempts[0].plan_id
+                    or third.requirements_revision != grant.requirements_revision
+                ):
+                    raise ValueError("Planning extension third attempt identity does not match")
+        qualification = self.requalification
+        if len(self.attempts) == 4 and not qualification:
+            raise ValueError("A fourth planning attempt requires requalification")
+        if qualification:
+            if (
+                not grant or grant.status != "consumed" or len(self.attempts) < 3
+                or qualification.extension_id != grant.id
+                or qualification.extension_hash != content_hash(
+                    grant.model_dump(mode="json", round_trip=True)
+                )
+                or qualification.requirements_revision != self.attempts[2].requirements_revision
+                or qualification.prior_attempt_hashes != [
+                    content_hash(attempt.model_dump(mode="json", round_trip=True))
+                    for attempt in self.attempts[:3]
+                ]
+            ):
+                raise ValueError("Planning requalification history or extension does not match")
+            if (qualification.status == "consumed") != (len(self.attempts) == 4):
+                raise ValueError("Planning requalification consumption does not match attempts")
+            if len(self.attempts) == 4:
+                fourth = self.attempts[3]
+                if (
+                    fourth.revision != 4
+                    or fourth.plan_id != self.attempts[0].plan_id
+                    or fourth.requirements_revision != qualification.requirements_revision
+                ):
+                    raise ValueError("Planning requalification fourth attempt identity does not match")
+        return self
+
+    def public(self):
+        return self.model_dump(mode="json", exclude={"extension", "requalification"})

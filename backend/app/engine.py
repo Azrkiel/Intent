@@ -69,9 +69,12 @@ class Engine:
             # Failed validation can still consume tokens; preserve every billed response.
             self.store.save(session)
 
-    async def turn(self, session: Session, text: str):
+    async def turn(self, session: Session, text: str, *, scope=None):
         session.revision += 1
         session.approved_revision = None
+        for grant in (session.planning.extension, session.planning.requalification):
+            if grant and grant.status == "granted":
+                grant.status = "invalidated"
         if session.planning.attempts:
             session.planning.status = "stale"
             session.planning.approval = None
@@ -87,6 +90,7 @@ class Engine:
                 number=number,
                 text=text,
                 question_id=session.current_question.id if session.current_question else None,
+                scope=scope,
             )
         )
         if session.title == "Untitled idea":
@@ -108,12 +112,20 @@ class Engine:
         if session.extracted_revision == session.revision:
             return
         turn = session.turns[-1]
+        scope = {}
+        if turn.scope:
+            from .discussion.store import DiscussionStore
+
+            scope = {
+                "scope": turn.scope.model_dump(mode="json"),
+                "scope_context": DiscussionStore(self.store).context_for_turn(session.id, turn.number),
+            }
         delta = await self.call(
             session,
             "extractor",
             Delta,
             prompts.EXTRACT,
-            {**context(session), "text": turn.text, "turn": turn.number},
+            {**context(session), "text": turn.text, "turn": turn.number, **scope},
         )
         apply_delta(session, delta, turn.number)
         if session.current_question and delta.answers_question == session.current_question.id:
@@ -178,7 +190,7 @@ class Engine:
                     "ranker",
                     Ranking,
                     prompts.RANK,
-                    {"candidates": [q.model_dump(round_trip=True) for q in candidates]},
+                    {**context(session), "candidates": [q.model_dump(round_trip=True) for q in candidates]},
                 )
                 scores = {score.id: score for score in ranking.scores}
                 for question in candidates:

@@ -483,12 +483,12 @@ export default function Home() {
           Build brief{session?.brief && <span className="tiny-dot" />}
         </button>
         <button
-          className={`sidebar-link ${view === "plan" ? "active" : ""}`}
+          className={`sidebar-link project-graph-link ${view === "plan" ? "active" : ""}`}
           onClick={() => setView("plan")}
-          disabled={!hasTurns}
+          disabled={!session}
         >
           <GitBranch size={16} />
-          Phase plan
+          Project graph
         </button>
         <button
           className={`sidebar-link ${view === "execution" ? "active" : ""}`}
@@ -583,7 +583,11 @@ export default function Home() {
           </div>
         </header>
 
-        <main id="main" className="workspace">
+        <main
+          id="main"
+          className={`workspace ${view === "plan" ? "graph-workspace-page" : ""}`}
+        >
+          {view === "plan" && <h1 className="sr-only">Project graph</h1>}
           <div className="page-heading">
             <div>
               <div className="eyebrow">
@@ -675,7 +679,7 @@ export default function Home() {
           )}
 
           <div
-            className={`workspace-grid ${view !== "clarify" ? "review-grid" : ""}`}
+            className={`workspace-grid ${view !== "clarify" ? "review-grid" : ""} ${view === "plan" ? "graph-focus" : ""}`}
           >
             <section className="conversation-panel">
               <div className="panel-header">
@@ -689,7 +693,7 @@ export default function Home() {
                       : view === "brief"
                         ? "Your build brief"
                         : view === "plan"
-                          ? "Your phase plan"
+                          ? "Your project graph"
                           : view === "execution"
                             ? "Your phase execution"
                             : "The build workspace"}
@@ -1109,7 +1113,7 @@ export default function Home() {
                               onClick={() => setView("plan")}
                             >
                               <GitBranch size={14} />
-                              Plan phases
+                              Explore project graph
                             </button>
                           </div>
                           <div className="comparison">

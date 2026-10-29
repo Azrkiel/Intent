@@ -1,3 +1,5 @@
+import type { PlanGraphData } from "./plan-graph";
+
 export interface PlanIdentity {
   plan_id: string;
   revision: number;
@@ -57,6 +59,7 @@ export interface PlanDetail {
     requirements_revision: number;
   } | null;
   views: { human: string; engineering: string } | null;
+  graph?: PlanGraphData | null;
   partial: boolean;
   execution_enabled: false;
   attempt_limit: number;

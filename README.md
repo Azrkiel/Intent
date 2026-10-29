@@ -149,11 +149,38 @@ run a backend or synchronize across devices.
 
 ## Visual phase plans and instruction bundles
 
-After approving the current requirements playback, open **Phase plan** (or
-**Plan phases** from the compiled brief) and choose **Generate phase plan**.
+Open **Project graph** (or **Explore project graph** from the compiled brief).
+A draft-vision root is available before a plan exists. After approving the current
+requirements playback, choose **Generate phase plan**.
 Validated outline, wireframe, and phase sections appear progressively. Switch
-between **Vision & wireframes** and **Engineering & work packages** to inspect
-the same revision. Proposed choices and unresolved questions remain explicit.
+between **Project graph**, **Vision & wireframes**, and **Engineering & work
+packages** to inspect the same revision. The graph starts at the project root;
+use search, filters, the keyboard outline, and the node inspector to reach every
+scope, source quote, acceptance condition, proposed check, and planned handoff.
+Use **Fit** for the whole overview or **Center root** to return to the project
+intent and orchestration. Proposed choices and unresolved questions remain explicit.
+
+Select a node and use **Discuss this section** to ask about that part or add your
+direction. Questions use the section, its ancestors and cited requirements without
+changing intent or approvals. Live explanations use Super and the existing session
+budget; demo explanations are labeled and scripted. **Add direction** previews your
+exact words before saving them as a scoped user turn through normal intent analysis.
+It clears approvals, stops affected execution and makes the old plan read-only.
+Use **Shape your current draft vision** to continue while reviewing a stale plan.
+Generating and approving a replacement plan remain explicit actions.
+
+Each section keeps its own saved conversation and browser draft. Reloading a saved
+request reuses its ID; interrupted requests are never automatically replayed. For a
+server-confirmed uncertain result, **Start a different message** leaves the original
+in history. Dictation is optional, uses the browser speech service and leaves an
+editable transcript; sending still requires a click. Plain text descriptions,
+Unicode arrows and multilingual labels are supported. Diagrams are optional;
+control characters and oversized descriptions remain invalid.
+
+The source-bound API is `GET /api/sessions/{id}/discussion?node_id=root` (or
+`node_id=intent` for the current vision), followed by `POST` to the same path with
+`{request_id,target,mode,text}`. Echo the exact GET target; mode is `question` or
+`direction`. Stale sources, mismatched reused IDs and cross-mode writes are rejected.
 
 Choose **Approve this revision**, then **Export instruction bundle**. The ZIP
 contains the canonical `plan.json`, a hashed manifest, cited specification, vision,
@@ -161,6 +188,22 @@ wireframes, architecture, shared `AGENTS.md`/compatible `CLAUDE.md`, and detaile
 phase and work-package packets. Approval binds the plan ID, revision, content hash,
 and requirements revision. A new utterance clears approval and preserves the old
 plan for inspection. Draft, failed, or stale plans cannot export.
+
+The human ZIP also contains `graph/graph.json`, per-node JSON, and a self-contained
+`graph/index.html` viewer with no remote assets. Every member is manifest-hashed.
+This complete human archive is distinct from the scoped worker bundle. Partial
+attempts show accepted sections and pending nodes; rejected phase bodies never
+appear as validated graph content. Drawing or filtering the graph makes no model
+requests and does not change the plan hash or grant execution approval.
+
+Graph/context verification (2026-10-28): 334 backend tests passed with one existing
+Windows symlink skip and one existing deprecation warning; Ruff, 23 frontend tests,
+type checking, production build and all 16 labeled demo evaluations passed. Browser
+checks covered complete/blocked fixtures, identity, search, keyboard controls and
+mobile/desktop layout. The browser tool blocks `file://` navigation, so opening
+the exported viewer from disk with network disabled remains a manual check. No live
+provider call was made for this extension; original Phase 5 qualification remains
+incomplete. Checkpoints and limits are in the [current handoff](.Codex/handoffs/2026-10-28-0843.md).
 
 Planning uses Super through the existing model adapter and session budget. It does
 not consume another Ultra compiler pass. An attempt has an outline pass, up to
@@ -214,8 +257,12 @@ Observed Codex token counts are retained separately from Nemotron dollar estimat
 | Route under `/api/sessions/{id}/execution` | Behavior |
 | --- | --- |
 | `POST` | Exact approved plan identity plus `package_id` and optional `model`; claim one eligible package |
-| `GET` | Durable runs and phases, staged evidence, usage, permissions, changed paths, and labeled worker claims |
+| `GET` | Durable runs, phases and context reviews, staged evidence, usage, permissions, changed paths, and labeled worker claims |
+| `POST /contexts/prepare` | Exact approved plan identity, `package_id`, and explicit `publications` selections; save a packet without dispatching |
+| `POST /contexts/{context_hash}/approve` | Exact plan identity and `packet_hash`; approve the displayed immutable input |
+| `GET /contexts/{context_hash}/bundle` | Export the current approved scoped worker ZIP |
 | `POST /phases/{phase_id}/start` | Exact approved plan identity and optional `model`; explicitly start the current phase scheduler |
+| `POST /phases/{phase_id}/resume` | Exact plan identity and optional `model`; explicitly resume an `awaiting_context_review` phase after reviewing its eligible packets |
 | `POST /phases/{phase_id}/review` | Exact plan identity, `evidence_hash`, `decision: accept\|reject`, optional `notes`; accept only the reviewed staging commit |
 | `POST /phases/{phase_id}/repair` | Exact plan identity, current `attempt`, `evidence_hash` (nullable before review), optional `model`; preserve old work and start fresh package attempts |
 | `POST /phases/{phase_id}/cancel` | Exact plan identity; stop phase dispatch and preserve work |
@@ -232,6 +279,29 @@ enforce capacity, path ownership, interface compatibility and one active phase.
 Compatible readers may share an integrated interface; producers and conflicting
 versions cannot. A dependent package starts from its prerequisite's integrated
 staging commit. Worker completion alone never makes a dependency eligible.
+
+Before dispatch, prepare and review each eligible package's context in the
+**Codex execution** panel. `ancestor-context-v1` supplies controlled instructions,
+flat project-root and assigned-phase bodies, the complete assigned package and
+its ordered tasks, applicable exact source quotes, and a handoff template. Sibling
+and cousin task bodies are excluded. This restricts supplied documents; it does
+not isolate filesystem reads from other source files in the checkout.
+
+For each dependency, explicitly select the producer artifacts to publish. A shared
+snapshot binds the declared interface/version, selected UTF-8 artifact bytes and
+hashes, producing run, integrated commit, and trusted evidence. Missing or changed
+inputs block preparation. Cross-phase inputs also require prior phase acceptance.
+The input packet is limited to 262144 UTF-8 bytes; oversized packets fail without
+truncation. Unsupported or placeholder checks fail preflight before Codex starts.
+
+Context approval binds the plan, phase attempt, input base, instruction policy,
+configured worker limits, snapshot hashes, manifest, and exact dispatch text.
+Approval does not start a worker. Changed inputs require a fresh review. A started
+phase pauses at `awaiting_context_review` when its next eligible package lacks an
+approved packet; approve that packet and explicitly resume the same phase attempt.
+The executor persists and dispatches those exact bytes and checks their identity
+again on recovery and phase review. Historical packets remain readable after an
+instruction update, while incompatible or legacy contexts cannot resume execution.
 
 The scheduler runs only the current phase and stops at `awaiting_phase_review`.
 The **Codex execution** panel restores progress, permissions, logs, diffs, trusted
@@ -334,6 +404,30 @@ Pass that existing session ID; its budget, reserved passes and two-attempt allow
 remain in effect. Use a separate output directory for each session so saved artifacts
 from earlier probes cannot be mistaken for the current result.
 
+An explicitly approved, one-time extension may permit a third attempt for the
+same approved requirements. The normal settings maximum remains two. Both failed
+attempts and all usage remain stored; the extension cannot be renewed. A correction
+invalidates an unused extension. The operator command provides a read-only preflight:
+
+```powershell
+uv run python -m backend.planning_extension --session-id-file .data/live-check/SESSION_MARKER.txt --output .data/live-check/extension-preflight.json
+```
+
+Only after explicit human authorization, stop the app server and issue the grant
+using the preflight's `state_hash`, the exact approval saved in an ignored UTF-8
+file, the reason, and the verified implementation's full Git commit hash:
+
+```powershell
+uv run python -m backend.planning_extension --session-id-file .data/live-check/SESSION_MARKER.txt --output .data/live-check/extension-issued.json --issue --expected-state-hash 'PREFLIGHT_STATE_HASH' --approval-file .data/live-check/extension-approval.txt --reason 'Approved live requalification after a verified fix' --implementation-commit 'FULL_40_CHARACTER_COMMIT_HASH'
+```
+
+The command makes no model requests. Changed preflight state or an existing grant
+blocks issuance. Generation reserves attempt 3 atomically, consumes the grant even
+on interruption, and stops at the existing plan-review gate. It still has at most
+nine logical passes, one JSON repair per pass, and the existing dollar budget.
+The grant's private audit fields are excluded from public session/detail/events
+and operator reports. See the [approved policy amendment](docs/plans/2026-10-28-planning-requalification-proposal.md).
+
 ```powershell
 uv run python -m backend.qualify_planning --session-id 'YOUR_LIVE_SESSION_ID' --output .data/live-check/probe-1/planning.json
 ```
@@ -389,6 +483,176 @@ database, and shut down cleanly. These checks made no model requests.
 Live planning fidelity, exported packet audit, real Codex generation, cancellation,
 reload/restart reconciliation, acceptance and correction remain pending. No live
 model-quality result or Phase 5 acceptance is claimed.
+
+**Live follow-up (2026-10-28, America/New_York):** the configured Token Factory
+key authenticated and the model inventory included the configured Nano, Super and
+Ultra IDs. The initial SDK connection failed certificate verification. A local PEM
+bundle exported from the machine's existing OS trust roots resolved that connection
+failure with TLS verification enabled. The bundle is ignored local configuration,
+not a portable project dependency. Test processes used:
+
+```powershell
+$env:SSL_CERT_FILE = (Resolve-Path '.data/live-check/2026-10-28/system-trust.pem').Path
+uv run python -m backend.smoke --output .data/live-check/2026-10-28/basic-after-prompt.json
+```
+
+The basic live Nano/Lightning extraction and Super contradiction smoke passed
+before and after the prompt changes. Optional thinking-control probes had mixed
+schema/grounding results: one failed on Lightning, a later probe failed on Nano,
+and a focused Lightning recheck passed. These requests returned model responses,
+but do not establish reliable control behavior. `SEND_THINKING_CONTROLS=false`
+remains the application default.
+
+A real three-turn counter clarification session exposed missing source retention,
+repeated questions, inflated change-cost scores, and inaccurate playback wording.
+`fc573aa` supplies the ledger and answer history to the existing ranking pass and
+clarifies extraction, scoring, exclusion and playback instructions. After explicit
+diagnostic re-extraction and reanalysis in the same retained session, all six slots
+were filled with exact source quotes, no high-impact blockers remained, and the
+corrected playback matched the access and recovery decisions. This is one observed
+integration case, not a measured quality or reliability result. Grouped extraction
+and semantic fidelity still need manual review. That initial clarification checkpoint
+retained 54 model responses and an estimated $0.09068 in usage. The subsequent
+requirements approval and planning results are recorded below.
+
+With the user's explicit execution opt-in, the original Codex profile was rejected
+for inherited tools. A separate local test profile was prepared and the user signed
+in with ChatGPT through the CLI. Its browser/app/plugin features and skills were
+disabled within that profile. It qualified with CLI 0.164.0, model `gpt-6.1-sol`, no
+runtime MCP servers and no enabled skills. Credentials were not copied. No Codex
+model turn has started; effective live sandbox behavior, generation and lifecycle
+qualification remain pending. Reports stay under `.data/live-check/2026-10-28/`;
+authentication state stays in the ignored test profile.
+
+An initial regression run exposed that tests inherited the developer's live `.env`.
+`eba9e0e` makes test defaults independent of that file and exported app settings,
+uses an isolated test database and blocks unmocked synchronous/asynchronous HTTP
+transports. The normal `uv run pytest -q` then passed **234 tests**, with one Windows
+symlink skip and the existing dependency warning. Ruff, 15 frontend tests, type
+checking, the production build and 16/16 demo evaluations also passed. The five new
+cases cover test isolation, network blocking, mocked providers and ranking context
+with failure closure. These code checkpoints are local on
+`codex/phase-five-live-qualification`.
+
+**After requirements approval (2026-10-28):** the user approved revision 3 through
+chat and the approval was recorded through the production API. Ultra compiled the
+brief on its first logical call and Super returned no rejected or missing brief
+items. Manual review of this artifact retained the core actions, access policy,
+storage behavior and exclusions; small unresolved choices stayed labeled. These
+two responses cost an estimated $0.01196. The resulting local artifact is
+`.data/live-check/2026-10-28/counter-brief-artifact.md`.
+
+Live planning **did not pass**. Attempt 1 used its JSON repair, then failed confirmed
+specification coverage. Application-owned confirmed/unconfirmed ID checklists and
+explicit statement-status instructions were added. Attempt 2 returned schema-valid
+JSON covering all seven confirmed IDs, but the application rejected its non-ASCII
+architecture diagram. No outline, screen or phase was accepted. Both session
+attempts were consumed at that checkpoint; no allowance was reset and no replacement
+session or additional live planning request had been made.
+
+The diagram failure exposed a schema gap: ASCII was checked only after provider
+schema validation, so the existing JSON-repair path could not handle it. Checkpoint
+`a0af23f` declares the ASCII pattern in the provider schema while retaining
+application validation. Offline regressions verify repair of a Unicode diagram,
+failure after two invalid responses, Unicode prose support, coverage checklists
+and rejection of proposal-only coverage. At that checkpoint the contract fix had
+not been requalified live in the exhausted session. Fresh verification passed 242 backend
+tests (one Windows symbolic-link skip and the existing dependency warning) and
+Ruff. No frontend files changed during this follow-up.
+
+The compile/planning follow-up used five responses costing an estimated $0.02111;
+the retained counter session totals an estimated $0.11179. Reports and redacted
+field/error diagnostics are in `.data/live-check/2026-10-28/planning-attempt-1/`,
+`planning-attempt-2/` and `approved-requirements-test-summary.json`. No valid plan,
+plan approval, bundle audit or Codex model turn followed these failures. Phase 5
+and real generated-app qualification remain incomplete.
+
+**Approved one-attempt extension (2026-10-28):** after explicit human approval,
+`ec14afd` implements one recorded, non-renewable session extension while keeping
+the ordinary settings maximum at two. Prior attempts and usage remain intact;
+issuance and attempt reservation use atomic snapshot checks. Correction invalidates
+an unused extension, and private audit fields are excluded from public responses.
+`3c86154` separates transport test startup from short fault-probe deadlines and
+closes failed fixture setup; production transport deadlines are unchanged.
+
+Final fresh checks passed: **276 backend tests**, one existing Windows symlink
+skip and the existing dependency warning; Ruff, 15 frontend tests, type checking,
+production build, and 16/16 labeled demo evaluations. A built-app loopback/proxy
+smoke passed streamed demo planning, both views, and the approval gate. The basic
+live smoke initially returned generic Nano `model_error`; an instrumented repeat
+passed Nano, Lightning and Super without a runtime/prompt change. The optional
+thinking-controls smoke passed too, but the default stays off and prior failures
+remain evidence. The isolated Codex profile requalified without inference.
+
+The single authorized third planning attempt **failed**. Its outline covered all
+seven confirmed IDs and passed ASCII checks, and one screen was accepted. After
+one JSON repair, the first phase returned `ui-setup-phase` where the accepted
+outline required `ui-setup`; the application correctly rejected that identity.
+The unaccepted candidate also contained shell-style checks and a placeholder
+verification command incompatible with the trusted runner; none was executed.
+Four Super responses cost an estimated **$0.01263540**, bringing the retained
+session estimate to **$0.12442798** across 63 usage records.
+
+The extension is consumed and all three attempts remain stored. Postflight
+confirmed exhaustion blocks before provider dispatch. No complete immutable plan,
+plan approval, bundle, or Codex model turn exists. The outline and screen are
+partial accepted sections, not a qualified plan. Evidence is ignored under
+`.data/live-check/2026-10-28/extension-attempt-3/`. At that checkpoint, no fourth
+attempt, reset, or replacement session was used. Offline checks passed; live planning and
+Phase 5 remain failed/incomplete.
+
+**Offline request-contract follow-up (2026-10-28):** screen and phase requests now
+require their exact accepted outline reference in the provider validation schema,
+so reference drift can use the existing single JSON repair. With Codex execution
+enabled, phase requests also receive the trusted runner's actual command policy;
+whitespace inspection is not behavioral verification. Existing preflight and
+approval gates remain in place. These changes have offline regression coverage,
+not a fresh live pass. The [further qualification proposal](docs/plans/2026-10-28-fourth-attempt-requalification-proposal.md)
+was subsequently approved, implemented, and consumed as recorded below.
+
+**Fourth-attempt qualification (2026-10-28):** `af20dea` adds one separately
+audited grant while preserving the consumed original extension. Atomic preflight,
+issuance/reservation, historical hashes, private audit fields, correction/restart
+handling, and refusal of attempt 5 have 37 new regressions. Fresh checks passed
+377 backend tests, one existing skip/warning, Ruff, and all 16 labeled demo cases.
+
+The one approved fourth attempt **failed at the outline**: its repaired response
+violated the ASCII diagram schema at `architecture`. Two Super responses cost an
+estimated $0.00818940, bringing retained usage to 65 responses and $0.13261738.
+Both grants are consumed. Prior attempts/usage, approved requirements revision 3,
+and the compiled brief are unchanged; no active plan, plan approval, or Codex turn
+exists. Attempt 5 is blocked before provider dispatch. There is no automatic retry;
+live planning and Phase 5 remain failed/incomplete. Evidence stays ignored under
+`.data/live-check/2026-10-28/requalification-attempt-4/`.
+
+**Offline response-boundary fixes (2026-10-28):** new provider responses now render
+a finite set of common arrow/box glyphs as ASCII in diagram fields only, then apply
+the original validation. Unknown characters and oversized diagrams still fail.
+Source quotes, identifiers, commands and stored plans are unchanged. Repair now
+addresses schema values as well as JSON structure. Planning output marked as
+length-limited receives the existing single compacting repair and cannot silently
+be accepted as complete. Budgets, token limits and attempt allowances are unchanged.
+Integrated simulated-HTTP tests cover planning through graph/views, runner preflight,
+preserved source/hash identity and gated export. These checks are not a new live pass;
+the retained session remains exhausted. See the [current handoff](.Codex/handoffs/2026-10-28-0843.md).
+
+Checkpoint `23acab5` passed 387 backend tests with one existing skip and warning,
+Ruff, 23 frontend tests, type checking, production build, and all 16 labeled demo
+evaluations. No new provider request was made and the retained live state is unchanged.
+
+**Interactive graph update (2026-10-29):** the ASCII conversion described above is
+superseded by bounded Unicode descriptions; the adapter preserves Unicode unchanged.
+Graph sections now support cited questions, exact scoped direction, saved history,
+per-section drafts and optional dictation. These changes do not authorize a fifth
+planning attempt or establish live model quality. The retained live session still
+has four consumed attempts and no approved plan. See the
+[latest handoff](.Codex/handoffs/2026-10-29-0035.md) for final checks and publication.
+Offline verification passed 415 backend tests (one existing skip and warning), Ruff,
+31 frontend tests, type checking, production build and all 16 scripted demo runs.
+Isolated demo browser checks covered desktop/mobile, scoped questions and direction,
+draft restoration, stale gating, keyboard selection and Unicode. Speech lifecycle
+was tested with simulated recognition; real microphone and live explanations remain
+unverified. The retained live session's stored bytes and usage counts are unchanged.
 
 ## Claude Code handoff
 

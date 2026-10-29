@@ -22,7 +22,7 @@ def claims(title: str, values: list[Statement]) -> str:
 
 
 def wireframes(plan: PlanDocument) -> str:
-    result = identity(plan) + "\nASCII wireframes (proposed)\n"
+    result = identity(plan) + "\nScreen states and layouts (proposed)\n"
     if not plan.screens:
         return result + "\nNo screens proposed for this project.\n"
     for screen in plan.screens:

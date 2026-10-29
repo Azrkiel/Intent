@@ -15,15 +15,275 @@ import {
   canRepairPhase,
   canReviewPhase,
   canStartPhase,
+  canApproveContext,
+  canResumeContextPhase,
   samePlan,
   type Evidence,
   type ExecutionDetail,
   type ExecutionPhase,
   type ExecutionRun,
+  type ExecutionContext,
+  type ContextPackageOption,
 } from "@/lib/execution";
 import type { Session } from "@/lib/types";
 
 const label = (status: string) => status.replaceAll("_", " ");
+
+function ContextReview({
+  context,
+  detail,
+  enabled,
+  base,
+  act,
+}: {
+  context: ExecutionContext;
+  detail: ExecutionDetail;
+  enabled: boolean;
+  base: string;
+  act: (path: string, body: unknown) => Promise<void>;
+}) {
+  const [inspected, setInspected] = useState(false);
+  return (
+    <div className="execution-context-review">
+      <div className="execution-row">
+        <h4>
+          <ShieldCheck size={14} /> {context.package_id} · context review
+        </h4>
+        <span className="execution-status">
+          {!context.current
+            ? "Stale context"
+            : context.approved
+              ? "Context approved"
+              : "Awaiting approval"}
+        </span>
+      </div>
+      <p>
+        Phase attempt {context.phase_attempt} ·{" "}
+        {new TextEncoder().encode(context.text).byteLength.toLocaleString()}{" "}
+        bytes. Approving this packet authorizes these instructions and inputs;
+        starting or resuming remains a separate action.
+      </p>
+      <code className="execution-hash">
+        Context SHA-256 {context.context_hash}
+      </code>
+      <code className="execution-hash">
+        Packet SHA-256 {context.packet_hash}
+      </code>
+      <code className="execution-hash">Input commit {context.base_commit}</code>
+      <details
+        onToggle={(event) => {
+          if (event.currentTarget.open) setInspected(true);
+        }}
+      >
+        <summary>Read the exact worker context before approving</summary>
+        <pre className="execution-code" tabIndex={0}>
+          {context.text}
+        </pre>
+      </details>
+      <details>
+        <summary>Input documents and shared snapshots</summary>
+        <ul>
+          {Object.keys(context.documents).map((path) => (
+            <li key={path}>
+              <code>{path}</code>
+            </li>
+          ))}
+        </ul>
+        <pre className="execution-code" tabIndex={0}>
+          {JSON.stringify(context.snapshots, null, 2)}
+        </pre>
+        <code className="execution-hash">
+          Manifest SHA-256 {context.manifest_hash}
+        </code>
+      </details>
+      <div className="plan-actions">
+        {!context.approved && (
+          <button
+            className="secondary-button"
+            disabled={
+              !inspected || !canApproveContext(detail, context, enabled)
+            }
+            onClick={() =>
+              void act(`/contexts/${context.context_hash}/approve`, {
+                ...context.plan,
+                packet_hash: context.packet_hash,
+              })
+            }
+          >
+            Approve this exact context
+          </button>
+        )}
+        {context.approved && context.current && (
+          <a
+            className="secondary-button"
+            href={`/api${base}/contexts/${context.context_hash}/bundle`}
+          >
+            Export scoped worker bundle
+          </a>
+        )}
+      </div>
+      {!context.approved && !inspected && context.current && (
+        <p className="muted-note">
+          Open the exact context to review its ancestor chain, scope, inputs,
+          and handoff.
+        </p>
+      )}
+      {!context.current && (
+        <p className="muted-note">
+          The plan, inputs, or execution state changed. Prepare a new context;
+          this record stays available for inspection.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ContextPackageControls({
+  option,
+  detail,
+  enabled,
+  base,
+  act,
+}: {
+  option: ContextPackageOption;
+  detail: ExecutionDetail;
+  enabled: boolean;
+  base: string;
+  act: (path: string, body: unknown) => Promise<void>;
+}) {
+  const [selected, setSelected] = useState<Record<string, string[]>>({});
+  const publications = option.publication_options ?? [];
+  const keyFor = (
+    producer: string,
+    name: string | null,
+    version: string | null,
+  ) => JSON.stringify([producer, name, version]);
+  const choices = publications.map((publication) => ({
+    producer_id: publication.producer_id,
+    interface_name: publication.interface_name,
+    interface_version: publication.interface_version,
+    paths: (
+      selected[
+        keyFor(
+          publication.producer_id,
+          publication.interface_name,
+          publication.interface_version,
+        )
+      ] ?? []
+    ).filter((path) =>
+      publication.artifacts.some((artifact) => artifact.path === path),
+    ),
+  }));
+  const completeSelection = choices.every((choice) => choice.paths.length > 0);
+  const contexts = (detail.contexts ?? []).filter(
+    (context) =>
+      context.package_id === option.id && samePlan(context.plan, detail.plan),
+  );
+  return (
+    <section
+      className="execution-context-package"
+      aria-label={`Worker context ${option.id}`}
+    >
+      <h4>{option.id} · scope and inputs</h4>
+      <p>
+        Owned paths: <code>{option.owned_paths.join(", ")}</code>
+      </p>
+      {publications.map((publication) => {
+        const groupKey = keyFor(
+          publication.producer_id,
+          publication.interface_name,
+          publication.interface_version,
+        );
+        return (
+          <fieldset
+            className="execution-publication"
+            key={groupKey}
+            disabled={!enabled || !option.can_prepare}
+          >
+            <legend>
+              Shared inputs from {publication.producer_id}
+              {publication.interface_name
+                ? ` · ${publication.interface_name}@${publication.interface_version}`
+                : " · dependency outputs"}
+            </legend>
+            <p>
+              Select the verified artifacts this subproject needs. Its
+              producer’s task packet and private logs are excluded.
+            </p>
+            {publication.artifacts.length ? (
+              publication.artifacts.map((artifact) => (
+                <label key={artifact.path}>
+                  <input
+                    type="checkbox"
+                    checked={(selected[groupKey] ?? []).includes(artifact.path)}
+                    onChange={(event) =>
+                      setSelected((previous) => ({
+                        ...previous,
+                        [groupKey]: event.target.checked
+                          ? [...(previous[groupKey] ?? []), artifact.path]
+                          : (previous[groupKey] ?? []).filter(
+                              (path) => path !== artifact.path,
+                            ),
+                      }))
+                    }
+                  />
+                  <span>
+                    {artifact.path}
+                    <code className="execution-hash">
+                      SHA-256 {artifact.sha256}
+                    </code>
+                  </span>
+                </label>
+              ))
+            ) : (
+              <p>
+                No published artifact candidates. This input blocks preparation.
+              </p>
+            )}
+          </fieldset>
+        );
+      })}
+      <div className="plan-actions">
+        <button
+          className="secondary-button"
+          disabled={!enabled || !option.can_prepare || !completeSelection}
+          onClick={() =>
+            void act("/contexts/prepare", {
+              ...detail.plan,
+              package_id: option.id,
+              publications: choices,
+            })
+          }
+        >
+          Prepare {option.id} context
+        </button>
+        {option.context_ready && (
+          <span className="execution-context-ready">
+            Current context approved
+          </span>
+        )}
+      </div>
+      {option.context_reason && (
+        <p className="muted-note">{option.context_reason}</p>
+      )}
+      {!completeSelection && (
+        <p className="muted-note">
+          Select at least one verified artifact for each shared input.
+        </p>
+      )}
+      {contexts.map((context) => (
+        <ContextReview
+          key={context.context_hash}
+          context={context}
+          detail={detail}
+          enabled={enabled}
+          base={base}
+          act={act}
+        />
+      ))}
+    </section>
+  );
+}
 
 function EvidenceView({
   evidence,
@@ -337,7 +597,8 @@ export function ExecutionPanel({
         <h3>Build a phase. Review its evidence.</h3>
         <p>
           Each phase stops for your decision. Accepting it enables an explicit
-          start for the next phase.
+          start for the next phase. Review each eligible worker’s context before
+          dispatch.
         </p>
       </div>
       {(error || pollError) && (
@@ -425,13 +686,6 @@ export function ExecutionPanel({
                 </div>
                 {!phase && (
                   <>
-                    <ul>
-                      {option.packages.map((p) => (
-                        <li key={p.id}>
-                          <code>{p.id}</code> · {p.owned_paths.join(", ")}
-                        </li>
-                      ))}
-                    </ul>
                     <button
                       className="primary-button"
                       disabled={!canStartPhase(detail, option.id, enabled)}
@@ -452,6 +706,16 @@ export function ExecutionPanel({
                     )}
                   </>
                 )}
+                {option.packages.map((packet) => (
+                  <ContextPackageControls
+                    key={`${packet.id}:${phase?.attempt ?? 1}`}
+                    option={packet}
+                    detail={detail}
+                    enabled={enabled}
+                    base={base}
+                    act={act}
+                  />
+                ))}
                 {phase && (
                   <>
                     {phase.error && <p className="plan-error">{phase.error}</p>}
@@ -530,9 +794,26 @@ export function ExecutionPanel({
                       </>
                     )}
                     <div className="plan-actions">
+                      {phase.status === "awaiting_context_review" && (
+                        <button
+                          className="primary-button"
+                          disabled={
+                            !canResumeContextPhase(detail, phase, enabled)
+                          }
+                          onClick={() =>
+                            void act(`/phases/${phase.phase_id}/resume`, {
+                              ...phase.plan,
+                              ...(model.trim() ? { model: model.trim() } : {}),
+                            })
+                          }
+                        >
+                          Resume {phase.phase_id} with approved contexts
+                        </button>
+                      )}
                       {[
                         "running",
                         "verifying",
+                        "awaiting_context_review",
                         "awaiting_phase_review",
                         "blocked",
                       ].includes(phase.status) &&
