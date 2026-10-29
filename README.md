@@ -187,6 +187,70 @@ described below adds worker execution and phase staging. The
 records scheduling in Phase 3 and the review UI in Phase 4. The existing HTML builder remains
 available separately.
 
+## Editable Markdown vault and graph
+
+Open **Phase plan → Graph & notes** after starting a conversation. The vault works
+before a phase plan exists: edit the main `Plan.md` note and create your own notes.
+After generating a phase plan, choose **Add phase plan** to add linked vision,
+specification, architecture, screen, phase, work-package and task notes. This is a
+snapshot; later plan revisions do not overwrite your Markdown edits.
+
+- Drag a node to arrange it, drag the background to pan, and scroll to zoom. The
+  larger green node is the main plan. Click a node to read or edit its Markdown.
+  Use the expand button for the full workspace, and Fit to bring notes into view.
+- Connect notes with `[[Note name]]`, `[[folder/Note#Heading|Label]]`, or
+  `[Label](relative/Note.md)`. Hover highlights connections; the inspector lists
+  backlinks. A dashed node represents a missing note; select it to create the note.
+- Create, rename or delete notes through the explorer and inspector. Renaming
+  updates resolved internal links, including relative links when moving a note to
+  another folder. Deleting a note keeps incoming links as missing-note placeholders.
+  The main plan note can be edited and renamed, but cannot be deleted.
+- Changes autosave locally. **Saved locally** confirms the saved copy; an unsaved
+  draft can be exported separately. Concurrent saves show a conflict and preserve
+  the draft, with backup, retry and explicit reload options. A temporary browser
+  recovery copy also protects pending edits when switching views.
+- **Export vault** downloads Markdown files and `intent-vault.json` in a ZIP.
+  Unzip it into a folder to open in Obsidian. **Import Markdown / ZIP** replaces
+  the current vault after confirmation; imported notes never count as an approved
+  execution plan. Import/export supports Markdown text, not attachment files or
+  Obsidian settings. The live workspace is stored in the local SQLite database;
+  it does not watch or synchronize an existing filesystem vault.
+
+Search filters both the file list and graph. Graph settings include node types,
+labels, arrows, node size, link distance and repulsion. Pause/resume controls layout
+motion, and reduced-motion preferences disable animated settling. Focus the graph
+and use arrow keys to pan, `+`/`-` to zoom, and Home to fit. The explorer provides a
+keyboard-accessible alternative to selecting graph nodes.
+
+Vaults support up to 500 notes, 100 KB UTF-8 per note and 2 MB total Markdown.
+The graph displays at most 750 nodes (including missing notes) and 5,000 connections;
+an explicit notice appears at that limit, and exports retain all note content.
+Raw HTML is disabled in preview. ZIP imports are bounded and validated without
+extracting files onto the host filesystem.
+
+Vault edits are independent of the canonical plan, its hash, ledger citations,
+requirements approval and execution gates. Demo, draft and stale source snapshots
+remain labeled. Markdown links express note relationships, not execution permission
+or verified work-package dependencies.
+
+For a second local instance, run the backend with `FRONTEND_PORT` set to the chosen
+web port, and start Next.js with `INTENT_API_PORT` set to the chosen API port. For
+example, use separate terminals from the repository root:
+
+```powershell
+# API terminal
+$env:FRONTEND_PORT = '3001'
+$env:DATABASE_PATH = '.data/second-instance.sqlite3'
+uv run uvicorn backend.app.main:app --host 127.0.0.1 --port 8001
+
+# Web terminal
+$env:INTENT_API_PORT = '8001'
+npm exec --workspace frontend -- next dev --hostname 127.0.0.1 --port 3001
+```
+
+Defaults remain loopback ports 3000/8000. The alternate origin is restricted to
+`127.0.0.1` or `localhost` at the configured web port.
+
 ## Codex execution and phase staging API
 
 Phase 2 is implemented and verified offline against synthetic app-server processes
