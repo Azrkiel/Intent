@@ -1,0 +1,77 @@
+# One audited live planning retest
+
+Goal: qualify the merged section-validation repair with one seventh attempt on
+the retained, requirements-approved live session.
+
+Architecture: append a `PlanningSeventhAttempt` grant bound to the consumed sixth
+grant and all six prior attempt hashes. Reserve revision 7 and consume the grant
+in the existing compare-and-swap transaction. Preserve the default two-attempt
+policy, nine logical passes, one shared repair per pass, 4096 output tokens per
+response, and the existing cumulative $2 session budget. Attempt 8 stays closed.
+Stack: Python, Pydantic, SQLite, existing Nemotron adapter, pytest.
+
+The user approved the proposed bounded retest with "yes, go ahead please" after
+being told that the previous allowance was exhausted. Preserve that quote and its
+context privately. Approval covers this retest; it does not approve an unseen
+generated plan or waive context and worker approval gates. No automatic retry,
+public deployment, or additional planning allowance is included.
+
+```text
+Merged main + six failed attempts + current approved requirements
+  -> read-only preflight + backup + exact approval + implementation commit
+  -> CAS issue seventh grant -> CAS consume grant and reserve attempt 7
+       valid complete plan -> views + graph + fidelity/runner audit -> human review
+       failed/interrupted -> retained prefix + usage + diagnostics -> stop
+Changed snapshot / duplicate issuance / attempt 8 -> reject before provider/save
+Correction -> invalidate unused grant; keep all history and usage
+```
+
+Files and ownership:
+
+- `backend/app/planning/contracts.py`: seventh grant and history validation.
+- `backend/app/planning/allowance.py`: effective limit shared with the API.
+- `backend/app/planning/service.py`: consume the grant during atomic reservation.
+- `backend/app/{domain,engine,store}.py`: binding, redaction, invalidation and
+  immutable grant/history persistence.
+- `backend/planning_extension.py`: local-only `--seventh-attempt` preflight and
+  issuance with fresh state hash, approval file, reason and commit.
+- `backend/tests/test_planning_seventh_attempt.py`: history, CAS, budget,
+  interruption, redaction, API injection and replay regressions.
+- `.data/live-check/2026-10-29/attempt-7/`: ignored private evidence only.
+
+- [x] Write the regressions first; run
+  `uv run pytest backend/tests/test_planning_seventh_attempt.py -q` and confirm
+  rejection because the seventh-attempt operator option does not exist.
+- [x] Implement the existing grant pattern. Run all grant/section-repair tests,
+  `uv run pytest -q`, `uv run ruff check backend`, and the demo evaluations.
+  Review binding, redaction, immutable history and retry bounds; commit the
+  verified implementation before any provider request.
+- [ ] Capture a fresh read-only preflight, SQLite backup and private approval.
+  Stop the owned demo server for operator exclusivity. Issue one grant against
+  the fresh state hash and full implementation commit.
+- [ ] Run a new exclusive, single-invocation qualifier with the existing trusted
+  certificate bundle. Do not replay earlier attempt drivers. Save the result,
+  validated sections, usage and failure details privately.
+- [ ] Check all six earlier attempts, four prior grants, 70 prior usage records,
+  requirements/playback revision 3, ledger, transcript, brief and compiler count.
+  Verify attempt 8 is rejected before provider or save. On success, audit the
+  graph, both views, source coverage, constraints, artifacts and runner checks,
+  then present the exact plan for review. On failure, stop and record it.
+- [ ] Restore the local demo preview, update README with the measured outcome,
+  check paths and `git diff --check`, and commit documentation separately.
+
+Offline verification: the first new regression failed because `preflight` did
+not accept `seventh_attempt`. The implementation passed 32 seventh-attempt tests
+and 20 existing section-repair cases, Ruff, whitespace checks and all 16 scripted
+demo cases with no provider calls. A fresh full run passed **571 tests**, with the
+existing Windows symlink skip and Starlette/httpx deprecation warning, in 435.38
+seconds. Persistent logs and JUnit output remain ignored under the attempt-7
+evidence directory so a paused terminal cannot lose the result.
+
+Read-only preflight reproduced the exact earlier missing-exclusions response
+inside the merged shared repair wrapper. The original raw session hash is
+unchanged: six attempts, four consumed grants, 70 responses, approved requirements
+revision 3, one compiled brief and estimated cumulative spend of $0.14736118.
+The configured Codex profile qualified without inference; no plan is approved for
+execution. Diff, security and cleanup review retained the existing source checks,
+budget, repair limits, CAS reservation, private grant fields and human review gates.
