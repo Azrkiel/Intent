@@ -5,7 +5,6 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
-  AudioLines,
   Check,
   CheckCheck,
   ChevronDown,
@@ -68,8 +67,8 @@ type View = "clarify" | "brief" | "build";
 
 function Mark({ small = false }: { small?: boolean }) {
   return (
-    <span className={`brand-mark ${small ? "small" : ""}`}>
-      <AudioLines size={small ? 17 : 23} strokeWidth={1.8} />
+    <span className={`brand-mark ${small ? "small" : ""}`} aria-hidden="true">
+      <img src="/brand/dragonfly.webp" alt="" width={44} height={44} />
     </span>
   );
 }
@@ -446,26 +445,33 @@ export default function Home() {
         Skip to workspace
       </a>
       <aside className="sidebar">
-        <a className="brand" href="/">
+        <a className="brand" href="/" aria-label="Intent home">
           <Mark />
           <span>
-            prompt caller<span className="brand-period">.</span>
+            INTENT<span className="brand-period">.</span>
           </span>
         </a>
         <div className="workspace-label">
-          <span className="workspace-avatar">K</span>
+          <span className="workspace-avatar">I</span>
           <div>
             Personal workspace<span>Local · on your machine</span>
           </div>
           <ChevronDown size={13} />
         </div>
-        <button className="new-session" onClick={newSession} disabled={busy}>
+        <button
+          className="new-session"
+          onClick={newSession}
+          disabled={busy}
+          aria-label="New intent"
+        >
           <Plus size={17} />
-          New conversation<span>↗</span>
+          New intent<span>↗</span>
         </button>
         <div className="sidebar-heading">WORKSPACE</div>
         <button
           className={`sidebar-link ${view === "clarify" ? "active" : ""}`}
+          aria-label="Conversation"
+          aria-current={view === "clarify" ? "page" : undefined}
           onClick={() => setView("clarify")}
         >
           <MessageCircle size={16} />
@@ -474,6 +480,8 @@ export default function Home() {
         </button>
         <button
           className={`sidebar-link ${view === "brief" ? "active" : ""}`}
+          aria-label="Build brief"
+          aria-current={view === "brief" ? "page" : undefined}
           onClick={() => setView("brief")}
           disabled={!hasTurns}
         >
@@ -482,15 +490,15 @@ export default function Home() {
         </button>
         <button
           className={`sidebar-link ${view === "build" ? "active" : ""}`}
+          aria-label="Build output"
+          aria-current={view === "build" ? "page" : undefined}
           onClick={() => setView("build")}
           disabled={!hasTurns}
         >
           <Code2 size={16} />
           Build output
         </button>
-        <div className="sidebar-heading recent-heading">
-          RECENT CONVERSATIONS
-        </div>
+        <div className="sidebar-heading recent-heading">RECENT INTENTS</div>
         <div className="history">
           {history
             .filter((item) => item.title !== "Untitled idea")
@@ -507,7 +515,7 @@ export default function Home() {
               </button>
             ))}
           {!history.some((item) => item.title !== "Untitled idea") && (
-            <p>Your next good idea starts here.</p>
+            <p>A clean slate. Make it count.</p>
           )}
         </div>
         <div className="sidebar-bottom">
@@ -519,7 +527,7 @@ export default function Home() {
             <span className="tiny-dot" />
           </div>
           <div className="sidebar-foot">
-            <span>One good question at a time.</span>
+            <span>Built with intent.</span>
             <Headphones size={14} />
           </div>
         </div>
@@ -570,12 +578,12 @@ export default function Home() {
             <div>
               <div className="eyebrow">
                 <span className="tiny-dot" />
-                FROM A ROUGH IDEA TO A READY-TO-BUILD BRIEF
+                LESS NOISE. MORE INTENT.
               </div>
               <h1>
-                Your idea, made clear<span>.</span>
+                Think it. Clarify it. <span>Build it.</span>
               </h1>
-              <p>A focused conversation now. A much better build next.</p>
+              <p>Close the gap between what you mean and what gets made.</p>
             </div>
             <div className="private-note">
               <ShieldCheck size={16} />
@@ -593,12 +601,12 @@ export default function Home() {
           <nav className="stepper" aria-label="Build stages">
             {(
               [
-                ["clarify", "01", "Clarify the idea", hasTurns],
-                ["brief", "02", "Review the brief", Boolean(session?.brief)],
+                ["clarify", "01", "Find the signal", hasTurns],
+                ["brief", "02", "Lock the brief", Boolean(session?.brief)],
                 [
                   "build",
                   "03",
-                  "Bring it to life",
+                  "Make it real",
                   session?.build.status === "complete",
                 ],
               ] as const
@@ -606,6 +614,7 @@ export default function Home() {
               <div className="step-wrapper" key={id}>
                 <button
                   className={`step ${view === id ? "current" : ""}`}
+                  aria-current={view === id ? "step" : undefined}
                   disabled={id !== "clarify" && !hasTurns}
                   onClick={() => setView(id)}
                 >
@@ -667,7 +676,7 @@ export default function Home() {
                   </span>
                   <h2>
                     {view === "clarify"
-                      ? "The conversation"
+                      ? "Signal / conversation"
                       : view === "brief"
                         ? "Your build brief"
                         : "The build workspace"}
@@ -698,28 +707,43 @@ export default function Home() {
                   >
                     {!hasTurns ? (
                       <div className="welcome">
+                        <div className="welcome-copy">
+                          <div className="welcome-kicker">
+                            <span /> YOUR NEXT MOVE STARTS HERE
+                          </div>
+                          <h2>
+                            Big idea.
+                            <br />
+                            <span>Zero drift.</span>
+                          </h2>
+                          <p>
+                            Bring the messy version. We’ll ask the right
+                            questions and turn it into a brief worth building.
+                          </p>
+                          <div className="welcome-promises">
+                            <span>
+                              <Check size={12} /> One question at a time
+                            </span>
+                            <span>
+                              <Check size={12} /> Every decision, grounded
+                            </span>
+                          </div>
+                        </div>
                         <div className="welcome-graphic">
-                          <span className="orbit orbit-one" />
-                          <span className="orbit orbit-two" />
-                          <Mark />
-                          <span className="orbit-spark">
-                            <Sparkles size={14} />
+                          <img
+                            src="/brand/dragonfly.webp"
+                            alt="White engraved dragonfly with glitched, fragmented wings"
+                            width={480}
+                            height={480}
+                            fetchPriority="high"
+                          />
+                          <span className="art-coordinate">
+                            FIG. 001 / PURPOSE IN MOTION
+                          </span>
+                          <span className="art-crosshair" aria-hidden="true">
+                            +
                           </span>
                         </div>
-                        <div className="welcome-kicker">
-                          A LITTLE CLARITY GOES A LONG WAY
-                        </div>
-                        <h2>
-                          What are you thinking
-                          <br />
-                          of building?
-                        </h2>
-                        <p>
-                          Tell me the messy version. I’ll help you find the
-                          details
-                          <br className="desktop-break" /> that actually change
-                          what gets built.
-                        </p>
                         <button
                           className="example-card"
                           disabled={disabled}
@@ -729,21 +753,11 @@ export default function Home() {
                             <Sparkles size={17} />
                           </span>
                           <span>
-                            <small>NEED A PLACE TO START?</small>“A habit
-                            tracker, no login, synced across devices…”
+                            <small>TAKE IT FOR A SPIN / EXAMPLE IDEA</small>“A
+                            habit tracker, no login, synced across devices…”
                           </span>
                           <ArrowUp size={17} />
                         </button>
-                        <div className="welcome-promises">
-                          <span>
-                            <Check size={12} />
-                            One question at a time
-                          </span>
-                          <span>
-                            <Check size={12} />
-                            Your words stay the source
-                          </span>
-                        </div>
                       </div>
                     ) : (
                       <>
@@ -891,7 +905,7 @@ export default function Home() {
                             ? "Listening… release the microphone when you’re done."
                             : hasTurns
                               ? "Your answer, a correction, or something else on your mind…"
-                              : "I’ve been thinking about an app that…"
+                              : "What are we building? Drop your idea here…"
                         }
                         onChange={(event) => setInput(event.target.value)}
                         onKeyDown={(event) => {
@@ -909,7 +923,7 @@ export default function Home() {
                           />
                           {listening
                             ? "Listening — your voice becomes editable text"
-                            : "No perfect prompts needed."}
+                            : "Raw ideas welcome. Perfect prompts optional."}
                         </div>
                         <div>
                           <button
@@ -1276,15 +1290,17 @@ export default function Home() {
                 </div>
                 <span className="live-indicator">
                   <span />
-                  LIVE
+                  {session?.mode === "demo"
+                    ? "DEMO"
+                    : health
+                      ? "LIVE"
+                      : "OFFLINE"}
                 </span>
               </div>
-              <p className="ledger-description">
-                A shared understanding, in your words.
-              </p>
+              <p className="ledger-description">Your words. A sharper plan.</p>
               <div className="understanding">
                 <div>
-                  <span>Understanding</span>
+                  <span>BUILD READINESS</span>
                   <strong>
                     {session?.gate.percent || 0}
                     <small>%</small>
@@ -1365,12 +1381,12 @@ export default function Home() {
                     <strong>
                       {hasTurns
                         ? "Nothing in this view yet."
-                        : "Your idea starts taking shape here."}
+                        : "No assumptions. Just your intent."}
                     </strong>
                     <p>
                       {hasTurns
                         ? "Confirmed decisions and open details will appear as you talk."
-                        : "Goals, decisions, and open questions will find their place as we talk."}
+                        : "Your goals, decisions, and open questions appear here as we find the signal."}
                     </p>
                   </div>
                 )}
@@ -1422,7 +1438,7 @@ export default function Home() {
           <footer className="workspace-footer">
             <span>
               <Mark small />
-              Less guessing. More building.
+              Built on clarity. Driven by intent.
             </span>
             <span>
               {session?.mode === "demo"
