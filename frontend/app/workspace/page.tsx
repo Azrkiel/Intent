@@ -64,7 +64,12 @@ type View = "clarify" | "brief" | "build";
 function Mark({ small = false }: { small?: boolean }) {
   return (
     <span className={`brand-mark ${small ? "small" : ""}`} aria-hidden="true">
-      <img src="/brand/dragonfly.webp" alt="" width={44} height={44} />
+      <img
+        src="/brand/dragonfly-transparent.webp"
+        alt=""
+        width={44}
+        height={44}
+      />
     </span>
   );
 }
@@ -631,7 +636,7 @@ export default function Home() {
                         </div>
                         <div className="welcome-graphic">
                           <img
-                            src="/brand/dragonfly.webp"
+                            src="/brand/dragonfly-transparent.webp"
                             alt="White engraved dragonfly with glitched, fragmented wings"
                             width={480}
                             height={480}

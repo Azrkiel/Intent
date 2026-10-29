@@ -59,7 +59,12 @@ function Brand({ footer = false }: { footer?: boolean }) {
       className={footer ? styles.footerBrand : styles.brand}
       aria-label="Intent home"
     >
-      <img src="/brand/dragonfly.webp" alt="" width={48} height={48} />
+      <img
+        src="/brand/dragonfly-transparent.webp"
+        alt=""
+        width={48}
+        height={48}
+      />
       <span>
         INTENT<span className={styles.brandDot}>.</span>
       </span>
@@ -116,7 +121,7 @@ export default function LandingPage() {
           </div>
           <figure className={styles.heroArt}>
             <img
-              src="/brand/dragonfly.webp"
+              src="/brand/dragonfly-transparent.webp"
               width={960}
               height={960}
               alt="An ivory dragonfly with glitched wings on black"
@@ -140,7 +145,7 @@ export default function LandingPage() {
                 <p>{feature.text}</p>
                 <div className={styles.featureArt}>
                   <img
-                    src={`/brand/dragonfly-set/${feature.image}.webp`}
+                    src={`/brand/dragonfly-set/${feature.image}-transparent.webp`}
                     alt={feature.alt}
                     width={640}
                     height={640}
@@ -165,7 +170,7 @@ export default function LandingPage() {
             </h2>
             <figure className={styles.lakeArt}>
               <img
-                src="/brand/dragonfly-set/dragonfly-lake-hover.webp"
+                src="/brand/dragonfly-set/dragonfly-lake-hover-transparent.webp"
                 alt="An engraved dragonfly hovering above water"
                 width={768}
                 height={512}
@@ -210,7 +215,7 @@ export default function LandingPage() {
         <section className={styles.finalSection} aria-labelledby="final-title">
           <img
             className={styles.finalDragonfly}
-            src="/brand/dragonfly-set/dragonfly-dorsal-spread.webp"
+            src="/brand/dragonfly-set/dragonfly-dorsal-spread-transparent.webp"
             alt=""
             width={600}
             height={600}
