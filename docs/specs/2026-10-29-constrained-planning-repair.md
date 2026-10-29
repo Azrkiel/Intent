@@ -1,6 +1,6 @@
 # Constrained planning repair and complete prose review
 
-Status: draft for user design review; implementation has not started.
+Status: approved by the user: "approve, please continue". Offline implementation authorized.
 Scope: offline continuation of the [eighth-attempt handoff](../../.Codex/handoffs/2026-10-29-1610.md).
 This design grants no additional live attempt, plan approval, export or dispatch.
 
