@@ -665,6 +665,34 @@ failure, interruption, restart or correction never replenishes it. The ordinary
 two-attempt policy, nine-pass cap, one repair per pass and session budget remain.
 No sixth attempt is provided. See the [bounded execution plan](docs/plans/2026-10-29-fifth-planning-attempt.md).
 
+The sole fifth attempt **failed outline coverage** after one schema-valid Super
+response: `common_rules` omitted L4, "No login, network, backend, or sync", although
+the specification covered all seven confirmed IDs. Unicode was accepted. The call
+used 2,531 input and 2,416 output tokens, costing an estimated $0.00293370; cumulative
+usage is 66 responses and $0.13555108. The fifth grant is consumed. No active plan,
+plan approval or coding-agent dispatch exists; attempt 6 is refused before provider
+or save. Prior attempts, grants, usage, requirements revision 3, playback approval
+and compiled brief were preserved. Private evidence is under
+`.data/live-check/2026-10-29/attempt-5/`.
+
+Manual inspection also found unsupported first-launch behavior: the architecture
+would treat an absent saved value as a storage failure and disable both buttons.
+It also promoted a non-negative-integer restriction and per-tab storage keys to
+confirmed rules without explicit support. These observations are fidelity failures,
+not reasons to bypass coverage validation or accept the outline.
+
+The failure exposed a repair boundary: deterministic outline checks previously ran
+after the adapter had accepted the response, so a coverage failure received no
+repair. The follow-up binds the existing outline validator to the response schema
+and supplies an explicit constraint-ID checklist. JSON, schema and deterministic
+outline failures now share the existing single repair; two failed responses still
+close the gate. This is an offline correction, not a sixth live attempt or evidence
+that the model's fidelity issues are resolved. No allowance or prior failure was reset.
+Checkpoint `8f51a9a` contains the audited fifth-attempt grant; `219b1eb` contains the
+repair correction. Fresh verification after the correction passed 459 backend tests
+(one existing Windows symlink skip and deprecation warning), Ruff and all 16 scripted
+demo evaluations with zero provider calls. These checkpoints remain local.
+
 ## Claude Code handoff
 
 After approving and compiling the brief, set `ALLOW_CLAUDE_BUILD=true` and restart.

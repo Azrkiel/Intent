@@ -34,17 +34,18 @@ and issuance, with audit fields excluded from public output. New tests live in
   Run focused tests, then `uv run pytest -q` and `uv run ruff check backend`.
   Expected: all tests pass, existing Windows symlink skip may remain. Inspect
   the diff and `git diff --check`; commit the verified implementation.
-- [ ] Save private baseline evidence under `.data/live-check/2026-10-29/attempt-5/`.
+- [x] Save private baseline evidence under `.data/live-check/2026-10-29/attempt-5/`.
   Verify stopped server, existing credentials/trust, approved revision 3, four
   failed attempts and 65 usage records. Record exact approval and implementation
   hash through the operator CLI. Never reset or clone the session.
-- [ ] Run the production qualifier once with the existing TLS trust bundle.
+- [x] Run the production qualifier once with the existing TLS trust bundle.
   Maximum nine logical passes and two responses per pass; 4096 output tokens per
   response and the existing $2 session budget remain unchanged. Save validated
   responses/failure details privately. Assert four old attempts, both old grants,
   prior usage, requirements, playback approval and compiled brief are preserved.
-- [ ] Validate successful plan coverage, both rendered views, graph and runner
-  compatibility, then stop for separate human plan approval. On failure, report
+- [x] Complete the applicable outcome branch: for a successful plan, validate
+  coverage, both rendered views, graph and runner compatibility, then stop for
+  separate human plan approval. On failure, report
   the exact failed boundary and retained diagnostics. Verify attempt 6 is refused
   without provider/save. Update observed documentation and commit separately.
 
@@ -61,4 +62,61 @@ gates, local-only issuance and public audit redaction; no blocker was found. Cle
 reuses the existing operator CLI, settings, store and model adapter.
 The read-only live preflight confirmed
 revision 3, four consumed attempts, 65 usage records and $0.13261738 cumulative
-estimated spend against the unchanged $2 budget. No live call has been made yet.
+estimated spend against the unchanged $2 budget. That preflight made no live call.
+
+## Observed fifth-attempt result
+
+Implementation checkpoint: `8f51a9a`. The separate grant recorded the exact approval
+above and full implementation hash. One production qualifier invocation made one
+Super request. Its outline passed schema and Unicode validation, but deterministic
+acceptance failed with `Common rules miss constraints or exclusions`. L4 ("No login,
+network, backend, or sync") was missing from `common_rules`; all seven confirmed IDs
+were covered in specification. No outline section was accepted or active plan saved.
+
+Usage: 2,531 input tokens, 2,416 output tokens, 12,734 ms latency, estimated
+$0.00293370 new cost. Cumulative usage is 66 responses and $0.13555108. All three
+grants are consumed. Read-only postflight confirmed unchanged requirements,
+playback approval, brief, compiler count, four old attempts, both old grants and
+65 prior usage records. Attempt 6 is rejected before provider construction/save.
+
+Manual fidelity inspection found the architecture wrongly treats a missing saved
+value as a storage failure and disables first-use interaction. Common rules also
+assert a non-negative-integer restriction and per-tab storage keys without explicit
+source support. Adding the missing citation would not establish a faithful plan.
+
+## Offline repair follow-up
+
+The model adapter's two-response loop previously validated only the base response
+schema; `accept_outline` ran afterward. A schema-valid missing rule therefore
+terminated the attempt after one response. The correction wraps `OutlineProposal`
+with the existing deterministic validator for the current source ledger and adds
+`constraint_ledger_ids` to application-owned context and the outline prompt. Keep
+the post-call validator as a guard against non-adapter providers. No validation is
+removed, no source text is synthesized and no third response is possible.
+
+```text
+Outline response -> schema + source/coverage/dependency checks
+  valid -> accept outline
+  invalid -> one shared repair -> valid: accept / invalid: preserve failure
+```
+
+Eleven new mocked-HTTP regressions cover missing common rules/specification/choices,
+unknown citations, bad dependencies, repaired success, repeated rejection, retained
+usage and a schema failure followed by a semantic failure without a third response.
+The checklist test now checks confirmed constraint/non-goal IDs too. Before the
+correction, ten tests failed at the expected boundary; after it, all 139 focused
+planning/response/grant tests passed. Repair checkpoint `219b1eb` then passed a fresh
+full suite: 459 passed, one existing Windows symlink skip and one deprecation warning
+in 533.03 seconds. Ruff, whitespace checks and all 16 scripted demo evaluations
+passed; the demos made zero provider calls. Review/security inspection confirmed
+that source/citation/dependency validation and the response/budget limits are
+retained. Cleanup uses Pydantic validators and the existing adapter without a new
+retry loop or dependency. Read-only postflight confirms the raw live state is
+unchanged through the offline correction.
+
+This correction has no new live evidence and does not repair or replay attempt 5.
+No complete plan, rendered plan views or approved export was produced; those audits
+remain pending. Further live qualification needs separate human authorization.
+The two code checkpoints are local on `codex/fifth-live-planning`; no new push, PR,
+merge or release was requested or made. The retained checkout is clean after the
+documentation checkpoint that records this result.
