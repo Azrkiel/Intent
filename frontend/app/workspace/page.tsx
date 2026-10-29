@@ -13,16 +13,12 @@ import {
   Download,
   FileText,
   GitBranch,
-  Headphones,
   Layers3,
   LoaderCircle,
   MessageCircle,
   Mic,
   Plus,
   RotateCcw,
-  ShieldCheck,
-  SlidersHorizontal,
-  Sparkles,
   Square,
   Terminal,
   Volume2,
@@ -88,8 +84,7 @@ function QuestionCard({
     <div className={`question-card ${past ? "past" : ""}`}>
       <div className="question-eyebrow">
         <GitBranch size={13} />{" "}
-        {LENSES.find((lens) => lens.id === question.lens)?.name}
-        <span className="impact-badge">{question.impact} impact</span>
+        {LENSES.find((lens) => lens.id === question.lens)?.short}
       </div>
       <h3>{question.question}</h3>
       {!past && (
@@ -112,7 +107,7 @@ function QuestionCard({
       {!past && (
         <details className="question-why">
           <summary>
-            Why this changes the build <ChevronDown size={12} />
+            Why it matters <ChevronDown size={12} />
           </summary>
           <p>{question.code_diff}</p>
         </details>
@@ -138,14 +133,13 @@ function LedgerEntry({ item }: { item: LedgerItem }) {
       </div>
       <p>{item.text}</p>
       {item.source ? (
-        <div className="source-quote">
-          “{item.source}” <span>· turn {item.turn}</span>
-        </div>
-      ) : (
-        <div className="source-quote no-source">
-          No user quote · needs confirmation
-        </div>
-      )}
+        <details className="source-details">
+          <summary>Source</summary>
+          <div className="source-quote">
+            “{item.source}” <span>· turn {item.turn}</span>
+          </div>
+        </details>
+      ) : null}
     </article>
   );
 }
@@ -451,13 +445,6 @@ export default function Home() {
             INTENT<span className="brand-period">.</span>
           </span>
         </a>
-        <div className="workspace-label">
-          <span className="workspace-avatar">I</span>
-          <div>
-            Personal workspace<span>Local · on your machine</span>
-          </div>
-          <ChevronDown size={13} />
-        </div>
         <button
           className="new-session"
           onClick={newSession}
@@ -465,89 +452,45 @@ export default function Home() {
           aria-label="New intent"
         >
           <Plus size={17} />
-          New intent<span>↗</span>
+          New intent
         </button>
-        <div className="sidebar-heading">WORKSPACE</div>
-        <button
-          className={`sidebar-link ${view === "clarify" ? "active" : ""}`}
-          aria-label="Conversation"
-          aria-current={view === "clarify" ? "page" : undefined}
-          onClick={() => setView("clarify")}
-        >
-          <MessageCircle size={16} />
-          Conversation
-          <ChevronDown size={12} />
-        </button>
-        <button
-          className={`sidebar-link ${view === "brief" ? "active" : ""}`}
-          aria-label="Build brief"
-          aria-current={view === "brief" ? "page" : undefined}
-          onClick={() => setView("brief")}
-          disabled={!hasTurns}
-        >
-          <FileText size={16} />
-          Build brief{session?.brief && <span className="tiny-dot" />}
-        </button>
-        <button
-          className={`sidebar-link ${view === "build" ? "active" : ""}`}
-          aria-label="Build output"
-          aria-current={view === "build" ? "page" : undefined}
-          onClick={() => setView("build")}
-          disabled={!hasTurns}
-        >
-          <Code2 size={16} />
-          Build output
-        </button>
-        <div className="sidebar-heading recent-heading">RECENT INTENTS</div>
-        <div className="history">
-          {history
-            .filter((item) => item.title !== "Untitled idea")
-            .slice(0, 5)
-            .map((item) => (
-              <button
-                key={item.id}
-                className={item.id === session?.id ? "selected" : ""}
-                disabled={busy}
-                onClick={() => loadSession(item.id)}
-              >
-                <span className="history-dot" />
-                <span>{item.title}</span>
-              </button>
-            ))}
-          {!history.some((item) => item.title !== "Untitled idea") && (
-            <p>A clean slate. Make it count.</p>
-          )}
-        </div>
-        <div className="sidebar-bottom">
-          <div className="model-note">
-            <span className="model-symbol">N</span>
-            <div>
-              Powered by Nemotron<span>Nano · Super · Ultra</span>
+        {history.some((item) => item.title !== "Untitled idea") && (
+          <>
+            <div className="sidebar-heading recent-heading">Recent</div>
+            <div className="history">
+              {history
+                .filter((item) => item.title !== "Untitled idea")
+                .slice(0, 5)
+                .map((item) => (
+                  <button
+                    key={item.id}
+                    className={item.id === session?.id ? "selected" : ""}
+                    disabled={busy}
+                    onClick={() => loadSession(item.id)}
+                  >
+                    <span className="history-dot" />
+                    <span>{item.title}</span>
+                  </button>
+                ))}
             </div>
-            <span className="tiny-dot" />
-          </div>
-          <div className="sidebar-foot">
-            <span>Built with intent.</span>
-            <Headphones size={14} />
-          </div>
-        </div>
+          </>
+        )}
       </aside>
 
       <div className="main-shell">
         <header className="topbar">
           <div className="breadcrumb">
-            <Layers3 size={15} />
-            <span>Workspace</span>
-            <span className="slash">/</span>
-            <strong>New build</strong>
+            <strong>Workspace</strong>
           </div>
           <div className="topbar-actions">
             <span
-              className={`mode-badge ${health?.mode === "live" ? "live" : ""}`}
+              className={`mode-badge ${(session?.mode ?? health?.mode) === "live" ? "live" : ""}`}
             >
               <span />
-              {health
-                ? `${health.mode === "demo" ? "Demo" : "Live"} mode`
+              {session || health
+                ? (session?.mode ?? health?.mode) === "demo"
+                  ? "Demo"
+                  : "Live"
                 : "Connecting"}
             </span>
             <button
@@ -574,41 +517,14 @@ export default function Home() {
         </header>
 
         <main id="main" className="workspace">
-          <div className="page-heading">
-            <div>
-              <div className="eyebrow">
-                <span className="tiny-dot" />
-                LESS NOISE. MORE INTENT.
-              </div>
-              <h1>
-                Think it. Clarify it. <span>Build it.</span>
-              </h1>
-              <p>Close the gap between what you mean and what gets made.</p>
-            </div>
-            <div className="private-note">
-              <ShieldCheck size={16} />
-              <span>
-                {session?.mode === "demo" ? "Local demo" : "Local workspace"}
-                <small>
-                  {session?.mode === "demo"
-                    ? "No model calls or credits used"
-                    : "Saved locally · sent to Nemotron"}
-                </small>
-              </span>
-            </div>
-          </div>
+          <h1 className="sr-only">Intent workspace</h1>
 
           <nav className="stepper" aria-label="Build stages">
             {(
               [
-                ["clarify", "01", "Find the signal", hasTurns],
-                ["brief", "02", "Lock the brief", Boolean(session?.brief)],
-                [
-                  "build",
-                  "03",
-                  "Make it real",
-                  session?.build.status === "complete",
-                ],
+                ["clarify", "01", "Clarify", hasTurns],
+                ["brief", "02", "Brief", Boolean(session?.brief)],
+                ["build", "03", "Build", session?.build.status === "complete"],
               ] as const
             ).map(([id, number, label, completed], i) => (
               <div className="step-wrapper" key={id}>
@@ -626,9 +542,6 @@ export default function Home() {
                 {i < 2 && <span className="step-line" />}
               </div>
             ))}
-            <span className="session-meta">
-              {session?.questions.length || 0} decisions clarified
-            </span>
           </nav>
 
           {error && (
@@ -676,27 +589,22 @@ export default function Home() {
                   </span>
                   <h2>
                     {view === "clarify"
-                      ? "Signal / conversation"
+                      ? "Conversation"
                       : view === "brief"
-                        ? "Your build brief"
-                        : "The build workspace"}
+                        ? "Brief"
+                        : "Build"}
                   </h2>
                 </div>
                 {view === "clarify" ? (
                   <button
                     className="text-button"
+                    aria-expanded={transcriptOpen}
                     onClick={() => setTranscriptOpen(!transcriptOpen)}
                   >
                     <FileText size={13} />
-                    {transcriptOpen ? "Hide transcript" : "Raw transcript"}
+                    {transcriptOpen ? "Close transcript" : "Transcript"}
                   </button>
-                ) : (
-                  <span className="panel-caption">
-                    {session?.brief
-                      ? "Grounded in your words"
-                      : "A clear brief starts with a clear idea"}
-                  </span>
-                )}
+                ) : null}
               </div>
 
               {view === "clarify" && (
@@ -708,26 +616,18 @@ export default function Home() {
                     {!hasTurns ? (
                       <div className="welcome">
                         <div className="welcome-copy">
-                          <div className="welcome-kicker">
-                            <span /> YOUR NEXT MOVE STARTS HERE
-                          </div>
                           <h2>
-                            Big idea.
+                            What’s your
                             <br />
-                            <span>Zero drift.</span>
+                            <span>intent?</span>
                           </h2>
-                          <p>
-                            Bring the messy version. We’ll ask the right
-                            questions and turn it into a brief worth building.
-                          </p>
-                          <div className="welcome-promises">
-                            <span>
-                              <Check size={12} /> One question at a time
-                            </span>
-                            <span>
-                              <Check size={12} /> Every decision, grounded
-                            </span>
-                          </div>
+                          <button
+                            className="example-link"
+                            disabled={disabled}
+                            onClick={() => send(EXAMPLE)}
+                          >
+                            Try an example <ArrowRight size={14} />
+                          </button>
                         </div>
                         <div className="welcome-graphic">
                           <img
@@ -737,37 +637,10 @@ export default function Home() {
                             height={480}
                             fetchPriority="high"
                           />
-                          <span className="art-coordinate">
-                            FIG. 001 / PURPOSE IN MOTION
-                          </span>
-                          <span className="art-crosshair" aria-hidden="true">
-                            +
-                          </span>
                         </div>
-                        <button
-                          className="example-card"
-                          disabled={disabled}
-                          onClick={() => send(EXAMPLE)}
-                        >
-                          <span className="example-icon">
-                            <Sparkles size={17} />
-                          </span>
-                          <span>
-                            <small>TAKE IT FOR A SPIN / EXAMPLE IDEA</small>“A
-                            habit tracker, no login, synced across devices…”
-                          </span>
-                          <ArrowUp size={17} />
-                        </button>
                       </div>
                     ) : (
                       <>
-                        <div className="conversation-start">
-                          <Mark small />
-                          <p>
-                            I’ll turn your idea into a brief a coding agent can
-                            build from. Let’s start with what’s on your mind.
-                          </p>
-                        </div>
                         {session?.turns.map((turn) => {
                           const answered = session.questions.find(
                             (item) => item.turn === turn.number,
@@ -785,17 +658,8 @@ export default function Home() {
                               )}
                               <div className="user-message">
                                 <div>
-                                  <div className="message-label">
-                                    YOU{" "}
-                                    <span>
-                                      {turn.number === 1
-                                        ? "The starting idea"
-                                        : `Answer ${turn.number - 1}`}
-                                    </span>
-                                  </div>
                                   <p>{turn.text}</p>
                                 </div>
-                                <span className="user-avatar">K</span>
                               </div>
                             </div>
                           );
@@ -814,13 +678,10 @@ export default function Home() {
                           <div className="inline-playback">
                             <div>
                               <Volume2 size={15} />
-                              <strong>A quick check-in</strong>
+                              <strong>Review</strong>
                             </div>
                             <p>{session.playback.sentences.join(" ")}</p>
-                            <span>
-                              What did I get wrong? You can correct anything
-                              below.
-                            </span>
+                            <span>Corrections welcome.</span>
                           </div>
                         )}
                         {!busy && session?.gate.ready && (
@@ -829,16 +690,11 @@ export default function Home() {
                               <CheckCheck size={22} />
                             </span>
                             <div>
-                              <h3>We’ve got a clear picture.</h3>
-                              <p>
-                                The big decisions are covered. Let’s play it
-                                back before we build.
-                              </p>
                               <button
                                 onClick={() => action("playback")}
                                 disabled={busy}
                               >
-                                Review my understanding
+                                Review brief
                                 <ArrowRight size={15} />
                               </button>
                             </div>
@@ -859,8 +715,7 @@ export default function Home() {
                         )}
                         {!busy && session && !session.analysis_complete && (
                           <div className="analysis-warning">
-                            Your words are saved. Analysis needs to finish
-                            before the build gate can open.
+                            Analysis incomplete. Your answers are saved.
                             <button onClick={() => action("analyze")}>
                               Retry analysis <RotateCcw size={12} />
                             </button>
@@ -872,18 +727,14 @@ export default function Home() {
 
                   {transcriptOpen && (
                     <div className="raw-transcript">
-                      <div className="eyebrow">
-                        RAW TRANSCRIPT · BEFORE CLARIFICATION
-                      </div>
+                      <div className="eyebrow">Transcript</div>
                       {session?.turns.map((turn) => (
                         <p key={turn.number}>
                           <span>{String(turn.number).padStart(2, "0")}</span>
                           {turn.text}
                         </p>
                       ))}
-                      {!hasTurns && (
-                        <p>Your original words will appear here.</p>
-                      )}
+                      {!hasTurns && <p>No messages yet.</p>}
                     </div>
                   )}
                   <div className="composer-container">
@@ -902,10 +753,10 @@ export default function Home() {
                         rows={2}
                         placeholder={
                           listening
-                            ? "Listening… release the microphone when you’re done."
+                            ? "Listening…"
                             : hasTurns
-                              ? "Your answer, a correction, or something else on your mind…"
-                              : "What are we building? Drop your idea here…"
+                              ? "Your answer…"
+                              : "Describe your idea…"
                         }
                         onChange={(event) => setInput(event.target.value)}
                         onKeyDown={(event) => {
@@ -917,14 +768,6 @@ export default function Home() {
                       />
                       {interim && <div className="interim">{interim}</div>}
                       <div className="composer-toolbar">
-                        <div className="composer-hint">
-                          <span
-                            className={listening ? "recording-dot" : "tiny-dot"}
-                          />
-                          {listening
-                            ? "Listening — your voice becomes editable text"
-                            : "Raw ideas welcome. Perfect prompts optional."}
-                        </div>
                         <div>
                           <button
                             className={`mic-button ${listening ? "recording" : ""}`}
@@ -980,11 +823,11 @@ export default function Home() {
                     <div className="composer-foot">
                       <span>
                         {session?.mode === "demo"
-                          ? "Demo responses are scripted. No model is running."
-                          : "Nemotron asks. You decide. The ledger remembers."}
+                          ? "Scripted demo · no model calls"
+                          : "Sent to Nemotron"}
                       </span>
                       <span>
-                        Enter to send <span className="keycap">↵</span>
+                        Enter <span className="keycap">↵</span>
                       </span>
                     </div>
                   </div>
@@ -996,16 +839,13 @@ export default function Home() {
                   {!session?.playback && !session?.brief ? (
                     <div className="review-empty">
                       <FileText size={32} />
-                      <h2>A brief built from understanding.</h2>
-                      <p>
-                        Answer the build-changing questions, then review a
-                        playback of your idea.
-                      </p>
+                      <h2>Clarify your idea first.</h2>
+
                       <button
                         className="primary-button"
                         onClick={() => setView("clarify")}
                       >
-                        Back to the conversation
+                        Continue
                         <ArrowRight size={15} />
                       </button>
                     </div>
@@ -1015,9 +855,9 @@ export default function Home() {
                         <div className="playback-card">
                           <div className="eyebrow">
                             <Volume2 size={14} />
-                            LET’S MAKE SURE THIS SOUNDS LIKE YOU
+                            Review
                           </div>
-                          <h2>Here’s what I heard.</h2>
+                          <h2>Your brief.</h2>
                           {session.playback.sentences.map((sentence, i) => (
                             <p key={i}>{sentence}</p>
                           ))}
@@ -1043,7 +883,7 @@ export default function Home() {
                                   );
                                 }}
                               >
-                                Make a correction
+                                Edit
                               </button>
                               <button
                                 className="primary-button"
@@ -1055,7 +895,7 @@ export default function Home() {
                                 ) : (
                                   <Check size={15} />
                                 )}
-                                Approve & compile brief
+                                Approve brief
                               </button>
                             </div>
                           )}
@@ -1066,7 +906,6 @@ export default function Home() {
                           <div className="spec-header">
                             <div>
                               <span className="eyebrow">CLAUDE.md</span>
-                              <h3>From your words to a buildable brief.</h3>
                             </div>
                             <a
                               className="secondary-button"
@@ -1081,7 +920,7 @@ export default function Home() {
                             <div>
                               <div className="comparison-title">
                                 <MessageCircle size={14} />
-                                What you said
+                                Your words
                               </div>
                               {session.turns.map((turn) => (
                                 <p
@@ -1098,10 +937,7 @@ export default function Home() {
                             <div>
                               <div className="comparison-title">
                                 <FileText size={14} />
-                                What gets built
-                                <span className="citation-note">
-                                  Every line has a source
-                                </span>
+                                Brief
                               </div>
                               {session.brief.lines.map((line, index) => (
                                 <div className="spec-line" key={index}>
@@ -1131,13 +967,10 @@ export default function Home() {
                           </div>
                           <div className="build-cta">
                             <div>
-                              <strong>
-                                The brief is ready for Claude Code.
-                              </strong>
                               <span>
                                 {session.mode === "demo"
-                                  ? "Demo mode will show a prebuilt example, without running the agent."
-                                  : "Creates files in a separate local build directory."}
+                                  ? "Prebuilt demo · no agent run"
+                                  : "Builds locally with Claude Code"}
                               </span>
                             </div>
                             <button
@@ -1151,7 +984,7 @@ export default function Home() {
                             >
                               <Code2 size={16} />
                               {session.mode === "demo"
-                                ? "Preview demo handoff"
+                                ? "Preview demo"
                                 : "Build with Claude Code"}
                               <ArrowRight size={15} />
                             </button>
@@ -1181,19 +1014,15 @@ export default function Home() {
                   {session?.build.status === "idle" ? (
                     <div className="review-empty">
                       <Code2 size={32} />
-                      <h2>Clarity comes before code.</h2>
-                      <p>
-                        Approve and compile your brief to hand it to Claude
-                        Code.
-                      </p>
+                      <h2>Approve your brief first.</h2>
+
                       <button
                         className="primary-button"
                         onClick={() =>
                           setView(session?.brief ? "brief" : "clarify")
                         }
                       >
-                        Back to{" "}
-                        {session?.brief ? "the brief" : "the conversation"}
+                        {session?.brief ? "Brief" : "Clarify"}
                         <ArrowRight size={15} />
                       </button>
                     </div>
@@ -1203,15 +1032,15 @@ export default function Home() {
                         <div>
                           <div className="eyebrow">
                             {session?.build.demo
-                              ? "PREBUILT DEMO FIXTURE"
+                              ? "PREBUILT DEMO"
                               : "CLAUDE CODE · LOCAL RUN"}
                           </div>
                           <h2>
                             {session?.build.status === "running"
-                              ? "Bringing the brief to life…"
+                              ? "Building…"
                               : session?.build.status === "failed"
-                                ? "The build needs attention."
-                                : "Something you can try."}
+                                ? "Build failed."
+                                : "Build ready."}
                           </h2>
                         </div>
                         {session?.build.status === "running" ? (
@@ -1258,9 +1087,8 @@ export default function Home() {
                               sandbox="allow-scripts"
                             />
                             <p className="muted-note">
-                              The embedded preview blocks network access and
-                              browser storage. Download the HTML to run it
-                              separately.
+                              Preview blocks network and storage. Download to
+                              run locally.
                             </p>
                           </>
                         )}
@@ -1280,27 +1108,13 @@ export default function Home() {
               )}
             </section>
 
-            <aside className="ledger-panel">
+            <aside className="ledger-panel" aria-labelledby="vision-title">
               <div className="panel-header">
-                <div>
-                  <span className="panel-icon">
-                    <Layers3 size={16} />
-                  </span>
-                  <h2>Intent ledger</h2>
-                </div>
-                <span className="live-indicator">
-                  <span />
-                  {session?.mode === "demo"
-                    ? "DEMO"
-                    : health
-                      ? "LIVE"
-                      : "OFFLINE"}
-                </span>
+                <h2 id="vision-title">Vision</h2>
               </div>
-              <p className="ledger-description">Your words. A sharper plan.</p>
               <div className="understanding">
                 <div>
-                  <span>BUILD READINESS</span>
+                  <span>Clarity</span>
                   <strong>
                     {session?.gate.percent || 0}
                     <small>%</small>
@@ -1309,145 +1123,119 @@ export default function Home() {
                 <div
                   className="meter"
                   role="progressbar"
-                  aria-label="Understanding"
+                  aria-label="Clarity"
                   aria-valuenow={session?.gate.percent || 0}
                   aria-valuemin={0}
                   aria-valuemax={100}
                 >
-                  <span style={{ width: `${session?.gate.percent || 0}%` }} />
+                  <span style={{ width: (session?.gate.percent || 0) + "%" }} />
                 </div>
-                <p>
-                  {session?.gate.ready
-                    ? "The big questions are covered. Ready for your review."
-                    : hasTurns
-                      ? `${session?.gate.filled.length || 0} of 6 essentials clarified. Getting the details right.`
-                      : "A clearer picture with every answer."}
-                </p>
-                <div className="slots">
-                  {(Object.keys(SLOT_LABELS) as Slot[]).map((slot) => (
-                    <span
-                      key={slot}
-                      className={
-                        session?.gate.filled.includes(slot) ? "filled" : ""
-                      }
-                    >
-                      {session?.gate.filled.includes(slot) ? (
-                        <Check size={11} />
-                      ) : (
-                        <Circle size={9} />
-                      )}
-                      {SLOT_LABELS[slot]}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div
-                className="ledger-tabs"
-                role="group"
-                aria-label="Filter ledger"
-              >
-                {[
-                  ["all", "All", session?.ledger.length || 0],
-                  ["confirmed", "Confirmed", confirmed],
-                  [
-                    "open",
-                    "To clarify",
-                    (session?.ledger.length || 0) - confirmed,
-                  ],
-                ].map(([id, label, count]) => (
-                  <button
-                    key={id}
-                    onClick={() => setFilter(String(id))}
-                    className={filter === id ? "active" : ""}
-                    aria-pressed={filter === id}
-                  >
-                    {label}
-                    <span>{count}</span>
-                  </button>
-                ))}
-              </div>
-              <div className="ledger-items">
-                {filteredLedger.length ? (
-                  filteredLedger.map((item) => (
-                    <LedgerEntry item={item} key={item.id} />
-                  ))
-                ) : (
-                  <div className="ledger-empty">
-                    <div className="ledger-placeholder">
-                      <span />
-                      <span />
-                      <span />
-                    </div>
-                    <strong>
-                      {hasTurns
-                        ? "Nothing in this view yet."
-                        : "No assumptions. Just your intent."}
-                    </strong>
-                    <p>
-                      {hasTurns
-                        ? "Confirmed decisions and open details will appear as you talk."
-                        : "Your goals, decisions, and open questions appear here as we find the signal."}
-                    </p>
+                <details className="vision-details">
+                  <summary>
+                    Details <ChevronDown size={12} />
+                  </summary>
+                  <div className="slots">
+                    {(Object.keys(SLOT_LABELS) as Slot[]).map((slot) => (
+                      <span
+                        key={slot}
+                        className={
+                          session?.gate.filled.includes(slot) ? "filled" : ""
+                        }
+                      >
+                        {session?.gate.filled.includes(slot) ? (
+                          <Check size={11} />
+                        ) : (
+                          <Circle size={9} />
+                        )}
+                        {SLOT_LABELS[slot]}
+                      </span>
+                    ))}
                   </div>
-                )}
+                </details>
               </div>
-              <div className="lenses-section">
-                <div className="lenses-heading">
-                  <span>
-                    <SlidersHorizontal size={13} />
-                    SIX PERSPECTIVES, ONE QUESTION
-                  </span>
-                  {busy && <LoaderCircle size={12} className="spin" />}
-                </div>
-                <div className="lens-grid">
-                  {LENSES.map((lens) => (
-                    <span
-                      key={lens.id}
-                      className={
-                        lensStates[lens.id] ||
-                        (session?.analysis_complete ? "done" : "")
-                      }
-                      title={lens.name}
-                    >
-                      {lensStates[lens.id] === "done" ||
-                      session?.analysis_complete ? (
-                        <Check size={11} />
-                      ) : (
-                        <Circle size={9} />
-                      )}
-                      {lens.short}
-                    </span>
-                  ))}
-                </div>
-                <button
-                  className="ranking-button"
-                  onClick={() => rankingDialog.current?.showModal()}
-                  disabled={!hasTurns}
-                >
-                  <GitBranch size={13} />
-                  See why this question comes next
-                  <ArrowRight size={12} />
-                </button>
-              </div>
-              <div className="ledger-footer">
-                <ShieldCheck size={13} />
-                <span>No quote, no confirmed requirement.</span>
-              </div>
+              {hasTurns && (
+                <>
+                  <div
+                    className="ledger-tabs"
+                    role="group"
+                    aria-label="Filter vision"
+                  >
+                    {[
+                      ["all", "All", session?.ledger.length || 0],
+                      ["confirmed", "Confirmed", confirmed],
+                      [
+                        "open",
+                        "Open",
+                        (session?.ledger.length || 0) - confirmed,
+                      ],
+                    ].map(([id, label, count]) => (
+                      <button
+                        key={id}
+                        onClick={() => setFilter(String(id))}
+                        className={filter === id ? "active" : ""}
+                        aria-pressed={filter === id}
+                      >
+                        {label}
+                        <span>{count}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="ledger-items">
+                    {filteredLedger.length ? (
+                      filteredLedger.map((item) => (
+                        <LedgerEntry item={item} key={item.id} />
+                      ))
+                    ) : (
+                      <p className="ledger-empty">No matches.</p>
+                    )}
+                  </div>
+                  <div className="lenses-section">
+                    <div className="lenses-heading">
+                      <span>Angles</span>
+                      {busy && <LoaderCircle size={12} className="spin" />}
+                    </div>
+                    <div className="lens-grid">
+                      {LENSES.map((lens) => (
+                        <span
+                          key={lens.id}
+                          className={
+                            lensStates[lens.id] ||
+                            (session?.analysis_complete ? "done" : "")
+                          }
+                          title={lens.name}
+                        >
+                          {lensStates[lens.id] === "done" ||
+                          session?.analysis_complete ? (
+                            <Check size={11} />
+                          ) : (
+                            <Circle size={9} />
+                          )}
+                          {lens.short}
+                        </span>
+                      ))}
+                    </div>
+                    {session?.current_question && (
+                      <button
+                        className="ranking-button"
+                        onClick={() => rankingDialog.current?.showModal()}
+                      >
+                        <GitBranch size={13} />
+                        Why this question?
+                        <ArrowRight size={12} />
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
             </aside>
           </div>
           <footer className="workspace-footer">
-            <span>
-              <Mark small />
-              Built on clarity. Driven by intent.
-            </span>
-            <span>
-              {session?.mode === "demo"
-                ? "DETERMINISTIC DEMO"
-                : "NEMOTRON → CLAUDE CODE"}
-              <span className="footer-divider">/</span>
-              {session?.usage.length || 0} calls · $
-              {session?.estimated_usd.toFixed(3) || "0.000"} est.
-            </span>
+            {session?.mode === "live" && hasTurns && (
+              <span>
+                {session.usage.length} calls · {"$"}
+                {session.estimated_usd.toFixed(3)} est.
+              </span>
+            )}
           </footer>
         </main>
       </div>
@@ -1455,8 +1243,7 @@ export default function Home() {
       <dialog className="ranking-dialog" ref={rankingDialog}>
         <div className="dialog-header">
           <div>
-            <div className="eyebrow">GAP → RANK → ASK</div>
-            <h2>One question. A reason to ask it.</h2>
+            <h2>Angles</h2>
           </div>
           <button
             className="icon-button"
@@ -1466,14 +1253,15 @@ export default function Home() {
             <X size={20} />
           </button>
         </div>
-        <p className="dialog-intro">
-          Impact = code divergence × uncertainty × cost to change later. Each
-          factor is 1–3. Questions with divergence 1 are dropped.
-        </p>
-        {session?.mode === "demo" && (
-          <p className="demo-notice">
-            Scripted demo scores · not a live model evaluation
+        <details className="ranking-method">
+          <summary>Scoring</summary>
+          <p>
+            Impact = code divergence × uncertainty × cost to change. Each factor
+            is 1–3. Divergence 1 is excluded.
           </p>
+        </details>
+        {session?.mode === "demo" && (
+          <p className="demo-notice">Scripted demo scores</p>
         )}
         <div className="ranked-list">
           {session?.candidates.map((question, index) => (
@@ -1533,7 +1321,7 @@ export default function Home() {
           className="secondary-button"
           onClick={() => rankingDialog.current?.close()}
         >
-          Back to the conversation
+          Close
           <ArrowDown size={14} />
         </button>
       </dialog>
