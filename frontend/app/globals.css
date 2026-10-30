@@ -713,18 +713,6 @@
   margin: 15px 0 10px;
   color: var(--text);
 }
-.plan-document {
-  margin: 0;
-  padding: 22px;
-  background: #f6f8f3;
-  color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  font: 16px/1.8 var(--mono);
-  overflow: auto;
-  max-height: 65vh;
-  white-space: pre;
-}
 .plan-empty {
   padding: 55px 25px;
   text-align: center;
@@ -758,9 +746,6 @@
 @media (max-width: 700px) {
   .plan-panel {
     padding: 20px 14px;
-  }
-  .plan-document {
-    padding: 14px;
   }
 }
 * {
@@ -924,23 +909,6 @@ svg {
 }
 .icon-button:hover {
   background: var(--paper);
-}
-.stepper {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  border-bottom: 1px solid var(--line);
-  padding: 17px 0;
-  margin-bottom: 25px;
-}
-.step-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-}
-.step-line {
-  width: 33px;
-  border-top: 1px solid var(--line);
 }
 .panel-header {
   display: flex;
@@ -1667,38 +1635,6 @@ html {
   color: var(--muted);
   font-size: 14px;
   letter-spacing: 1.5px;
-}
-.stepper,
-.step-wrapper {
-  gap: 18px;
-}
-.step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  padding: 0;
-  font-size: 15px;
-  min-height: 30px;
-}
-.step-number {
-  font: 14px var(--mono);
-  border: 1px solid var(--line);
-  display: grid;
-  place-items: center;
-  border-radius: 1px;
-  height: 25px;
-  width: 25px;
-  flex-shrink: 0;
-}
-.step.current {
-  font-weight: 550;
-  color: var(--green);
-}
-.current > .step-number {
-  background: var(--green);
-  border-color: var(--green);
-  color: var(--bg);
 }
 .workspace-grid {
   display: grid;
@@ -2593,13 +2529,6 @@ summary:focus-visible {
     margin-right: -15px;
     margin-left: -35px;
   }
-  .stepper,
-  .step-wrapper {
-    gap: 12px;
-  }
-  .step-line {
-    width: 20px;
-  }
   .comparison {
     grid-template-columns: 1fr;
   }
@@ -2742,31 +2671,6 @@ summary:focus-visible {
   }
   .workspace {
     padding: 25px 14px 0;
-  }
-  .stepper {
-    gap: 8px;
-    padding: 12px 0;
-    margin-bottom: 18px;
-  }
-  .step-wrapper {
-    flex: 1;
-    gap: 0;
-  }
-  .step {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 7px;
-    font-size: 14px;
-    text-align: left;
-    line-height: 1.5;
-  }
-  .step-number {
-    width: 22px;
-    height: 22px;
-    font-size: 14px;
-  }
-  .step-line {
-    display: none;
   }
   .panel-header {
     padding: 12px;
@@ -3448,8 +3352,7 @@ summary:focus-visible {
 .graph-workspace-page {
   padding-top: 16px;
 }
-.graph-workspace-page > .page-heading,
-.graph-workspace-page > .stepper {
+.graph-workspace-page > .page-heading {
   display: none;
 }
 .graph-workspace-page .plan-panel {
@@ -3553,7 +3456,6 @@ summary:focus-visible {
 .discussion-mode,
 .discussion-empty,
 .discussion-reply,
-.plan-document,
 .execution-code {
   background: var(--raised);
 }

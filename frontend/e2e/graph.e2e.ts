@@ -78,7 +78,7 @@ test("the current project page exposes discussions and editable graph notes befo
     page.getByRole("heading", { name: "See the plan. Shape every part." }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Graph & notes", exact: true })
+    .getByRole("button", { name: "Notes", exact: true })
     .click();
   await expect(
     page.getByRole("navigation", { name: "Vault notes" }),
@@ -87,8 +87,7 @@ test("the current project page exposes discussions and editable graph notes befo
     page.getByRole("button", { name: "New note", exact: true }),
   ).toBeEnabled();
   await page
-    .getByRole("button", { name: "Project graph", exact: true })
-    .last()
+    .getByRole("button", { name: "Graph", exact: true })
     .click();
   await expect(
     page.getByRole("button", { name: "Ask about this", exact: true }),
@@ -138,7 +137,7 @@ test("generated plan, discussion, linked Markdown, autosave and reload share the
     fullPage: true,
   });
   await page
-    .getByRole("button", { name: "Graph & notes", exact: true })
+    .getByRole("button", { name: "Notes", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Add phase plan", exact: true })
@@ -183,7 +182,7 @@ test("generated plan, discussion, linked Markdown, autosave and reload share the
   await page.reload();
   await nav.getByRole("button", { name: "Project graph", exact: true }).click();
   await page
-    .getByRole("button", { name: "Graph & notes", exact: true })
+    .getByRole("button", { name: "Notes", exact: true })
     .click();
   await expect(
     page
@@ -211,7 +210,7 @@ test("generated plan, discussion, linked Markdown, autosave and reload share the
     fullPage: true,
   });
   await page
-    .getByRole("button", { name: "Graph & notes", exact: true })
+    .getByRole("button", { name: "Notes", exact: true })
     .click();
   await expect(
     page.getByRole("group", { name: /^Interactive graph\./ }),
@@ -242,7 +241,7 @@ test("mobile Markdown graphs have room to explore beside the workspace navigatio
     .getByRole("button", { name: "Project graph", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Graph & notes", exact: true })
+    .getByRole("button", { name: "Notes", exact: true })
     .click();
   const canvas = page.getByRole("group", { name: /^Interactive graph\./ });
   await expect
