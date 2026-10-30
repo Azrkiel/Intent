@@ -22,9 +22,10 @@ to sign in with GitHub.
 
 ## Demo
 
-[![Intent: Build what you mean](docs/demo/poster.jpg)](docs/demo/README.md)
+[![Intent: Build what you mean](docs/demo/poster.jpg)](https://youtu.be/0mPJ-S5aAq4)
 
-[Watch the 2:20 demo](docs/demo/README.md) (silent and music versions). At **1:28** it
+[Watch the 2:20 demo on YouTube](https://youtu.be/0mPJ-S5aAq4) (MP4 copies are in
+[`docs/demo`](docs/demo/README.md)). At **1:28** it
 shows the Token Factory endpoint and Nemotron routing; at **1:38** how the orchestrator
 validates model output and gates the build; at **1:46** the saved result of a live
 Nano + Super clarification turn; at **1:58** the request timeline from the redacted API
