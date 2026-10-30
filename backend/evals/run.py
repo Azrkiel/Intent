@@ -103,17 +103,27 @@ async def run_case(fixture, settings, models, store, strategy, clarity_version=1
     }
 
 
-async def run(demo, output, clarity_version=1):
+async def run(demo, output, clarity_version=1, max_total_usd=None, fixture_ids=None, strategies=None):
     settings = Settings(mode="demo" if demo else "live")
     if not demo and not (settings.nebius_api_key and settings.nebius_api_key.get_secret_value()):
         raise SystemExit("Live evaluation needs NEBIUS_API_KEY. --demo checks plumbing only.")
     models = DemoModels() if demo else LiveModels(settings)
     results = []
+    stopped = None
+    session_cap = settings.session_budget_usd
+    fixtures = [f for f in load_fixtures() if not fixture_ids or f["id"] in fixture_ids]
     try:
         with tempfile.TemporaryDirectory(prefix="prompt-caller-eval-") as folder:
             store = Store(str(Path(folder) / "eval.sqlite3"))
-            for strategy in ["lenses", "single"]:
-                for fixture in load_fixtures():
+            for strategy in strategies or ["lenses", "single"]:
+                for fixture in fixtures:
+                    if max_total_usd is not None:
+                        # Hard cap: each session may spend only what the whole run has left.
+                        remaining = max_total_usd - sum(r["estimated_usd"] for r in results)
+                        if remaining < 0.05:
+                            stopped = f"Stopped before {strategy}/{fixture['id']}: ${max_total_usd} cap."
+                            break
+                        settings.session_budget_usd = min(session_cap, remaining)
                     result = await run_case(fixture, settings, models, store, strategy, clarity_version)
                     results.append(result)
                     print(
@@ -121,6 +131,8 @@ async def run(demo, output, clarity_version=1):
                         f"questions={result['questions_to_ready']} calls={result['calls']} "
                         f"cost=${result['estimated_usd']:.4f}"
                     )
+                if stopped:
+                    break
     finally:
         await models.close()
     report = {
@@ -131,6 +143,9 @@ async def run(demo, output, clarity_version=1):
         else "Keyword hits are only a screening proxy. Manually score each planted ambiguity "
         "and semantic invented requirement using the saved questions, ledger and brief.",
         "clarity_version": clarity_version,
+        "max_total_usd": max_total_usd,
+        "estimated_total_usd": sum(r["estimated_usd"] for r in results),
+        "stopped": stopped,
         "comparison": "Same extractor, ranker, slot fallback, compiler and verifier for both strategies. "
         "Six critics (up to 18 candidates/turn) vs one general critic (up to 3/turn). "
         "Model-call and candidate budgets differ; report cost alongside quality.",
@@ -145,9 +160,12 @@ async def run(demo, output, clarity_version=1):
     turns = [result["questions_to_ready"] for result in results if result["questions_to_ready"] is not None]
     print(
         f"\n{report['notice']}\nPipeline completions: {ready_counts}/{len(results)}. "
-        f"Mean questions: {statistics.mean(turns) if turns else 'n/a'}.\nSaved {path.resolve()}"
+        f"Mean questions: {statistics.mean(turns) if turns else 'n/a'}. "
+        f"Estimated cost: ${report['estimated_total_usd']:.4f}.\nSaved {path.resolve()}"
     )
-    if any(result["error"] or not result["ready"] for result in results):
+    if stopped:
+        print(stopped)
+    if stopped or any(result["error"] or not result["ready"] for result in results):
         raise SystemExit(1)
 
 
@@ -156,5 +174,10 @@ if __name__ == "__main__":
     parser.add_argument("--demo", action="store_true", help="Test plumbing only; makes no API calls.")
     parser.add_argument("--output", default=".data/evals/latest.json")
     parser.add_argument("--clarity-version", type=int, choices=[1, 2], default=1)
+    parser.add_argument("--max-total-usd", type=float, help="Stop the run at this estimated total spend.")
+    parser.add_argument("--fixture", action="append", dest="fixtures", help="Fixture id; repeatable.")
+    parser.add_argument("--strategy", action="append", dest="strategies", choices=["lenses", "single"])
     args = parser.parse_args()
-    asyncio.run(run(args.demo, args.output, args.clarity_version))
+    asyncio.run(run(
+        args.demo, args.output, args.clarity_version, args.max_total_usd, args.fixtures, args.strategies
+    ))

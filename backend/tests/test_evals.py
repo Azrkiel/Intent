@@ -28,3 +28,23 @@ def test_evaluation_reports_untraceable_lines_instead_of_silently_calling_them_v
         ]
     )
     assert unsupported_lines(session) == 1
+
+
+def test_run_cap_limits_each_session_to_the_remaining_total_and_stops(monkeypatch, tmp_path):
+    import asyncio
+
+    import pytest
+
+    from backend.evals import run as evals
+
+    budgets = []
+
+    async def fake_case(fixture, settings, models, store, strategy, clarity_version=1):
+        budgets.append(settings.session_budget_usd)
+        return {"fixture": fixture["id"], "ready": True, "error": None, "questions_to_ready": 1,
+                "calls": 1, "estimated_usd": 0.4}
+
+    monkeypatch.setattr(evals, "run_case", fake_case)
+    with pytest.raises(SystemExit):
+        asyncio.run(evals.run(True, str(tmp_path / "r.json"), max_total_usd=1.0, strategies=["lenses"]))
+    assert budgets == [1.0, pytest.approx(0.6), pytest.approx(0.2)]
