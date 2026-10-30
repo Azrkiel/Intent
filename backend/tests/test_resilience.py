@@ -57,6 +57,36 @@ async def test_invalid_critic_output_names_the_wrong_lens_and_unknown_targets(tm
     assert "lens data" in warning and "L99" in warning
 
 
+async def test_a_critic_with_invalid_targets_gets_one_corrective_retry(tmp_path):
+    # Live critics put code_diff's file paths in targets; one slip closed the whole pass.
+    class SlipsOnce(DemoModels):
+        calls = 0
+        feedback = None
+
+        async def call(self, session, role, schema, instruction, payload):
+            if role == "critic:edges":
+                self.calls += 1
+                if self.calls == 1:
+                    return schema(candidates=[Candidate(
+                        lens="edges", targets=["src/db/schema.sql"],
+                        question="Which empty state comes first?",
+                        options=["Show a hint", "Show nothing"],
+                        code_diff="Render an onboarding hint versus a blank list",
+                        divergence=3, uncertainty=2, cost_to_change=3,
+                    )])
+                self.feedback = payload.get("review_feedback")
+            return await super().call(session, role, schema, instruction, payload)
+
+    store = Store(str(tmp_path / "sessions.db"))
+    session = ready_session()
+    store.save(session)
+    models = SlipsOnce()
+    async for _ in Engine(store, models).analyze(session):
+        pass
+    assert models.calls == 2 and "src/db/schema.sql" in models.feedback
+    assert not any("edges" in warning for warning in store.get(session.id).warnings)
+
+
 @pytest.mark.parametrize("ranking_fails", [False, True])
 async def test_ranker_can_check_settled_answers_without_bypassing_failures(tmp_path, ranking_fails):
     class ContextAware(DemoModels):
