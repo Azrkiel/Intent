@@ -214,7 +214,7 @@ checks covered complete/blocked fixtures, identity, search, keyboard controls an
 mobile/desktop layout. The browser tool blocks `file://` navigation, so opening
 the exported viewer from disk with network disabled remains a manual check. No live
 provider call was made for this extension; original Phase 5 qualification remains
-incomplete. Checkpoints and limits are in the [current handoff](../.Codex/handoffs/2026-10-28-0843.md).
+incomplete. Checkpoints and limits are in the current handoff (session handoff 2026-10-28-0843, not retained).
 
 Planning uses Super through the existing model adapter and session budget. It does
 not consume another Ultra compiler pass. An attempt has an outline pass, up to
@@ -717,7 +717,7 @@ length-limited receives the existing single compacting repair and cannot silentl
 be accepted as complete. Budgets, token limits and attempt allowances are unchanged.
 Integrated simulated-HTTP tests cover planning through graph/views, runner preflight,
 preserved source/hash identity and gated export. These checks are not a new live pass;
-the retained session remains exhausted. See the [current handoff](../.Codex/handoffs/2026-10-28-0843.md).
+the retained session remains exhausted. See the current handoff (session handoff 2026-10-28-0843, not retained).
 
 Checkpoint `23acab5` passed 387 backend tests with one existing skip and warning,
 Ruff, 23 frontend tests, type checking, production build, and all 16 labeled demo
@@ -729,7 +729,7 @@ Graph sections now support cited questions, exact scoped direction, saved histor
 per-section drafts and optional dictation. These changes do not authorize a fifth
 planning attempt or establish live model quality. The retained live session still
 has four consumed attempts and no approved plan. See the
-[latest handoff](../.Codex/handoffs/2026-10-29-0035.md) for final checks and publication.
+latest handoff (session handoff 2026-10-29-0035, not retained) for final checks and publication.
 Offline verification passed 415 backend tests (one existing skip and warning), Ruff,
 31 frontend tests, type checking, production build and all 16 scripted demo runs.
 Isolated demo browser checks covered desktop/mobile, scoped questions and direction,

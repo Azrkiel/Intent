@@ -11,7 +11,7 @@ No previous attempt, response, approval or source was rewritten for this review.
 All seven attempts failed to produce a complete plan. Their boundaries were
 different; treating every failure as bad JSON or provider instability would hide
 the work needed. Raw artifacts remain private under `.data/live-check/`. The
-first handoff is [here](../../.Codex/handoffs/2026-10-29-1533.md).
+first handoff was session handoff 2026-10-29-1533 (not retained).
 
 ## Attempt-by-attempt findings
 

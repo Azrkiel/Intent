@@ -2,7 +2,7 @@
 
 Date: 2026-10-28 (America/New_York).
 Status: implemented; offline verification and publication are recorded in the
-[current handoff](../../.Codex/handoffs/2026-10-29-0035.md). The human authorized
+current handoff (session handoff 2026-10-29-0035, not retained). The human authorized
 "continue where you left off" and "finish the handoff and commit and PR everything".
 Worktree: `C:/Users/jiang/.codex/worktrees/phase-four/intent`.
 Baseline: `6bf9461`, branch `codex/phase-five-live-qualification`.

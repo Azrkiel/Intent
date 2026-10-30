@@ -81,4 +81,4 @@ session's raw SQLite bytes and all attempt/usage counts match the pre-change aud
 
 Published [PR #3](https://github.com/Azrkiel/Intent/pull/3) against `main` and attached
 it to the chat. Checkpoint details and remaining limits are in the
-[latest handoff](../../.Codex/handoffs/2026-10-29-0035.md). No merge or release occurred.
+latest handoff (session handoff 2026-10-29-0035, not retained). No merge or release occurred.
