@@ -242,93 +242,276 @@
 .processSection {
   width: var(--content);
   margin: 130px auto 0;
-  border-top: 1px solid var(--line);
-  padding-top: 80px;
+  border-top: 1px solid #485436;
+  padding: 55px 0 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 85px;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 70px;
   align-items: center;
+}
+.sectionEyebrow {
+  font: 400 13px/1.4 var(--mono);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--green);
 }
 .processVisual {
   min-width: 0;
+  position: relative;
+}
+.landing .processVisual h2 {
+  position: relative;
+  z-index: 2;
+  font-size: clamp(76px, 8vw, 118px);
+  line-height: 0.95;
+  letter-spacing: -2px;
+  margin: 30px 0 0;
 }
 .lakeArt {
-  margin: 30px -22px 0;
+  position: relative;
+  isolation: isolate;
+  margin: -100px -42px 0 0;
+  padding: 65px 0 25px;
+}
+.artOrbit {
+  position: absolute;
+  width: 66%;
+  aspect-ratio: 1;
+  top: 40px;
+  right: 5%;
+  border: 1px solid #40522b;
+  border-radius: 50%;
+  z-index: -1;
+}
+.artOrbit::before {
+  content: "";
+  position: absolute;
+  inset: 18px;
+  border: 13px solid var(--green);
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  transform: rotate(-25deg);
+}
+.artOrbit::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--green);
+  border-radius: 50%;
+  left: 8%;
+  bottom: 18%;
 }
 .lakeArt img {
   display: block;
   width: 100%;
   height: auto;
+  position: relative;
+  transition: transform 0.8s;
+}
+.lakeArt:hover img {
+  transform: translateY(-6px) rotate(-2deg);
 }
 .lakeArt figcaption {
-  color: var(--muted);
-  font: 13px var(--mono);
-  letter-spacing: 1.4px;
-  margin: 12px 22px 0;
+  color: var(--text);
+  font: 300 13px/1.4 var(--mono);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin: 0 0 0 5px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.lakeArt figcaption::before {
+  content: "";
+  width: 36px;
+  height: 1px;
+  background: var(--green);
+}
+.processFlow {
+  padding-top: 28px;
+  min-width: 0;
+}
+.processLead {
+  color: var(--text);
+  font: 200 26px/1.4 var(--display);
+  margin: 0 0 32px;
 }
 .steps {
   padding: 0;
-  margin: 30px 0 0;
+  margin: 0;
   list-style: none;
 }
 .steps > li {
-  display: flex;
-  align-items: flex-start;
-  gap: 22px;
-  border-top: 1px solid var(--line);
-  padding: 30px 0;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 20px;
+  border-top: 1px solid #3d4534;
+  padding: 27px 0;
+  position: relative;
+}
+.steps > li:last-child {
+  border-bottom: 1px solid #3d4534;
+}
+.steps > li::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 36px;
+  height: 2px;
+  background: var(--green);
+  transition: width 0.35s;
+}
+.steps > li:hover::before {
+  width: 100%;
 }
 .stepIndex {
-  font: 16px var(--mono);
+  font: 400 67px/1 var(--display);
+  letter-spacing: -2px;
+  color: transparent;
+  -webkit-text-stroke: 1px #6d7e58;
+}
+.steps > li:last-child .stepIndex {
   color: var(--green);
-  margin-top: 9px;
+  -webkit-text-stroke: 0;
 }
 .steps h3 {
-  font: 200 35px/1.15 var(--display);
-  letter-spacing: -0.15px;
+  font: 200 clamp(36px, 3.4vw, 50px)/1.1 var(--display);
+  letter-spacing: -0.6px;
 }
 .steps p {
-  font-size: 17px;
-  line-height: 1.9;
+  font-size: 16px;
+  line-height: 1.6;
   color: var(--text);
-  margin-top: 15px;
-  max-width: 365px;
+  margin-top: 10px;
+}
+.stepArrow {
+  color: #687359;
+}
+.steps > li:last-child .stepArrow {
+  color: var(--green);
+}
+.processLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 24px;
+  color: var(--green);
+  font-size: 17px;
+  margin-top: 26px;
+  padding: 10px 0;
+}
+.processLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 5px;
 }
 .faqSection {
   width: var(--content);
-  margin: 130px auto 0;
-  border-top: 1px solid var(--line);
-  padding-top: 80px;
+  margin: 120px auto 0;
   display: grid;
-  grid-template-columns: 0.85fr 1.15fr;
-  gap: 90px;
+  grid-template-columns: 0.82fr 1.18fr;
+  gap: 64px;
+  align-items: start;
 }
-.faqIntro > .secondaryAction {
+.faqIntro {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--green);
+  color: #10150b;
+  padding: 32px 34px;
+  min-height: 435px;
+  clip-path: polygon(0 0, calc(100% - 30px) 0, 100% 30px, 100% 100%, 0 100%);
+}
+.faqIntro .sectionEyebrow {
+  color: #263d11;
+}
+.landing .faqIntro h2 {
+  font-size: clamp(64px, 6.5vw, 94px);
+  letter-spacing: -1.8px;
+  line-height: 1.03;
+  margin: 34px 0 23px;
+}
+.faqDescription {
   font-size: 16px;
+  font-weight: 300;
+  line-height: 1.65;
+}
+.faqIntroArrow {
+  margin-top: 24px;
+}
+.faqMark {
+  position: absolute;
+  right: -12px;
+  bottom: -68px;
+  font: 500 350px/1 var(--display);
+  color: transparent;
+  -webkit-text-stroke: 1px #426b1b;
+  opacity: 0.35;
+  transform: rotate(12deg);
+  z-index: -1;
+}
+.faqList {
+  min-width: 0;
+  border-top: 1px solid #485436;
 }
 .faqList > details {
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid #3d4534;
+  transition: background 0.25s;
 }
-.faqList > details:first-child {
-  border-top: 1px solid var(--line);
+.faqList > details[open] {
+  background: #141b0f;
+  box-shadow: inset 2px 0 var(--green);
 }
 .faqList summary {
-  display: flex;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 40px;
   align-items: center;
-  gap: 18px;
+  gap: 20px;
   cursor: pointer;
   list-style: none;
-  padding: 26px 0;
-  font-size: 19px;
-  line-height: 1.6;
+  padding: 29px 16px;
+  font-size: clamp(23px, 2vw, 29px);
+  font-weight: 200;
+  line-height: 1.35;
+}
+.faqList summary:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 4px;
+}
+.faqNumber {
+  font: 300 13px/1 var(--mono);
+  letter-spacing: 1px;
+  color: var(--sage);
+}
+.faqQuestion {
+  transition: transform 0.25s;
+}
+.faqList summary:hover .faqQuestion {
+  transform: translateX(4px);
 }
 .faqList summary::-webkit-details-marker {
   display: none;
 }
 .faqList summary > svg {
-  margin-left: auto;
+  width: 40px;
+  height: 40px;
+  padding: 10px;
+  border: 1px solid #566d37;
+  border-radius: 50%;
   color: var(--green);
-  transition: transform 0.2s;
+  transition:
+    transform 0.25s,
+    background 0.25s,
+    color 0.25s;
+}
+.faqList summary:hover > svg,
+.faqList details[open] summary > svg {
+  color: #10150b;
+  background: var(--green);
+  border-color: var(--green);
 }
 .faqList details[open] summary > svg {
   transform: rotate(45deg);
@@ -339,9 +522,10 @@
 .faqList details > p {
   color: var(--text);
   font-size: 17px;
-  line-height: 1.95;
-  margin: -5px 30px 28px;
-  max-width: 520px;
+  line-height: 1.8;
+  margin: -5px 70px 0 62px;
+  padding-bottom: 29px;
+  max-width: 480px;
 }
 .finalSection {
   width: var(--content);
@@ -509,13 +693,13 @@
     font-size: 16px;
   }
   .processSection {
-    gap: 50px;
-  }
-  .steps h3 {
-    font-size: 31px;
+    gap: 40px;
   }
   .faqSection {
-    gap: 50px;
+    gap: 35px;
+  }
+  .faqIntro {
+    padding: 28px;
   }
   .footerTop {
     gap: 20px;
@@ -604,30 +788,48 @@
   }
   .processSection {
     margin-top: 85px;
-    padding-top: 60px;
-    gap: 35px;
+    padding-top: 40px;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .lakeArt {
+    width: 80%;
+    margin: -150px 0 0 auto;
+  }
+  .processFlow {
+    padding-top: 0;
   }
   .steps > li {
-    gap: 15px;
+    grid-template-columns: 80px minmax(0, 1fr) 28px;
+    gap: 20px;
     padding: 25px 0;
-  }
-  .steps h3 {
-    font-size: 29px;
-  }
-  .steps p {
-    font-size: 16px;
-  }
-  .steps {
-    margin-top: 5px;
   }
   .faqSection {
     margin-top: 85px;
-    padding-top: 60px;
-    grid-template-columns: 1fr;
-    gap: 40px;
+    grid-template-columns: 0.85fr 1.15fr;
+    gap: 24px;
   }
   .faqList summary {
-    font-size: 18px;
+    font-size: 23px;
+    grid-template-columns: 20px minmax(0, 1fr) 34px;
+    gap: 12px;
+    padding: 27px 12px;
+  }
+  .faqList summary > svg {
+    width: 34px;
+    height: 34px;
+    padding: 8px;
+  }
+  .faqList details > p {
+    margin-left: 44px;
+    margin-right: 25px;
+  }
+  .faqIntro {
+    min-height: 405px;
+    padding: 26px 22px;
+  }
+  .landing .faqIntro h2 {
+    font-size: clamp(46px, 8vw, 64px);
   }
   .finalSection {
     margin-top: 85px;
@@ -745,46 +947,80 @@
   }
   .processSection {
     margin-top: 75px;
-    padding-top: 55px;
+    padding-top: 30px;
     grid-template-columns: 1fr;
     gap: 25px;
   }
+  .landing .processVisual h2 {
+    font-size: clamp(72px, 20vw, 96px);
+    letter-spacing: -1.5px;
+    margin-top: 24px;
+  }
   .lakeArt {
-    margin: 20px -15px 0;
+    width: 100%;
+    margin: -70px -10px 0 0;
+    padding-top: 45px;
   }
   .lakeArt figcaption {
     font-size: 12px;
   }
-  .steps {
-    margin-top: 5px;
+  .artOrbit {
+    top: 30px;
+  }
+  .artOrbit::before {
+    inset: 12px;
+    border-width: 9px;
+  }
+  .processLead {
+    font-size: 24px;
+    margin-bottom: 24px;
   }
   .steps > li {
-    gap: 20px;
-    padding: 27px 0;
+    grid-template-columns: 61px minmax(0, 1fr) 24px;
+    gap: 16px;
+    padding: 24px 0;
   }
   .steps h3 {
-    font-size: 32px;
+    font-size: 38px;
   }
   .steps p {
-    font-size: 17px;
+    font-size: 16px;
   }
   .stepIndex {
-    font-size: 14px;
+    font-size: 56px;
   }
   .faqSection {
     margin-top: 75px;
-    padding-top: 55px;
-    gap: 35px;
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .faqIntro {
+    min-height: 340px;
+    padding: 27px;
+  }
+  .landing .faqIntro h2 {
+    font-size: 76px;
+    margin: 25px 0 20px;
+  }
+  .faqIntroArrow {
+    position: absolute;
+    right: 26px;
+    bottom: 28px;
+  }
+  .faqMark {
+    font-size: 320px;
+    right: 5px;
+    bottom: -58px;
   }
   .faqList summary {
-    font-size: 17px;
+    font-size: 24px;
     gap: 12px;
-    padding: 24px 0;
+    padding: 23px 12px;
   }
   .faqList details > p {
     font-size: 16px;
-    margin-left: 24px;
-    margin-right: 15px;
+    margin-left: 44px;
+    margin-right: 23px;
   }
   .finalSection {
     margin-top: 75px;
@@ -842,6 +1078,10 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .featureArt > img,
+  .lakeArt img,
+  .steps > li::before,
+  .faqList > details,
+  .faqQuestion,
   .faqList summary > svg,
   .primaryAction,
   .secondaryAction {
@@ -849,5 +1089,9 @@
   }
   .feature:hover .featureArt > img {
     transform: scale(var(--art-scale, 1));
+  }
+  .lakeArt:hover img,
+  .faqList summary:hover .faqQuestion {
+    transform: none;
   }
 }
