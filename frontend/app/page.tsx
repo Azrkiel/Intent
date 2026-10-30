@@ -65,8 +65,8 @@ function Brand({ footer = false }: { footer?: boolean }) {
         width={48}
         height={48}
       />
-      <span>
-        INTENT<span className={styles.brandDot}>.</span>
+      <span className={styles.wordmark}>
+        <img src="/brand/intent-wordmark.svg" alt="" width={386} height={200} />
       </span>
     </Link>
   );
@@ -163,12 +163,14 @@ export default function LandingPage() {
           aria-labelledby="process-title"
         >
           <div className={styles.processVisual}>
+            <p className={styles.sectionEyebrow}>01 / The process</p>
             <h2 id="process-title">
-              Idea to
+              Noise to
               <br />
-              <span>action.</span>
+              <span>signal.</span>
             </h2>
             <figure className={styles.lakeArt}>
+              <div className={styles.artOrbit} aria-hidden="true" />
               <img
                 src="/brand/dragonfly-set/dragonfly-lake-hover-transparent.webp"
                 alt="An engraved dragonfly hovering above water"
@@ -176,19 +178,38 @@ export default function LandingPage() {
                 height={512}
                 loading="lazy"
               />
+              <figcaption>A thought, taking shape.</figcaption>
             </figure>
           </div>
-          <ol className={styles.steps}>
-            {steps.map((step, index) => (
-              <li key={step.title}>
-                <span className={styles.stepIndex}>0{index + 1}</span>
-                <div>
-                  <h3>{step.title}</h3>
-                  <p>{step.text}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
+          <div className={styles.processFlow}>
+            <p className={styles.processLead}>
+              Big ideas.
+              <br />
+              Clear next moves.
+            </p>
+            <ol className={styles.steps}>
+              {steps.map((step, index) => (
+                <li key={step.title}>
+                  <span className={styles.stepIndex} aria-hidden="true">
+                    0{index + 1}
+                  </span>
+                  <div>
+                    <h3>{step.title}</h3>
+                    <p>{step.text}</p>
+                  </div>
+                  <ArrowUpRight
+                    className={styles.stepArrow}
+                    size={28}
+                    aria-hidden="true"
+                  />
+                </li>
+              ))}
+            </ol>
+            <Link href="/workspace" className={styles.processLink}>
+              Put your idea in motion{" "}
+              <ArrowUpRight size={20} aria-hidden="true" />
+            </Link>
+          </div>
         </section>
 
         <section
@@ -197,13 +218,35 @@ export default function LandingPage() {
           aria-labelledby="faq-title"
         >
           <div className={styles.faqIntro}>
-            <h2 id="faq-title">Questions.</h2>
+            <p className={styles.sectionEyebrow}>02 / A little clarity</p>
+            <h2 id="faq-title">
+              Good
+              <br />
+              questions.
+            </h2>
+            <p className={styles.faqDescription}>
+              A few things worth knowing
+              <br />
+              before you begin.
+            </p>
+            <ArrowUpRight
+              className={styles.faqIntroArrow}
+              size={48}
+              strokeWidth={1}
+              aria-hidden="true"
+            />
+            <span className={styles.faqMark} aria-hidden="true">
+              ?
+            </span>
           </div>
           <div className={styles.faqList}>
-            {questions.map((item) => (
+            {questions.map((item, index) => (
               <details key={item.question}>
                 <summary>
-                  <span>{item.question}</span>
+                  <span className={styles.faqNumber} aria-hidden="true">
+                    0{index + 1}
+                  </span>
+                  <span className={styles.faqQuestion}>{item.question}</span>
                   <Plus size={19} aria-hidden="true" />
                 </summary>
                 <p>{item.answer}</p>

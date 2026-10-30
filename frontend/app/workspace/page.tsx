@@ -506,23 +506,23 @@ export default function Home() {
       <aside className="sidebar">
         <a className="brand" href="/" aria-label="Intent home">
           <Mark />
-          <span>
-            INTENT<span className="brand-period">.</span>
+          <span className="brand-wordmark">
+            <img src="/brand/intent-wordmark.svg" alt="" width={386} height={200} />
           </span>
         </a>
         <button
           className="new-session"
           onClick={newSession}
           disabled={busy}
-          aria-label="New intent"
+          aria-label="New intention"
         >
           <Plus size={17} />
-          New intent
+          New intention
         </button>
         <nav className="workspace-nav" aria-label="Workspace">
           {(
             [
-              ["clarify", "Conversation", MessageCircle],
+              ["clarify", "Intentions", MessageCircle],
               ["brief", "Build brief", FileText],
               ["plan", "Project graph", GitBranch],
               ["execution", "Codex execution", Terminal],
@@ -549,7 +549,7 @@ export default function Home() {
         </nav>
         {history.some((item) => item.title !== "Untitled idea") && (
           <>
-            <div className="sidebar-heading recent-heading">Recent</div>
+            <div className="sidebar-heading recent-heading">Recent intentions</div>
             <div className="history">
               {history
                 .filter((item) => item.title !== "Untitled idea")
@@ -669,8 +669,8 @@ export default function Home() {
           )}
           {modeMismatch && (
             <div className="error-banner">
-              This conversation was recorded in {session?.mode} mode. Start a
-              new conversation to use {health?.mode} mode.
+              This intention was recorded in {session?.mode} mode. Start a new
+              intention to use {health?.mode} mode.
             </div>
           )}
 
@@ -685,7 +685,7 @@ export default function Home() {
                   </span>
                   <h2>
                     {view === "clarify"
-                      ? "Conversation"
+                      ? "Intentions"
                       : view === "brief"
                         ? "Brief"
                         : view === "plan"
@@ -717,9 +717,9 @@ export default function Home() {
                       <div className="welcome">
                         <div className="welcome-copy">
                           <h2>
-                            What’s your
+                            What’s in
                             <br />
-                            <span>intent?</span>
+                            <span>your mind?</span>
                           </h2>
                           <button
                             className="example-link"

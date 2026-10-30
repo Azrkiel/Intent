@@ -128,7 +128,7 @@ test("generated plan, discussion, linked Markdown, autosave and reload share the
     .fill("Why is this section needed?");
   await page.getByRole("button", { name: "Ask question", exact: true }).click();
   await expect(
-    page.getByRole("list", { name: "Section conversation" }),
+    page.getByRole("list", { name: "Section intentions" }),
   ).toContainText("Why is this section needed?");
   await expect(
     nav.getByRole("button", { name: "Project graph", exact: true }),
