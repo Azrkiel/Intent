@@ -193,3 +193,13 @@ def test_fatigue_signals_ignore_clicked_options():
     session.turns = session.turns[:3] + [Turn(number=4, text="Under 10 seconds")]
     session.questions = [AskedQuestion(question=option, answer="Under 10 seconds", turn=4)]
     assert not fatigued(session)
+
+
+def test_a_fragment_the_user_also_typed_still_needs_a_read_back():
+    turns = [
+        Turn(number=1, text="I read a lot"),
+        Turn(number=2, text="Save an article to read later", suggested=True),
+    ]
+    session = Session(turns=turns)
+    accept_drafted([passing(text="read")], session)
+    assert "job" not in session.readbacks

@@ -99,6 +99,7 @@ def test_veto_turns_a_default_into_a_question(tmp_path):
             json={"decision_id": "D-x", "revision": stored.revision},
         ).json()
         assert data["vetoes"][0]["id"] == "V1"
+        assert len(data["turns"]) == len(stored.turns)  # a veto is not the user's words
         assert data["current_question"]["id"] == "V1"
         assert data["revision"] == stored.revision + 1
         assert (

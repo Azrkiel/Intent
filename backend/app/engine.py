@@ -119,6 +119,18 @@ class Engine:
         session.current_question = None if gate_for(session).ready else (session.candidates or [None])[0]
         self.store.save(session)
 
+    async def reanalyze(self, session: Session):
+        """Analyze again without a new utterance: a veto changes who decides, not what was said."""
+        session.revision += 1
+        session.extracted_revision = session.revision
+        try:
+            async for _ in self.analyze(session):
+                pass
+        except (ModelError, ValueError) as error:
+            session.analysis_complete = False
+            session.warnings.append(str(error)[:500])
+            self.store.save(session)
+
     async def call(self, session, role, schema, instruction, payload):
         try:
             return await self.models.call(session, role, schema, instruction, payload)

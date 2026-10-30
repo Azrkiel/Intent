@@ -9,6 +9,7 @@ from backend.app.clarity.contracts import (
     ClarityState,
     DecisionProbe,
     ProbeAnswer,
+    Suggestions,
     Thresholds,
 )
 from backend.app.domain import Candidate, Session, Turn
@@ -71,3 +72,33 @@ def test_probe_answers_and_decision_probes_are_bounded():
             kano="must-be",
             category="data-model",
         )
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"options": ["Allow", "allow"]},
+        {"options": ["Allow", "x" * 251]},
+        {"question": "Why?"},
+    ],
+)
+def test_decision_probe_options_fit_a_question_card(change):
+    fields = {
+        "id": "p",
+        "question": "What happens to duplicates?",
+        "options": ["Allow", "Merge"],
+        "code_diff": "x" * 20,
+        "context": "c",
+        "drivers": ["job"],
+        "kano": "must-be",
+        "category": "data-model",
+    }
+    with pytest.raises(ValidationError):
+        DecisionProbe(**{**fields, **change})
+
+
+def test_suggested_drafts_fit_a_question_card():
+    with pytest.raises(ValidationError):
+        Suggestions(drafts=["Save links", "save links"])
+    with pytest.raises(ValidationError):
+        Suggestions(drafts=["Save links", "x" * 251])

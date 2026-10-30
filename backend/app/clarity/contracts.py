@@ -2,12 +2,24 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1500)]
 Short = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
 Identifier = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
 ClaimText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=400)]
+# Options and questions become question cards (domain.Candidate): at most 250 characters, distinct.
+Option = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=250)]
+Question = Annotated[str, StringConstraints(strip_whitespace=True, min_length=5, max_length=300)]
+
+
+def _distinct(value: list[str]) -> list[str]:
+    if len({item.casefold() for item in value}) != len(value):
+        raise ValueError("Options must be distinct")
+    return value
+
+
+Options = Annotated[list[Option], AfterValidator(_distinct)]
 
 NorthStarField = Literal["who-when", "job", "ambition", "today", "good", "fails-if"]
 # Question order: who/job/ambition set proportionality for the rest (spec §2.3).
@@ -84,14 +96,14 @@ class RuleVerdict(Contract):
     rule: Identifier
     passed: bool
     reason: Short
-    options: list[Short] = Field(default_factory=list, max_length=3)
+    options: Options = Field(default_factory=list, max_length=3)
 
 
 class FlagRuling(Contract):
     word: Short
     prompt: bool
     reason: Short
-    options: list[Short] = Field(default_factory=list, max_length=3)
+    options: Options = Field(default_factory=list, max_length=3)
 
 
 class FieldJudgement(Contract):
@@ -108,7 +120,7 @@ class RubricJudgement(Contract):
 class Probe(Contract):
     id: Identifier
     question: Short
-    options: list[Short] = Field(min_length=2, max_length=4)
+    options: Options = Field(min_length=2, max_length=4)
     one_way: bool = False
 
 
@@ -131,7 +143,7 @@ class Answers(Contract):
 
 
 class Suggestions(Contract):
-    drafts: list[Text] = Field(min_length=2, max_length=3)
+    drafts: Options = Field(min_length=2, max_length=3)
     assumed: list[Short] = Field(default_factory=list, max_length=6)
 
 
@@ -179,8 +191,8 @@ class ScenarioDrafts(Contract):
 # Model outputs: decisions.
 class DecisionProbe(Contract):
     id: Identifier
-    question: Short
-    options: list[Short] = Field(min_length=2, max_length=3)
+    question: Question
+    options: Options = Field(min_length=2, max_length=3)
     code_diff: Annotated[str, StringConstraints(strip_whitespace=True, min_length=15, max_length=1500)]
     context: Short
     drivers: list[NorthStarField] = Field(min_length=1, max_length=3)

@@ -33,8 +33,8 @@ def majority(votes: list[int]) -> tuple[int, int]:
 
 def delegate(decision: Decision, choice: int) -> None:
     decision.status, decision.owner = "delegated", "delegated"
-    decision.outcome = decision.options[max(choice, 0)]
-    agreeing = sum(v == max(choice, 0) for v in decision.votes)
+    decision.outcome = decision.options[choice]
+    agreeing = sum(v == choice for v in decision.votes)
     decision.because = (
         f"{decision.drivers[0]}: {agreeing} of {len(decision.votes)} candidate builds chose this"
     )
@@ -44,7 +44,7 @@ def dispose(decision: Decision, thresholds: Thresholds) -> None:
     choice, count = majority(decision.votes)
     if decision.reversibility == "one-way":
         decision.status = "open"
-    elif count >= math.ceil(AGREEMENT * len(decision.votes)):
+    elif count and count >= math.ceil(AGREEMENT * len(decision.votes)):
         delegate(decision, choice)
     elif decision.kano == "must-be":
         decision.status = "open"
@@ -59,10 +59,12 @@ def dispose(decision: Decision, thresholds: Thresholds) -> None:
     else:
         decision.status = "open"
     # Stop rule (SAGE-Agent): low-value two-way questions become defaults; one-way never stops.
+    # Without a single builder vote there is no default to take, so the user decides.
     if (
         decision.status == "open"
         and decision.reversibility == "two-way"
         and decision.score < thresholds.decision_stop
+        and choice >= 0
     ):
         delegate(decision, choice)
 
@@ -123,6 +125,27 @@ def resolve_vetoes(vetoes: list[Decision], asked: list["AskedQuestion"]) -> list
             decision.status, decision.owner, decision.outcome = "open", None, None
         resolved.append(decision)
     return resolved
+
+
+def _key(question: str) -> str:
+    return " ".join(question.casefold().split())
+
+
+def settle(decisions: list[Decision], vetoes: list[Decision], asked: list["AskedQuestion"]) -> list[Decision]:
+    """Probes are regenerated each pass: keep answered decisions answered; a veto replaces its default."""
+    vetoed = {_key(veto.question) for veto in vetoes}
+    answers = {
+        _key(entry.question.question): entry.answer
+        for entry in asked
+        if entry.question.lens == "decision" and entry.question.id.startswith("D:")
+    }
+    kept = [decision for decision in decisions if _key(decision.question) not in vetoed]
+    for decision in kept:
+        answer = answers.get(_key(decision.question))
+        if answer is not None:
+            decision.status, decision.owner, decision.outcome = "decided", "user", answer
+            decision.because = f"{decision.drivers[0]}: your answer"
+    return kept + resolve_vetoes(vetoes, asked)
 
 
 def attach_confirmations(decisions: list[Decision], scenarios: list[Scenario]) -> None:

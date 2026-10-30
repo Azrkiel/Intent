@@ -133,8 +133,17 @@ def evaluate(
     return state
 
 
+def _distinct(items) -> list[str]:
+    seen, kept = set(), []
+    for item in items:
+        if item.strip() and item.casefold() not in seen:
+            seen.add(item.casefold())
+            kept.append(item)
+    return kept
+
+
 def _options(*groups: list[str]) -> list[str]:
-    options = list(dict.fromkeys(item for group in groups for item in group if item.strip()))[:3]
+    options = _distinct(item for group in groups for item in group)[:3]
     for filler in (OWN, KEEP):
         if len(options) >= 2:
             break
@@ -214,7 +223,7 @@ def follow_up(
             filled = f" I filled in: {'; '.join(assumed)}." if assumed else ""
             question = f"{question}{guess}{filled} Does that fit? Pick one, or edit it."
             keep = [KEEP] if KEEP in options else []
-            options = list(dict.fromkeys([*drafts[: 3 - len(keep)], *keep]))
+            options = _distinct([*drafts[: 3 - len(keep)], *keep])
         return Candidate(
             id=key,
             lens="north-star",
@@ -232,11 +241,18 @@ def follow_up(
 
 
 def accept_drafted(fields: list[FieldState], session: "Session") -> None:
-    """A field written entirely from drafts the user picked needs no separate read-back."""
+    """A field quoted only from drafts the user picked needs no separate read-back.
+
+    A quote that also occurs in a typed turn may be the user's own words, so it still needs one.
+    """
     drafted = [turn.text for turn in session.turns if turn.suggested]
+    typed = [turn.text for turn in session.turns if not turn.suggested]
     for state in fields:
         parts = state.text.split(" … ") if state.text else []
-        if parts and all(any(part in text for text in drafted) for part in parts):
+        if parts and all(
+            any(part in text for text in drafted) and not any(part in text for text in typed)
+            for part in parts
+        ):
             session.readbacks[state.field] = state.text_hash
 
 

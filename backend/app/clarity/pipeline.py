@@ -29,7 +29,7 @@ from .contracts import (
     Suggestions,
     Thresholds,
 )
-from .decisions import attach_confirmations, quality, resolve_vetoes
+from .decisions import attach_confirmations, quality, settle
 from .decisions import build as build_decisions
 from .gate import describe
 from .lexicon import scan
@@ -37,6 +37,18 @@ from .northstar import accept_drafted, evaluate, fatigued, field_texts, follow_u
 from .provenance import aspect_gaps, build_claims, build_scenarios, tiling_gaps
 
 CANDIDATES = 4
+
+
+async def gather_all(*calls):
+    """asyncio.gather, but a failure cancels the siblings, so none saves after the request lock is gone."""
+    tasks = [asyncio.ensure_future(call) for call in calls]
+    try:
+        return await asyncio.gather(*tasks)
+    except BaseException:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        raise
 
 
 class ClarityPipeline:
@@ -110,7 +122,7 @@ class ClarityPipeline:
                     for f in present
                 ]
             }
-            judgement, probe_sets = await asyncio.gather(
+            judgement, probe_sets = await gather_all(
                 self.call(session, "clarity:rubric", RubricJudgement, prompts.RUBRIC_JUDGE, judge_payload),
                 self.call(
                     session,
@@ -138,7 +150,7 @@ class ClarityPipeline:
                     for f in present
                 ]
             }
-            first, second = await asyncio.gather(
+            first, second = await gather_all(
                 self.call(session, "clarity:reader:a", Answers, prompts.READER, reader_payload),
                 self.call(session, "clarity:reader:b", Answers, prompts.READER, reader_payload),
             )
@@ -188,7 +200,7 @@ class ClarityPipeline:
                 feedback = {"problems": problems, "unmapped_words": gaps, "unmapped_tags": tags}
             state.claims, state.not_applicable, state.problems = claims, draft.not_applicable, problems
             claim_payload = [c.model_dump(mode="json") for c in claims]
-            scenario_drafts, probe_set = await asyncio.gather(
+            scenario_drafts, probe_set = await gather_all(
                 self.call(
                     session,
                     "clarity:scenarios",
@@ -219,7 +231,7 @@ class ClarityPipeline:
                     "claims": claim_payload,
                     "probes": [p.model_dump(include={"id", "question", "options"}) for p in probes],
                 }
-                builders = await asyncio.gather(
+                builders = await gather_all(
                     *[
                         self.call(
                             session,
@@ -236,8 +248,11 @@ class ClarityPipeline:
                 for entry in session.questions
                 if entry.question.lens == "decision" and entry.question.id.startswith("D:")
             )
-            decisions = build_decisions(probes, [b.answers for b in builders], asked, state.thresholds)
-            decisions.extend(resolve_vetoes(session.vetoes, session.questions))
+            decisions = settle(
+                build_decisions(probes, [b.answers for b in builders], asked, state.thresholds),
+                session.vetoes,
+                session.questions,
+            )
             attach_confirmations(decisions, state.scenarios)
             for decision in decisions:
                 decision.quality = quality(decision, claims, state.scenarios)
@@ -287,9 +302,9 @@ class ClarityPipeline:
                     ]
                 },
             )
-            review, roundtrip, entail = await asyncio.gather(review_call, roundtrip_call, entail_call)
+            review, roundtrip, entail = await gather_all(review_call, roundtrip_call, entail_call)
         else:
-            review, roundtrip = await asyncio.gather(review_call, roundtrip_call)
+            review, roundtrip = await gather_all(review_call, roundtrip_call)
             entail = Entailment()
         result = score(review, canaries, id_map, state.thresholds)
         verdicts = {v.claim_id: v for v in entail.verdicts}

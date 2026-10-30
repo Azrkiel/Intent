@@ -268,11 +268,7 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
                 )
             )
             await executor.invalidate(id)
-            async for _ in engine.turn(
-                session,
-                f'Veto: I want to decide "{decision.question}" myself instead of "{decision.outcome}".',
-            ):
-                pass
+            await engine.reanalyze(session)
             return public_session(session)
 
     @app.post("/api/sessions/{id}/compile")

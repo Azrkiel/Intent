@@ -43,7 +43,9 @@ def clarity_blockers(session) -> list[str]:
         if field is None:
             blockers.append(f"North Star {FIELD_LABELS[name]}: not checked yet")
         elif not field.passed:
-            blockers.append(f"North Star {FIELD_LABELS[name]}: {describe(field.failing[0])}")
+            # A pass that failed midway leaves fields unevaluated, with nothing in failing.
+            reason = describe(field.failing[0]) if field.failing else "not checked yet"
+            blockers.append(f"North Star {FIELD_LABELS[name]}: {reason}")
     if len(blockers) > len(state.failures):
         return list(dict.fromkeys(blockers))
     if not state.downstream_complete:

@@ -18,6 +18,7 @@ from backend.app.clarity.decisions import (
     decision_problems,
     quality,
     resolve_vetoes,
+    settle,
     split,
     wasted_questions,
 )
@@ -162,3 +163,40 @@ def test_wasted_questions_count_answers_that_changed_no_requirement():
         AskedQuestion(question=question, answer="B", turn=3),
     ]
     assert wasted_questions(session) == (1, 2)
+
+
+def test_no_builder_votes_never_invent_a_default():
+    [decision] = build([probe()], [[], [], [], []], Counter(), Thresholds())
+    assert decision.status == "open"
+    assert decision.outcome is None and decision.owner is None
+
+
+def asked_decision(question, answer, qid="D:data-model:3:1"):
+    candidate = Candidate(
+        id=qid,
+        lens="decision",
+        question=question,
+        options=["Allow", "Merge"],
+        code_diff="Insert path versus merge path",
+        divergence=3,
+        uncertainty=3,
+        cost_to_change=3,
+    )
+    return AskedQuestion(question=candidate, answer=answer, turn=2)
+
+
+def test_an_answered_decision_stays_answered_when_the_model_proposes_it_again():
+    votes = [[ProbeAnswer(probe_id="p1", choice=c)] for c in (0, 1, 0, 2)]
+    decisions = build([probe(category="data-model")], votes, Counter(), Thresholds())
+    [decision] = settle(decisions, [], [asked_decision("what happens to  duplicates?", "Merge")])
+    assert (decision.status, decision.owner, decision.outcome) == ("decided", "user", "Merge")
+    assert not any(p.startswith("Decide") for p in decision_problems([decision]))
+
+
+def test_a_veto_replaces_the_reproposed_default():
+    votes = [[ProbeAnswer(probe_id="p1", choice=0)] for _ in range(3)] + [[]]
+    decisions = build([probe()], votes, Counter(), Thresholds())
+    assert decisions[0].status == "delegated"
+    veto = decisions[0].model_copy(update={"id": "V1", "status": "open", "owner": None, "outcome": None})
+    settled = settle(decisions, [veto], [])
+    assert [(d.id, d.status) for d in settled] == [("V1", "open")]

@@ -1,5 +1,7 @@
 """Clarity v2 orchestration with scripted models; not evidence of live model quality."""
 
+import asyncio
+
 import pytest
 
 from backend.app.clarity.contracts import Answers, ClaimReview, ProbeAnswer
@@ -154,3 +156,20 @@ async def test_v1_sessions_still_use_the_framework_map(tmp_path):
     session.clarity_version = 1
     [event async for event in Engine(Store(str(tmp_path / "db")), Track()).analyze(session)]
     assert "framework:map" in calls and not any(r.startswith("clarity:") for r in calls)
+
+
+async def test_a_failed_parallel_call_cancels_its_siblings(tmp_path):
+    finished = []
+
+    class Fails(DemoModels):
+        async def call(self, session, role, schema, instruction, payload):
+            if role == "clarity:reader:a":
+                raise ModelError("reader a timed out")
+            if role == "clarity:reader:b":
+                await asyncio.sleep(0.2)
+                finished.append(role)
+            return await super().call(session, role, schema, instruction, payload)
+
+    _, session = await analyzed(tmp_path, Fails())
+    await asyncio.sleep(0.4)
+    assert session.clarity.failures and not finished
