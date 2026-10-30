@@ -615,31 +615,6 @@ export default function Home() {
         >
           <h1 className="sr-only">Intent workspace</h1>
 
-          <nav className="stepper" aria-label="Build stages">
-            {(
-              [
-                ["clarify", "01", "Clarify", hasTurns],
-                ["brief", "02", "Brief", Boolean(session?.brief)],
-                ["build", "03", "Build", session?.build.status === "complete"],
-              ] as const
-            ).map(([id, number, label, completed], i) => (
-              <div className="step-wrapper" key={id}>
-                <button
-                  className={`step ${view === id ? "current" : ""}`}
-                  aria-current={view === id ? "step" : undefined}
-                  disabled={id !== "clarify" && !hasTurns}
-                  onClick={() => setView(id)}
-                >
-                  <span className="step-number">
-                    {completed && view !== id ? <Check size={12} /> : number}
-                  </span>
-                  {label}
-                </button>
-                {i < 2 && <span className="step-line" />}
-              </div>
-            ))}
-          </nav>
-
           {error && (
             <div className="error-banner" role="alert">
               <span>{error}</span>
