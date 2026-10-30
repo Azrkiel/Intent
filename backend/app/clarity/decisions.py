@@ -160,8 +160,9 @@ def quality(decision: Decision, claims: list[Claim], scenarios: list[Scenario]) 
         "alternatives": len(decision.options) >= 2 and len(decision.code_diff) >= 15,
         "information": len(decision.votes) >= 2,
         "values": decision.because is not None and any(d in decision.because for d in decision.drivers),
-        "reasoning": bool(decision.claims),
-        "commitment": decision.owner is not None and decision.confirmation in scenario_ids,
+        "reasoning": bool(decision.claims) or decision.owner == "user",
+        "commitment": decision.owner == "user"
+        or (decision.owner is not None and decision.confirmation in scenario_ids),
     }
 
 

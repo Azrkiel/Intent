@@ -11,6 +11,7 @@ from .contracts import (
     FIELD_LABELS,
     NORTH_STAR_FIELDS,
     PROMPT_ONCE_RULES,
+    REWRITE_RULES,
     RUBRIC,
     RULE_TEXT,
     Alignment,
@@ -20,6 +21,7 @@ from .contracts import (
     ClarityState,
     DecisionProbes,
     Entailment,
+    FieldReading,
     FieldState,
     NorthStarDraft,
     NorthStarProbes,
@@ -33,7 +35,19 @@ from .decisions import attach_confirmations, quality, settle
 from .decisions import build as build_decisions
 from .gate import describe
 from .lexicon import scan
-from .northstar import accept_drafted, evaluate, fatigued, field_texts, follow_up, text_hash
+from .northstar import (
+    QUESTIONS,
+    accept_drafted,
+    carry_passes,
+    evaluate,
+    fatigued,
+    field_entries,
+    field_texts,
+    follow_up,
+    next_target,
+    question_field,
+    text_hash,
+)
 from .provenance import aspect_gaps, build_claims, build_scenarios, tiling_gaps
 
 CANDIDATES = 4
@@ -49,6 +63,13 @@ async def gather_all(*calls):
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
         raise
+
+
+READER_B = {
+    "perspective": ("clarity:reader:b", prompts.READER_SKEPTIC),
+    "temperature": ("clarity:reader:b:temperature", prompts.READER),
+    "tier": ("clarity:reader:b:tier", prompts.READER),
+}
 
 
 class ClarityPipeline:
@@ -88,97 +109,199 @@ class ClarityPipeline:
             evaluate(field, asked, session.readbacks, state.thresholds)
 
     async def north_star(self, session, state):
-        user_texts = [turn.text for turn in session.turns]
-        draft = await self.call(
-            session,
-            "clarity:north-star",
-            NorthStarDraft,
-            prompts.NORTH_STAR,
-            {"turns": [{"number": t.number, "text": t.text} for t in session.turns]},
-        )
-        texts, _ = field_texts(draft, user_texts)  # invalid quotes are dropped, like ledger sources
+        await self.extract_fields(session)
+        entries = field_entries(session)
         state.fields = [
             FieldState(
                 field=name,
-                text=texts.get(name, ""),
-                text_hash=text_hash(texts.get(name, "")),
-                flags=scan(texts.get(name, "")),
+                text=entries[name].text,
+                source=entries[name].source,
+                text_hash=text_hash(entries[name].text),
+                flags=scan(entries[name].text),
             )
             for name in NORTH_STAR_FIELDS
         ]
-        present = [f for f in state.fields if f.text]
-        if present:
-            judge_payload = {
-                "fields": [
-                    {
-                        "field": f.field,
-                        "text": f.text,
-                        "flags": [flag.word for flag in f.flags],
-                        "rules": {
-                            rule: RULE_TEXT[rule]
-                            for rule in (*RUBRIC[f.field], *PROMPT_ONCE_RULES.get(f.field, ()))
-                        },
-                    }
-                    for f in present
-                ]
-            }
-            judgement, probe_sets = await gather_all(
-                self.call(session, "clarity:rubric", RubricJudgement, prompts.RUBRIC_JUDGE, judge_payload),
-                self.call(
-                    session,
-                    "clarity:probes",
-                    NorthStarProbes,
-                    prompts.READER_PROBES,
-                    {"fields": [{"field": f.field, "text": f.text} for f in present]},
-                ),
-            )
-            judged = {entry.field: entry for entry in judgement.fields}
-            sets = {entry.field: entry.probes for entry in probe_sets.sets}
-            for f in present:
-                f.judgement = judged.get(f.field)
-                f.probes = [
-                    p.model_copy(update={"id": f"{f.field}.p{i + 1}"})
-                    for i, p in enumerate(sets.get(f.field, []))
-                ]
-            reader_payload = {
-                "fields": [
-                    {
-                        "field": f.field,
-                        "text": f.text,
-                        "questions": [p.model_dump(include={"id", "question", "options"}) for p in f.probes],
-                    }
-                    for f in present
-                ]
-            }
-            first, second = await gather_all(
-                self.call(session, "clarity:reader:a", Answers, prompts.READER, reader_payload),
-                self.call(session, "clarity:reader:b", Answers, prompts.READER, reader_payload),
-            )
-            for f in present:
-                ids = {p.id for p in f.probes}
-                f.reader_a = [x for x in first.answers if x.probe_id in ids]
-                f.reader_b = [x for x in second.answers if x.probe_id in ids]
+        fresh = []
+        for f in state.fields:
+            reading = session.north_star_readings.get(f.field)
+            if (
+                f.text
+                and reading
+                and reading.text_hash == f.text_hash
+                and reading.variation == session.clarity_reader_variation
+            ):
+                f.judgement, f.probes = reading.judgement, reading.probes
+                f.reader_a, f.reader_b = reading.reader_a, reading.reader_b
+            elif f.text:
+                fresh.append(f)
+        if fresh:
+            await self.read_fields(session, state, fresh)
         accept_drafted(state.fields, session)
         self.refresh_fields(session, state)
         state.fatigued = fatigued(session)  # recorded for evals; drafting does not wait for fatigue
-        target = next((f for f in state.fields if not f.passed and set(f.failing) - {"G3"}), None)
-        if target:
-            drafts = await self.call(
+        chosen = next_target(state.fields)
+        if chosen:
+            await self.draft_answers(session, state, *chosen)
+
+    async def extract_fields(self, session):
+        """Quote the user's free-form turns into empty fields; answers belong to the field they answer."""
+        turns = [
+            t
+            for t in session.turns
+            if t.number > session.north_star_read_through and question_field(t.question_id) is None
+        ]
+        entries = field_entries(session)
+        if turns and not all(entry.text for entry in entries.values()):
+            draft = await self.call(
                 session,
-                "clarity:suggest",
-                Suggestions,
-                prompts.SUGGEST,
-                {
-                    "field": target.field,
-                    "label": FIELD_LABELS[target.field],
-                    "current": target.text,
-                    "failing": [describe(code) for code in target.failing if code != "G3"],
-                    "turns": [t.text for t in session.turns],
-                },
+                "clarity:north-star",
+                NorthStarDraft,
+                prompts.NORTH_STAR,
+                {"turns": [{"number": t.number, "text": t.text} for t in turns]},
             )
-            screened = [d for d in drafts.drafts if not any(flag.auto for flag in scan(d))]
-            state.suggestions = screened if len(screened) >= 2 else []
-            state.assumed = list(drafts.assumed) if state.suggestions else []
+            # Invalid quotes are dropped, like ledger sources.
+            texts, _ = field_texts(draft, [t.text for t in turns])
+            for name, text in texts.items():
+                if not entries[name].text:
+                    session.north_star_quotes[name] = text
+        session.north_star_read_through = len(session.turns)
+
+    async def read_fields(self, session, state, present):
+        """Judge and read fields whose text changed, and keep complete results for that text."""
+        previous = {
+            f.field: session.north_star_readings[f.field]
+            for f in present
+            if f.field in session.north_star_readings
+        }
+        judge_payload = {
+            "fields": [
+                {
+                    "field": f.field,
+                    "text": f.text,
+                    "flags": [flag.word for flag in f.flags],
+                    "rules": {
+                        rule: RULE_TEXT[rule]
+                        for rule in (*RUBRIC[f.field], *PROMPT_ONCE_RULES.get(f.field, ()))
+                    },
+                    **(
+                        {
+                            "previous": {
+                                "text": previous[f.field].text,
+                                "passed": [
+                                    v.rule for v in previous[f.field].judgement.verdicts if v.passed
+                                ],
+                            }
+                        }
+                        if f.field in previous
+                        else {}
+                    ),
+                }
+                for f in present
+            ]
+        }
+        judgement, probe_sets = await gather_all(
+            self.call(session, "clarity:rubric", RubricJudgement, prompts.RUBRIC_JUDGE, judge_payload),
+            self.call(
+                session,
+                "clarity:probes",
+                NorthStarProbes,
+                prompts.READER_PROBES,
+                {
+                    "fields": [
+                        {"field": f.field, "scope": QUESTIONS[f.field], "text": f.text} for f in present
+                    ]
+                },
+            ),
+        )
+        judged = {entry.field: entry for entry in judgement.fields}
+        sets = {entry.field: entry.probes for entry in probe_sets.sets}
+        for f in present:
+            f.judgement = judged.get(f.field)
+            if f.judgement:
+                carry_passes(f.judgement, f.text, previous.get(f.field))
+            f.probes = [
+                p.model_copy(update={"id": f"{f.field}.p{i + 1}"})
+                for i, p in enumerate(sets.get(f.field, []))
+            ]
+        state.failures.extend(
+            f"clarity: reader probes missing for {FIELD_LABELS[f.field]}" for f in present if not f.probes
+        )
+        reader_payload = {
+            "fields": [
+                {
+                    "field": f.field,
+                    "text": f.text,
+                    "questions": [p.model_dump(include={"id", "question", "options"}) for p in f.probes],
+                }
+                for f in present
+            ]
+        }
+        role_b, prompt_b = READER_B[session.clarity_reader_variation]
+        first, second = await gather_all(
+            self.call(session, "clarity:reader:a", Answers, prompts.READER, reader_payload),
+            self.call(session, role_b, Answers, prompt_b, reader_payload),
+        )
+        for f in present:
+            ids = {p.id for p in f.probes}
+            f.reader_a = [x for x in first.answers if x.probe_id in ids]
+            f.reader_b = [x for x in second.answers if x.probe_id in ids]
+            complete = (
+                f.judgement
+                and f.probes
+                and ids <= {x.probe_id for x in f.reader_a}
+                and ids <= {x.probe_id for x in f.reader_b}
+                and set(RUBRIC[f.field]) <= {v.rule for v in f.judgement.verdicts}
+            )
+            if complete:
+                session.north_star_readings[f.field] = FieldReading(
+                    text=f.text,
+                    text_hash=f.text_hash,
+                    variation=session.clarity_reader_variation,
+                    judgement=f.judgement,
+                    probes=f.probes,
+                    reader_a=f.reader_a,
+                    reader_b=f.reader_b,
+                )
+
+    async def draft_answers(self, session, state, target, failing):
+        probes = {f"G4:{p.id}": p.question for p in target.probes}
+        verdicts = target.judgement.verdicts if target.judgement else []
+        passing = [RULE_TEXT[v.rule] for v in verdicts if v.passed and v.rule in RUBRIC[target.field]]
+        # A rewrite re-rolled the rules the text passed (live probes 9, 12), so extend the text unless
+        # it needs words removed or has nothing worth keeping. Options hold 250 characters.
+        removal = REWRITE_RULES | {f"G1:{flag.word}" for flag in target.flags if flag.auto}
+        extendable = not removal & set(failing) and (passing or all(c in probes for c in failing))
+        keep = target.text if extendable and 0 < len(target.text) <= 180 else None
+        drafts = await self.call(
+            session,
+            "clarity:suggest",
+            Suggestions,
+            prompts.SUGGEST,
+            {
+                "field": target.field,
+                "label": FIELD_LABELS[target.field],
+                "scope": QUESTIONS[target.field],
+                "current": target.text,
+                "failing": [
+                    f'settle a question a reader could not answer: "{probes[code]}"'
+                    if code in probes
+                    else describe(code)
+                    for code in failing
+                ],
+                "turns": [t.text for t in session.turns],
+                **({"keep": keep} if keep else {"still_satisfy": passing}),
+            },
+        )
+        screened = [
+            d
+            for d in drafts.drafts
+            if not any(flag.auto for flag in scan(d[len(keep) :] if keep else d))
+            and (not keep or d.startswith(keep))
+        ]
+        state.dropped_suggestions = [d for d in drafts.drafts if d not in screened]
+        state.suggestions = screened if len(screened) >= 2 else []
+        state.suggestions_field = target.field if state.suggestions else None
+        state.assumed = list(drafts.assumed) if state.suggestions else []
 
     async def downstream(self, session, state):
         base = {
@@ -327,7 +450,9 @@ class ClarityPipeline:
     def questions(self, session, state):
         from ..domain import Candidate
 
-        question = follow_up(state.fields, state.suggestions or None, session.revision, state.assumed)
+        target = next_target(state.fields)
+        drafts = state.suggestions if target and target[0].field == state.suggestions_field else None
+        question = follow_up(state.fields, drafts, session.revision, state.assumed)
         if question:
             return [question]
         if not state.downstream_complete:

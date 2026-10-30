@@ -33,10 +33,12 @@ def critic_prompt(lens: str) -> str:
 {LENS_DESCRIPTIONS[lens]}
 The ledger is the source of truth. Find gaps ONLY within your lens.
 Return at most 3 candidates; use lens='{lens}'. Each needs 2-3 concrete plausible options
-and a code_diff naming concrete files, tables, services, APIs or libraries that differ.
+and a code_diff: at most 3 plain sentences naming the files, tables, services, APIs or libraries
+that differ, never code itself.
 If the options build the same code, propose nothing. divergence=1 means discard.
 Score divergence, uncertainty, cost_to_change from 1-3; impact is their product.
-Target only existing ledger IDs; when the entire slot is missing, targets may be empty.
+targets holds only existing ledger IDs, never file paths; when the entire slot is missing, it may
+be empty.
 Never restate a confirmed item as a question. Never repeat an answered question.
 Respect explicit scope exclusions as settled. Do not propose variants of excluded features or
 reopen an explicit behavior merely because it could have been implemented differently.

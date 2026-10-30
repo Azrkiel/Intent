@@ -31,7 +31,7 @@ FAST_PREFIXES = (
 
 
 class ModelError(RuntimeError):
-    pass
+    raw: str | None = None  # last unparseable model output; only kept when LiveModels.capture_raw is on
 
 
 class LiveModels:
@@ -43,6 +43,8 @@ class LiveModels:
         if client:
             client.max_retries = 0
         self.reserved: dict[str, float] = {}
+        self.capture_raw = False  # eval-only; never serialized into sessions or API responses
+        self.raw_failures: dict[str, list[dict]] = {}
         self.semaphore = asyncio.Semaphore(6)
 
     async def close(self):
@@ -108,6 +110,12 @@ class LiveModels:
 
     async def call(self, session: Session, role: str, schema: type[T], instruction: str, payload: dict) -> T:
         fast = role in {"extractor", "playback", "filler"} or role.startswith(FAST_PREFIXES)
+        fast = fast and not role.endswith(":tier")  # reader B on the other tier
+        temperature = 0.2
+        if role.startswith("clarity:candidate"):
+            temperature = 0.9
+        elif role.endswith(":temperature"):
+            temperature = 0.8
         compiler = role == "compiler"
         model = (
             self.settings.ultra_model
@@ -117,7 +125,9 @@ class LiveModels:
             else self.settings.super_model
         )
         input_rate, output_rate = (1, 3) if compiler else (0.06, 0.24) if fast else (0.30, 0.90)
-        max_tokens = 8192 if compiler or role in ("framework:map", "clarity:claims") else 4096
+        # Nano's reasoning counts against the limit: the extractor hit 4096 with no output (live probe 12).
+        roomy = compiler or role in ("framework:map", "extractor") or role.startswith("clarity:")
+        max_tokens = 8192 if roomy else 4096
         messages = [
             {
                 "role": "system",
@@ -150,15 +160,19 @@ class LiveModels:
             started = time.monotonic()
             try:
                 extras = {}
-                if self.settings.send_thinking_controls:
+                # Nano without thinking misfiled extractor types live, so only clarity passes drop it.
+                nano_off = fast and role.startswith("clarity:") and self.settings.nano_thinking_off
+                if self.settings.send_thinking_controls or nano_off:
                     extras["chat_template_kwargs"] = {"enable_thinking": not fast}
                     if not fast:
                         extras["reasoning_budget"] = 6144 if compiler else self.settings.reasoning_budget
                 response = await self.completion(
                     session, role, reserve, model=model, messages=messages,
                     response_format={"type": "json_object"},
-                    temperature=0.9 if role.startswith("clarity:candidate") else 0.2,
+                    temperature=temperature,
                     max_tokens=max_tokens, extra_body=extras,
+                    # Nano clarity passes with thinking ran to 43s live; long outputs get room.
+                    timeout=120 if max_tokens > 4096 else 45,
                 )
                 usage = response.usage
                 incoming = usage.prompt_tokens if usage else len(json.dumps(messages).encode())
@@ -210,9 +224,13 @@ class LiveModels:
                         ):
                             category = "deterministic acceptance"
                 if attempt:
-                    raise ModelError(
-                        f"{role} failed {category} after one repair retry."
-                    ) from validation_error
+                    failure = ModelError(f"{role} failed {category} after one repair retry.")
+                    if self.capture_raw:
+                        failure.raw = content[:16000]
+                        self.raw_failures.setdefault(session.id, []).append(
+                            {"role": role, "category": category, "raw": failure.raw}
+                        )
+                    raise failure from validation_error
                 if constrained and isinstance(validation_error, ValidationError):
                     try:
                         repair = FieldRepair(schema, original, validation_error)

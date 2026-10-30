@@ -139,3 +139,66 @@ async def test_requested_thinking_controls_are_sent(role, enabled, budget):
             assert body["reasoning_budget"] == budget
     finally:
         await client.close()
+
+
+@pytest.mark.parametrize(
+    "role,controls,timeout",
+    [
+        ("clarity:rubric", {"enable_thinking": False}, 120),
+        ("extractor", None, 120),
+        ("critic:edges", None, 45),
+    ],
+)
+async def test_nano_thinking_off_is_opt_in_for_clarity_and_long_outputs_wait_longer(role, controls, timeout):
+    # Live Nano clarity passes ran to 43s of a 45s timeout with thinking; without it the
+    # rubric judge failed W1 on "I" 3/3, so thinking stays on and 8192-token calls wait longer.
+    assert Settings.model_fields["nano_thinking_off"].default is False
+    requests = []
+
+    def handle(request):
+        requests.append(json.loads(request.content))
+        assert request.extensions["timeout"]["read"] == timeout
+        return httpx.Response(200, json=completion('{"add": []}'))
+
+    client = AsyncOpenAI(
+        api_key="test",
+        base_url="https://test.invalid/v1",
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handle)),
+    )
+    provider = LiveModels(Settings(send_thinking_controls=False, nano_thinking_off=True), client=client)
+    try:
+        await provider.call(Session(), role, Delta, "Return the test JSON contract.", {})
+        assert requests[0].get("chat_template_kwargs") == controls
+        assert "reasoning_budget" not in requests[0]
+    finally:
+        await provider.close()
+
+
+async def test_raw_output_kept_for_eval_only_when_capture_is_on():
+    def make(capture):
+        client = AsyncOpenAI(
+            api_key="test", base_url="https://test.invalid/v1", max_retries=0,
+            http_client=httpx.AsyncClient(
+                transport=httpx.MockTransport(
+                    lambda request: httpx.Response(200, json=completion("bad" * 6000))
+                )
+            ),
+        )
+        provider = LiveModels(Settings(), client=client)
+        provider.capture_raw = capture
+        return provider, client
+
+    provider, client = make(True)
+    session = Session()
+    with pytest.raises(ModelError) as caught:
+        await provider.call(session, "extractor", Delta, "Extract.", {})
+    assert caught.value.raw.startswith("badbad") and len(caught.value.raw) == 16000
+    assert provider.raw_failures[session.id] == [
+        {"role": "extractor", "category": "JSON parsing", "raw": caught.value.raw}
+    ]
+    await client.close()
+    provider, client = make(False)
+    with pytest.raises(ModelError) as caught:
+        await provider.call(Session(), "extractor", Delta, "Extract.", {})
+    assert caught.value.raw is None and not provider.raw_failures
+    await client.close()

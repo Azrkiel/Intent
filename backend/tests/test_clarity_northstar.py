@@ -5,6 +5,7 @@ import pytest
 from backend.app.clarity.contracts import (
     FieldJudgement,
     FieldQuotes,
+    FieldReading,
     FieldState,
     FlagRuling,
     NorthStarDraft,
@@ -16,12 +17,16 @@ from backend.app.clarity.contracts import (
 from backend.app.clarity.lexicon import scan
 from backend.app.clarity.northstar import (
     KEEP,
+    OWN,
     accept_drafted,
     alpha_nominal,
+    carry_passes,
     evaluate,
     fatigued,
+    field_entries,
     field_texts,
     follow_up,
+    next_target,
     prompt_id,
     text_hash,
 )
@@ -150,19 +155,109 @@ def test_vague_answers_get_an_extrapolated_draft_to_confirm():
     assert KEEP in follow_up([vague], drafts, 2).options
 
 
-def test_a_field_built_from_picked_drafts_needs_no_separate_read_back():
-    turns = [
-        Turn(number=1, text="a tool"),
-        Turn(number=2, text="Save an article to read later", suggested=True),
-    ]
-    session = Session(turns=turns)
-    state = passing(text="Save an article to read later")
+def asked(field, code, suggestion=False, options=("One", "Two"), probe=None):
+    return Candidate(
+        id=f"NS-{field}-{code}-r1",
+        lens="north-star",
+        question="Which one is it?",
+        options=list(options),
+        code_diff="Sets what the field says.",
+        divergence=3,
+        uncertainty=3,
+        cost_to_change=3,
+        suggestion=suggestion,
+        probe=probe,
+    )
+
+
+def replay(*answers, quotes=None):
+    """Answers as (question, text, picked) in order, as a session records them."""
+    session = Session(north_star_quotes=quotes or {})
+    for number, (question, text, picked) in enumerate(answers, 1):
+        session.turns.append(Turn(number=number, text=text, question_id=question.id, suggested=picked))
+        session.questions.append(AskedQuestion(question=question, answer=text, turn=number))
+    return field_entries(session)
+
+
+def test_a_picked_draft_replaces_the_field_and_needs_no_separate_read_back():
+    draft = "Save an article to read later"
+    question = asked("job", "J1", suggestion=True, options=(draft, "Track what I read"))
+    entries = replay((question, draft, True), quotes={"job": "a tool"})
+    assert entries["job"] == (draft, "drafted")
+    session = Session()
+    state = passing(text=draft)
+    state.source = entries["job"].source
     accept_drafted([state], session)
     evaluate(state, set(), session.readbacks, Thresholds())
     assert state.passed
-    other = Session(turns=turns)
-    accept_drafted([passing(text="a tool … Save an article to read later")], other)
-    assert "job" not in other.readbacks
+
+
+def test_typed_answers_extend_only_their_own_field():
+    entries = replay(
+        (asked("who-when", "W2"), "after breakfast", False),
+        quotes={"who-when": "Just me", "job": "Save articles"},
+    )
+    assert entries["who-when"] == ("Just me … after breakfast", "user")
+    assert entries["job"] == ("Save articles", "user")
+    assert entries["good"] == ("", "user")
+
+
+def test_a_typed_answer_keeps_the_picked_draft_and_then_needs_a_read_back():
+    # Live probe 11: "Solo" dropped the picked draft and restored a fragment that failed W2.
+    draft = "I open it on my phone after breakfast"
+    pick = asked("who-when", "W2", suggestion=True, options=(draft, "Other draft here"))
+    entries = replay((pick, draft, True), (asked("who-when", "W3"), "Solo", False))
+    assert entries["who-when"] == (f"{draft} … Solo", "mixed")
+    session = Session()
+    state = passing(text=entries["who-when"].text)
+    state.source = entries["who-when"].source
+    accept_drafted([state], session)
+    assert "job" not in session.readbacks
+
+
+def test_an_edited_draft_replaces_the_field_and_an_unrelated_reply_does_not():
+    draft = "I open it on my phone after breakfast"
+    question = asked("who-when", "W2", suggestion=True, options=(draft, "Other draft here"))
+    edited = "I open it on my laptop after breakfast"
+    assert replay((question, edited, False), quotes={"who-when": "me"})["who-when"] == (edited, "mixed")
+    assert replay((question, "Mostly weekends", False), quotes={"who-when": "me"})["who-when"] == (
+        "me … Mostly weekends",
+        "user",
+    )
+
+
+@pytest.mark.parametrize("reply", [KEEP, OWN, "idk", "not sure", "you decide"])
+def test_replies_without_content_leave_the_field_alone(reply):
+    assert replay((asked("job", "J1"), reply, False), quotes={"job": "Save"})["job"] == ("Save", "user")
+
+
+def test_a_substantive_reply_starting_with_doubt_is_kept():
+    reply = "Not sure, maybe once a week on my phone"
+    assert replay((asked("job", "J1"), reply, False))["job"].text == reply
+
+
+def test_a_reader_question_answer_keeps_its_question():
+    probe = "Must it work on a phone?"
+    entries = replay((asked("who-when", "G4", probe=probe), "Yes", False), quotes={"who-when": "Just me"})
+    assert entries["who-when"].text == f"Just me … {probe} Yes"
+
+
+def test_repeating_an_answer_does_not_grow_the_field():
+    question = asked("job", "J1")
+    entries = replay((question, "Save", False), (question, "Save", False))
+    assert entries["job"] == ("Save", "user")
+
+
+def test_follow_up_targets_the_field_next_target_names():
+    reads, job = passing(), passing(field="job")
+    reads.field, reads.passed, reads.failing = "who-when", False, ["G3"]
+    job.passed, job.failing = False, ["J1"]
+    target, codes = next_target([reads, job])
+    assert target is job and codes == ["J1"]
+    assert follow_up([reads, job], None, 1).id.startswith("NS-job-")
+    reads.failing = ["G4:readers"]
+    job.passed, job.failing = True, []
+    assert next_target([reads, job]) is None and follow_up([reads, job], None, 1) is None
 
 
 def test_fatigue_signals_ignore_clicked_options():
@@ -195,11 +290,35 @@ def test_fatigue_signals_ignore_clicked_options():
     assert not fatigued(session)
 
 
-def test_a_fragment_the_user_also_typed_still_needs_a_read_back():
-    turns = [
-        Turn(number=1, text="I read a lot"),
-        Turn(number=2, text="Save an article to read later", suggested=True),
-    ]
-    session = Session(turns=turns)
-    accept_drafted([passing(text="read")], session)
-    assert "job" not in session.readbacks
+def reading(field, text, passed):
+    verdicts = [RuleVerdict(rule=rule, passed=True, reason="ok") for rule in passed]
+    return FieldReading(
+        text=text,
+        text_hash=text_hash(text),
+        variation="perspective",
+        judgement=FieldJudgement(field=field, readback="Read back.", verdicts=verdicts),
+        probes=[],
+        reader_a=[],
+        reader_b=[],
+    )
+
+
+def judged(field, **rules):
+    verdicts = [RuleVerdict(rule=rule, passed=ok, reason="why") for rule, ok in rules.items()]
+    return FieldJudgement(field=field, readback="Read back.", verdicts=verdicts)
+
+
+def test_added_words_cannot_fail_a_rule_the_text_already_passed():
+    now = judged("who-when", W1=False, W2=False, W3=True, W4=False)
+    before = reading("who-when", "Just me at breakfast", ["W1", "W2"])
+    carry_passes(now, "Just me at breakfast … once a day", before)
+    verdicts = {v.rule: v.passed for v in now.verdicts}
+    assert verdicts == {"W1": False, "W2": True, "W3": True, "W4": False}  # W1 forbids wording
+
+
+def test_a_rewrite_is_judged_on_its_own():
+    now = judged("who-when", W2=False)
+    carry_passes(now, "Something else entirely", reading("who-when", "Just me at breakfast", ["W2"]))
+    assert not now.verdicts[0].passed
+    carry_passes(now, "Anything", None)
+    assert not now.verdicts[0].passed

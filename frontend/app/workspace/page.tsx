@@ -30,7 +30,11 @@ import { PlanPanel } from "@/components/plan-panel";
 import { ExecutionPanel } from "@/components/execution-panel";
 import { ClarityPanel } from "@/components/clarity-panel";
 import { FrameworkReviewPanel } from "@/components/framework-review";
-import { FIELD_LABELS, type NorthStarField } from "@/lib/clarity";
+import {
+  awaitingScenarioApproval,
+  FIELD_LABELS,
+  type NorthStarField,
+} from "@/lib/clarity";
 import {
   recognitionConstructor,
   speak,
@@ -383,6 +387,15 @@ export default function Home() {
     setView("clarify");
     setInput(`About ${FIELD_LABELS[field]}: actually, `);
     setTimeout(() => textarea.current?.focus(), 50);
+  }
+
+  function showScenarioApproval() {
+    setView("brief");
+    setTimeout(() => {
+      const card = document.getElementById("scenario-approval");
+      card?.scrollIntoView({ block: "start" });
+      card?.focus({ preventScroll: true });
+    }, 50);
   }
 
   async function action(
@@ -787,13 +800,23 @@ export default function Home() {
                               <CheckCheck size={22} />
                             </span>
                             <div>
-                              <button
-                                onClick={() => action("playback")}
-                                disabled={busy}
-                              >
-                                Review brief
-                                <ArrowRight size={15} />
-                              </button>
+                              {awaitingScenarioApproval(session) ? (
+                                <button
+                                  onClick={showScenarioApproval}
+                                  disabled={busy}
+                                >
+                                  Approve scenarios
+                                  <ArrowRight size={15} />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => action("playback")}
+                                  disabled={busy}
+                                >
+                                  Review brief
+                                  <ArrowRight size={15} />
+                                </button>
+                              )}
                             </div>
                           </div>
                         )}
@@ -976,7 +999,11 @@ export default function Home() {
                       {session?.clarity_version === 2 &&
                         !session.brief &&
                         Boolean(session.clarity?.scenarios.length) && (
-                          <div className="playback-card scenario-card">
+                          <div
+                            id="scenario-approval"
+                            tabIndex={-1}
+                            className="playback-card scenario-card"
+                          >
                             <div className="eyebrow">
                               <Check size={14} />
                               Review
@@ -1379,6 +1406,13 @@ export default function Home() {
                             "veto",
                             { decision_id: decisionId },
                             "Turning that choice into a question…",
+                          )
+                        }
+                        onReaderVariation={(mode) =>
+                          void clarityCall(
+                            "reader-variation",
+                            { mode },
+                            "Changing the reader check…",
                           )
                         }
                         onRetry={() => void action("analyze")}
