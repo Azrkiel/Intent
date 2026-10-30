@@ -108,6 +108,12 @@ class LiveModels:
 
     async def call(self, session: Session, role: str, schema: type[T], instruction: str, payload: dict) -> T:
         fast = role in {"extractor", "playback", "filler"} or role.startswith(FAST_PREFIXES)
+        fast = fast and not role.endswith(":tier")  # reader B on the other tier
+        temperature = 0.2
+        if role.startswith("clarity:candidate"):
+            temperature = 0.9
+        elif role.endswith(":temperature"):
+            temperature = 0.8
         compiler = role == "compiler"
         model = (
             self.settings.ultra_model
@@ -157,7 +163,7 @@ class LiveModels:
                 response = await self.completion(
                     session, role, reserve, model=model, messages=messages,
                     response_format={"type": "json_object"},
-                    temperature=0.9 if role.startswith("clarity:candidate") else 0.2,
+                    temperature=temperature,
                     max_tokens=max_tokens, extra_body=extras,
                 )
                 usage = response.usage

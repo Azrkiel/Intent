@@ -2,6 +2,8 @@ import React from "react";
 import {
   FIELD_LABELS,
   NORTH_STAR_ORDER,
+  READER_VARIATIONS,
+  type ReaderVariation,
   type NorthStarField,
 } from "../lib/clarity";
 import type { Session } from "../lib/types";
@@ -13,6 +15,7 @@ export function ClarityPanel({
   onConfirm,
   onCorrect,
   onVeto,
+  onReaderVariation,
   onRetry,
 }: {
   session: Session;
@@ -21,6 +24,7 @@ export function ClarityPanel({
   onConfirm: (field: NorthStarField, textHash: string) => void;
   onCorrect: (field: NorthStarField) => void;
   onVeto: (decisionId: string) => void;
+  onReaderVariation: (mode: ReaderVariation) => void;
   onRetry: () => void;
 }) {
   const clarity = session.clarity;
@@ -55,6 +59,23 @@ export function ClarityPanel({
           ? "Scripted example · no model reasoning. Live mode checks your actual words."
           : "Intent keeps asking until each part of your North Star passes its checks."}
       </p>
+      <label className="clarity-reader-check">
+        Reader check:{" "}
+        <select
+          value={session.clarity_reader_variation ?? "perspective"}
+          disabled={busy || disabled}
+          onChange={(event) =>
+            onReaderVariation(event.target.value as ReaderVariation)
+          }
+        >
+          {READER_VARIATIONS.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+        <small> Two readers answer the same questions; this sets how they differ.</small>
+      </label>
       {current && readout && (
         <p className="clarity-readout">
           {readout.statements} statements mapped · {readout.unmapped_words}{" "}

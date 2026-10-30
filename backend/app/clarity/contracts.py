@@ -22,6 +22,7 @@ def _distinct(value: list[str]) -> list[str]:
 Options = Annotated[list[Option], AfterValidator(_distinct)]
 
 NorthStarField = Literal["who-when", "job", "ambition", "today", "good", "fails-if"]
+ReaderVariation = Literal["perspective", "temperature", "tier"]
 # Question order: who/job/ambition set proportionality for the rest (spec §2.3).
 NORTH_STAR_FIELDS: tuple[str, ...] = ("who-when", "job", "ambition", "today", "good", "fails-if")
 FIELD_LABELS = {
