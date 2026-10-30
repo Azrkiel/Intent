@@ -230,13 +230,40 @@ class PlanningSixthAttempt(PlanningExtension):
     fifth_attempt_hash: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 
 
+class PlanningSeventhAttempt(PlanningExtension):
+    prior_attempt_hashes: list[Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]] = Field(
+        min_length=6, max_length=6
+    )
+    sixth_attempt_id: Text
+    sixth_attempt_hash: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+
+
+class PlanningTransportRetry(PlanningModel):
+    role: Text
+    http_status: Literal[502, 503, 504, 529]
+    delay_seconds: float = Field(ge=0, le=30, allow_inf_nan=False)
+    estimated_cost_reserve_usd: float = Field(gt=0, allow_inf_nan=False)
+    recorded_at: AwareDatetime
+
+
+class PlanningEighthAttempt(PlanningExtension):
+    prior_attempt_hashes: list[Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]] = Field(
+        min_length=7, max_length=7
+    )
+    seventh_attempt_id: Text
+    seventh_attempt_hash: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+    transport_retries: list[PlanningTransportRetry] = Field(default_factory=list, max_length=2)
+
+
 class PlanningState(PlanningModel):
     status: Literal["draft", "planning", "review_ready", "approved", "blocked", "stale"] = "draft"
-    attempts: list[PlanAttempt] = Field(default_factory=list, max_length=6)
+    attempts: list[PlanAttempt] = Field(default_factory=list, max_length=8)
     extension: PlanningExtension | None = None
     requalification: PlanningRequalification | None = None
     fifth_attempt: PlanningFifthAttempt | None = None
     sixth_attempt: PlanningSixthAttempt | None = None
+    seventh_attempt: PlanningSeventhAttempt | None = None
+    eighth_attempt: PlanningEighthAttempt | None = None
     active: PlanApproval | None = None
     approval: PlanApproval | None = None
 
@@ -315,7 +342,7 @@ class PlanningState(PlanningModel):
                 ):
                     raise ValueError("Planning fifth-attempt identity does not match")
         sixth = self.sixth_attempt
-        if len(self.attempts) == 6 and not sixth:
+        if len(self.attempts) >= 6 and not sixth:
             raise ValueError("A sixth planning attempt requires a separate grant")
         if sixth:
             if (
@@ -329,9 +356,9 @@ class PlanningState(PlanningModel):
                 ]
             ):
                 raise ValueError("Planning sixth-attempt history or fifth grant does not match")
-            if (sixth.status == "consumed") != (len(self.attempts) == 6):
+            if (sixth.status == "consumed") != (len(self.attempts) >= 6):
                 raise ValueError("Planning sixth-attempt consumption does not match attempts")
-            if len(self.attempts) == 6:
+            if len(self.attempts) >= 6:
                 attempt = self.attempts[5]
                 if (
                     attempt.revision != 6
@@ -339,9 +366,69 @@ class PlanningState(PlanningModel):
                     or attempt.requirements_revision != sixth.requirements_revision
                 ):
                     raise ValueError("Planning sixth-attempt identity does not match")
+        seventh = self.seventh_attempt
+        if len(self.attempts) >= 7 and not seventh:
+            raise ValueError("A seventh planning attempt requires a separate grant")
+        if seventh:
+            if (
+                not sixth or sixth.status != "consumed" or len(self.attempts) < 6
+                or seventh.sixth_attempt_id != sixth.id
+                or seventh.sixth_attempt_hash != content_hash(sixth.model_dump(mode="json", round_trip=True))
+                or seventh.requirements_revision != self.attempts[5].requirements_revision
+                or seventh.prior_attempt_hashes != [
+                    content_hash(attempt.model_dump(mode="json", round_trip=True))
+                    for attempt in self.attempts[:6]
+                ]
+            ):
+                raise ValueError("Planning seventh-attempt history or sixth grant does not match")
+            if (seventh.status == "consumed") != (len(self.attempts) >= 7):
+                raise ValueError("Planning seventh-attempt consumption does not match attempts")
+            if len(self.attempts) >= 7:
+                attempt = self.attempts[6]
+                if (
+                    attempt.revision != 7
+                    or attempt.plan_id != self.attempts[0].plan_id
+                    or attempt.requirements_revision != seventh.requirements_revision
+                ):
+                    raise ValueError("Planning seventh-attempt identity does not match")
+        eighth = self.eighth_attempt
+        if len(self.attempts) == 8 and not eighth:
+            raise ValueError("An eighth planning attempt requires a separate grant")
+        if eighth:
+            if (
+                not seventh or seventh.status != "consumed" or len(self.attempts) < 7
+                or eighth.seventh_attempt_id != seventh.id
+                or eighth.seventh_attempt_hash != content_hash(
+                    seventh.model_dump(mode="json", round_trip=True)
+                )
+                or eighth.requirements_revision != self.attempts[6].requirements_revision
+                or eighth.prior_attempt_hashes != [
+                    content_hash(attempt.model_dump(mode="json", round_trip=True))
+                    for attempt in self.attempts[:7]
+                ]
+            ):
+                raise ValueError("Planning eighth-attempt history or seventh grant does not match")
+            if (eighth.status == "consumed") != (len(self.attempts) == 8):
+                raise ValueError("Planning eighth-attempt consumption does not match attempts")
+            if len(self.attempts) == 8:
+                attempt = self.attempts[7]
+                if (
+                    attempt.revision != 8
+                    or attempt.plan_id != self.attempts[0].plan_id
+                    or attempt.requirements_revision != eighth.requirements_revision
+                ):
+                    raise ValueError("Planning eighth-attempt identity does not match")
+            if eighth.transport_retries and (
+                eighth.status != "consumed"
+                or any(retry.role not in self.attempts[7].passes for retry in eighth.transport_retries)
+            ):
+                raise ValueError("Planning transport retry requires the consumed eighth reserved pass")
         return self
 
     def public(self):
         return self.model_dump(
-            mode="json", exclude={"extension", "requalification", "fifth_attempt", "sixth_attempt"}
+            mode="json", exclude={
+                "extension", "requalification", "fifth_attempt", "sixth_attempt", "seventh_attempt",
+                "eighth_attempt"
+            }
         )

@@ -12,7 +12,7 @@ from backend.app.planning.demo import demo_response
 from backend.app.planning.service import PlanningService
 from backend.app.settings import Settings
 from backend.app.store import Store
-from backend.tests.planning_fixtures import ready_session, reviewed_framework
+from backend.tests.planning_fixtures import ready_session, repair_response, reviewed_framework
 from backend.tests.test_models import completion
 
 
@@ -75,7 +75,7 @@ async def test_section_errors_share_one_repair_and_keep_prior_sections(tmp_path,
                     for package in result["packages"]:
                         for claim in package["acceptance"]:
                             claim["status"] = "proposal"
-        return httpx.Response(200, json=completion(json.dumps(result)))
+        return httpx.Response(200, json=completion(json.dumps(repair_response(body, result))))
 
     client = AsyncOpenAI(
         api_key="offline-test", base_url="https://test.invalid/v1", max_retries=0,

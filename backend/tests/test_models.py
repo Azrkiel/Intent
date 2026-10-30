@@ -50,7 +50,7 @@ async def test_live_model_repairs_json_once_and_tracks_both_calls():
 @pytest.mark.parametrize("repair_succeeds", [True, False])
 async def test_invalid_description_uses_only_the_existing_repair(repair_succeeds):
     from backend.app.planning.contracts import OutlineProposal
-    from backend.tests.planning_fixtures import outline
+    from backend.tests.planning_fixtures import outline, repair_response
 
     requests = []
     valid = outline()
@@ -59,7 +59,8 @@ async def test_invalid_description_uses_only_the_existing_repair(repair_succeeds
     def handle(request):
         requests.append(json.loads(request.content))
         payload = valid if repair_succeeds and len(requests) == 2 else invalid
-        return httpx.Response(200, json=completion(json.dumps(payload)))
+        result = repair_response(json.loads(request.content), payload)
+        return httpx.Response(200, json=completion(json.dumps(result)))
 
     client = AsyncOpenAI(
         api_key="offline-test",
@@ -93,7 +94,7 @@ async def test_live_model_never_silently_uses_demo_after_two_invalid_outputs():
         ),
     )
     session = Session()
-    with pytest.raises(ModelError, match="valid JSON"):
+    with pytest.raises(ModelError, match="JSON parsing"):
         await LiveModels(Settings(), client=client).call(session, "extractor", Delta, "Extract.", {})
     assert len(session.usage) == 2
     assert sum(item.input_tokens for item in session.usage) == 40

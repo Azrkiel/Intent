@@ -15,6 +15,7 @@ from pydantic import ConfigDict, Field, StrictStr, StringConstraints
 from ..execution.verification import POLICY, TRUSTED_COMMAND, protected
 from .contracts import Package, PlanApproval, PlanDocument, PlanningModel, content_hash
 from .export import COMMON_RULES
+from .repair import ScopedError
 from .validation import safe_path, statements, validate_plan
 
 CONTEXT_POLICY = "ancestor-context-v1"
@@ -119,11 +120,15 @@ def preflight_checks(package: Package):
     checks = [check for task in package.tasks for check in task.checks]
     if not checks:
         raise ValueError("Unsupported empty trusted-check contract")
-    for check in checks:
-        if check.command != TRUSTED_COMMAND:
-            raise ValueError("Unsupported proposed command under git-inspection-only-v1")
-        if re.search(r"\b(todo|tbd|placeholder)\b", check.expected, re.IGNORECASE):
-            raise ValueError("Trusted-check expected result contains a placeholder")
+    for task_index, task in enumerate(package.tasks):
+        for check_index, check in enumerate(task.checks):
+            path = ("tasks", task_index, "checks", check_index)
+            if check.command != TRUSTED_COMMAND:
+                raise ScopedError("Unsupported proposed command under git-inspection-only-v1",
+                                  path + ("command",))
+            if re.search(r"\b(todo|tbd|placeholder)\b", check.expected, re.IGNORECASE):
+                raise ScopedError("Trusted-check expected result contains a placeholder",
+                                  path + ("expected",))
 
 
 def _publications(plan, phase, package, snapshots):

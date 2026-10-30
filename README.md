@@ -794,7 +794,70 @@ checkpoints were subsequently published in
 bounded section repair", after the human authorized publication and merge. The PR
 records the final merge state. A fresh pre-publication run passed 97 grant/repair
 tests and Ruff; the fetched base matched the verified base. No seventh attempt or
-coding-agent dispatch occurred.
+coding-agent dispatch occurred at that checkpoint.
+
+**Seventh-attempt retest (2026-10-29):** after the user authorized a bounded
+retest, `86bbe93` added one separately audited seventh grant bound to the six
+retained failures and consumed sixth grant. The normal two-attempt policy,
+nine-pass cap, shared single JSON repair and cumulative $2 session budget are
+unchanged. A fresh full run passed 571 backend tests, with one existing skip and
+deprecation warning; 52 focused grant/section-repair checks, Ruff and all 16 demo
+cases passed without provider calls.
+
+The one live invocation accepted its outline, then received **HTTP 529** from the
+screen request: the provider reported `worker overloaded`. No screen or phase was
+accepted and no complete plan was produced. The phase-validation repair remains
+unqualified against a live phase response. One successful response recorded 2,576
+input and 2,350 output tokens, estimated $0.0028878; cumulative recorded spend is
+$0.15024898 across 71 successful responses. The failed HTTP response is retained
+separately. All six earlier attempts, four previous grants, 70 earlier usage
+records, approved requirements/playback revision 3 and compiled brief are intact.
+
+The seventh grant is consumed and attempt 8 is refused before provider or save.
+The configured Codex profile passed a read-only check; no Codex inference or phase
+dispatch occurred. The local demo was restored with its existing database and
+sessions. The [retest record](docs/plans/2026-10-29-live-planning-retest.md) contains
+the measured outcome; private evidence remains ignored under
+`.data/live-check/2026-10-29/attempt-7/`. No additional live retry is authorized by
+this record.
+
+**Eighth-attempt qualification (2026-10-29):** the user authorized one eighth
+attempt after a handoff and full review of attempts 1?7. The
+[retrospective](docs/retrospectives/2026-10-29-seven-planning-attempts.md) and
+[eighth-attempt record](docs/plans/2026-10-29-eighth-planning-attempt.md) explain the
+causes, mitigations and measured outcome. Checkpoint `5270b9c` adds an audited
+eighth grant, at most two explicit overload retries shared across that attempt,
+and checked runner/review-coverage acceptance. Ordinary sessions retain two
+attempts; SDK retries stay disabled. Verification passed 640 backend tests (one
+existing skip and warning), 95 focused checks, seven offline rehearsals, Ruff and
+all 16 demo cases.
+
+The sole live run accepted its outline and screen, then **failed at phase repair**.
+The initial JSON had empty required inputs/preconditions. Its repair fixed those
+fields but duplicated a three-task block, exceeding the three-task maximum. All
+four responses were HTTP 200 with finish reason `stop`; there was no overload or
+truncation. Offline replay reproduced the failure using only captured responses.
+No phase, complete plan, plan approval or worker dispatch exists. Estimated new
+cost was $0.01464840; cumulative recorded spend is $0.16489738 over 75 responses.
+All previous history and approved sources are intact. The eighth grant is
+consumed and a ninth is refused before provider/save. The demo was restored with
+the same three sessions. No further live inference is authorized by this record.
+
+**Offline repair follow-up (2026-10-29):** the approved
+[design](docs/specs/2026-10-29-constrained-planning-repair.md) and
+[implementation record](docs/plans/2026-10-29-constrained-planning-repair.md)
+replace whole-object repair for complete planning proposals with typed values
+bound to application-owned invalid field paths. Valid sibling content is preserved;
+the reconstructed proposal still passes the full original checks. Unmapped or
+ambiguous errors stop. Malformed or output-limited originals retain one complete
+retry, and no pass gets a third response.
+
+Semantic review now explicitly covers architecture, flows, wireframes, task steps,
+inputs/readiness and other plan prose. Uncited text receives no invented citations
+or confirmed status. The review limit remains 500 entries; genuine rejection
+blocks readiness. Captured-response rehearsals exercise preservation and scripted
+rejection offline. They do not qualify live model judgment or create a complete
+live plan. No new grant, live invocation, approval or dispatch is included.
 
 ## Claude Code handoff
 

@@ -12,7 +12,7 @@ from backend.app.planning.demo import demo_response
 from backend.app.planning.service import PlanningService
 from backend.app.settings import Settings
 from backend.app.store import Store
-from backend.tests.planning_fixtures import ready_session, reviewed_framework
+from backend.tests.planning_fixtures import ready_session, repair_response, reviewed_framework
 from backend.tests.test_models import completion
 
 
@@ -49,7 +49,7 @@ async def test_outline_semantics_receive_one_repair_with_preserved_usage(tmp_pat
                 result["vision"]["ledger_ids"] = ["UNKNOWN"]
             else:
                 result["phases"][0]["depends_on"] = ["implementation"]
-        return httpx.Response(200, json=completion(json.dumps(result)))
+        return httpx.Response(200, json=completion(json.dumps(repair_response(body, result))))
 
     client = AsyncOpenAI(
         api_key="offline-test", base_url="https://test.invalid/v1", max_retries=0,
@@ -90,7 +90,7 @@ async def test_schema_error_then_semantic_error_does_not_get_a_third_response(tm
             return httpx.Response(200, json=completion("invalid JSON"))
         result = demo_response(session, "planner:outline", {})
         result["common_rules"] = []
-        return httpx.Response(200, json=completion(json.dumps(result)))
+        return httpx.Response(200, json=completion(json.dumps(repair_response(requests[-1], result))))
 
     client = AsyncOpenAI(
         api_key="offline-test", base_url="https://test.invalid/v1", max_retries=0,

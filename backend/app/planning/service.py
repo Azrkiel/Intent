@@ -11,6 +11,7 @@ from ..framework import reviewed_context
 from ..models import ModelError
 from . import prompts
 from .allowance import attempt_limit, state_hash
+from .context import preflight_checks
 from .contracts import (
     OutlineProposal,
     PhaseProposal,
@@ -21,12 +22,19 @@ from .contracts import (
     ScreenProposal,
     SourceItem,
 )
+from .repair import ScopedError
+from .review import (
+    available_entries,
+    check_outline_budget,
+    check_review_budget,
+    reserved_entries,
+    review_catalog,
+)
 from .validation import (
     accept_outline,
     accept_phase,
     accept_screen,
     check_citations,
-    statement_catalog,
     validate_plan,
 )
 
@@ -42,6 +50,14 @@ def checked_schema(schema, *checks):
     return create_model(
         f"Checked{schema.__name__}", __base__=schema, __validators__={"checked": checked}
     )
+
+
+def check_review_coverage(verification, expected):
+    # A genuine rejection must reach the failure gate, never a request to clear it.
+    if verification.rejected_statement_ids or verification.missing_ledger_ids:
+        return
+    if set(verification.reviewed_statement_ids) != expected:
+        raise ValueError("Plan semantic reviewer must review every supplied statement ID")
 
 
 class PlanningService:
@@ -80,10 +96,25 @@ class PlanningService:
         check_citations(proposal, session.ledger)
         accepted = accept_phase(proposal, attempt.outline, index)
         phases = [*attempt.phases, accepted]
-        validate_plan(
-            self.document(session, attempt, phases), session.ledger,
-            complete=len(phases) == len(attempt.outline.phases),
-        )
+        try:
+            validate_plan(
+                self.document(session, attempt, phases), session.ledger,
+                complete=len(phases) == len(attempt.outline.phases),
+            )
+        except ScopedError as error:
+            if not error.paths or any(path[:2] != ("phases", index) for path in error.paths):
+                    # Application-owned and unscoped: never offered to the model for any repair.
+                raise ScopedError(
+                    "Accepted section failed validation; current phase cannot repair it"
+                ) from error
+            raise ScopedError(str(error), *(path[2:] for path in error.paths)) from error
+        if self.settings.allow_codex_execution:
+            for package_index, package in enumerate(accepted.packages):
+                try:
+                    preflight_checks(package)
+                except ScopedError as error:
+                    raise ScopedError(str(error), *(("packages", package_index) + path
+                                                    for path in error.paths)) from error
         return accepted
 
     def event(self, session, kind, message=None):
@@ -143,6 +174,10 @@ class PlanningService:
             state.fifth_attempt.status = "consumed"
         elif attempt.revision == 6:
             state.sixth_attempt.status = "consumed"
+        elif attempt.revision == 7:
+            state.seventh_attempt.status = "consumed"
+        elif attempt.revision == 8:
+            state.eighth_attempt.status = "consumed"
         state.status, state.approval, state.active = "planning", None, None
         self.store.save(session, expected_state_hash=expected)
         finished = False
@@ -158,14 +193,18 @@ class PlanningService:
             ],
         }
 
-        outline_schema = checked_schema(OutlineProposal, partial(accept_outline, ledger=session.ledger))
+        outline_schema = checked_schema(
+            OutlineProposal, partial(accept_outline, ledger=session.ledger), check_outline_budget
+        )
         try:
             yield self.event(session, "plan_started")
             outline = await self.call(session, "planner:outline", outline_schema, prompts.OUTLINE, context)
             attempt.outline = accept_outline(outline, session.ledger)
             self.store.save(session)
             yield self.event(session, "plan_section")
-            for screen in outline.screens:
+            for index, screen in enumerate(outline.screens):
+                accepted = [attempt.outline, *attempt.screens]
+                reserved = reserved_entries(outline, index + 1)
                 draft = await self.call(
                     session,
                     f"planner:screen:{screen.ref}",
@@ -175,21 +214,30 @@ class PlanningService:
                         ),
                         partial(check_citations, ledger=session.ledger),
                         partial(accept_screen, outline=outline, ref=screen.ref),
+                        partial(check_review_budget, accepted, reserved),
                     ),
                     prompts.SCREEN,
-                    {**context, "outline": outline.model_dump(), "screen": screen.model_dump()},
+                    {
+                        **context,
+                        "outline": outline.model_dump(),
+                        "screen": screen.model_dump(),
+                        "review_entries_available": available_entries(accepted, reserved),
+                    },
                 )
                 check_citations(draft, session.ledger)
                 attempt.screens.append(accept_screen(draft, outline, screen.ref))
                 self.store.save(session)
                 yield self.event(session, "plan_section")
             for index, phase in enumerate(outline.phases):
+                accepted = [attempt.outline, *attempt.screens, *attempt.phases]
+                reserved = reserved_entries(outline, len(outline.screens), index + 1)
                 draft = await self.call(
                     session,
                     f"planner:phase:{phase.ref}",
                     checked_schema(
                         create_model("RequestedPhase", __base__=PhaseProposal, ref=(Literal[phase.ref], ...)),
                         partial(self.accepted_phase, session, attempt, index),
+                        partial(check_review_budget, accepted, reserved),
                     ),
                     prompts.PHASE,
                     {
@@ -197,6 +245,7 @@ class PlanningService:
                         "outline": outline.model_dump(),
                         "phase": phase.model_dump(),
                         "accepted_phases": [x.model_dump() for x in attempt.phases],
+                        "review_entries_available": available_entries(accepted, reserved),
                         "execution_policy": (
                             {
                                 "name": POLICY,
@@ -214,11 +263,11 @@ class PlanningService:
                 yield self.event(session, "plan_section")
             plan = self.document(session, attempt)
             validate_plan(plan, session.ledger)
-            catalog = statement_catalog(plan)
+            catalog = review_catalog(plan)
             verification = await self.call(
                 session,
                 "planner:verify",
-                PlanVerification,
+                checked_schema(PlanVerification, partial(check_review_coverage, expected=set(catalog))),
                 prompts.VERIFY,
                 {
                     **context,

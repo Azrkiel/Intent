@@ -168,3 +168,40 @@ async def test_windows_junction_in_git_object_store_is_rejected(tmp_path):
     assert result.returncode == 0
     with pytest.raises(ValueError, match="junction"):
         await owner.git(project, "rev-parse", "HEAD")
+
+
+async def test_git_metadata_junction_beyond_max_path_is_still_rejected(tmp_path):
+    import os
+
+    from backend.app.execution.worktrees import long_path
+
+    if os.name != "nt":
+        pytest.skip("Windows MAX_PATH regression")
+    import _winapi
+
+    owner = Worktrees(str(tmp_path / "projects"), str(tmp_path / "workers"))
+    await owner.create("session-test", "run-test")
+    project, _ = owner.paths("session-test", "run-test")
+    deep = project / ".git/objects" / "/".join(["nested-directory"] * 16)
+    assert len(str(deep)) > 260
+    long_path(deep).mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    _winapi.CreateJunction(str(outside), str(long_path(deep / "linked")))
+    with pytest.raises(ValueError, match="junction"):
+        await owner.git(project, "rev-parse", "HEAD")
+
+
+def test_long_path_prefixes_only_local_windows_paths(tmp_path):
+    import os
+    from pathlib import Path
+
+    from backend.app.execution.worktrees import long_path
+
+    if os.name != "nt":
+        assert long_path(tmp_path) == tmp_path
+        return
+    assert str(long_path(tmp_path)) == "\\\\?\\" + str(tmp_path.absolute())
+    prefixed = long_path(tmp_path)
+    assert long_path(prefixed) == prefixed
+    assert long_path(Path(r"\\server\share\x")) == Path(r"\\server\share\x")

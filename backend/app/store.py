@@ -70,17 +70,27 @@ class Store:
             ):
                 raise ValueError("Session changed; repeat preflight before planning")
             if previous:
-                for field in ("extension", "requalification", "fifth_attempt", "sixth_attempt"):
+                for field in (
+                    "extension", "requalification", "fifth_attempt", "sixth_attempt", "seventh_attempt",
+                    "eighth_attempt"
+                ):
                     old, new = getattr(previous.planning, field), getattr(session.planning, field)
                     if not old:
                         continue
+                    audit_exclude = (
+                        {"status", "transport_retries"} if field == "eighth_attempt" else {"status"}
+                    )
                     if (
                         new is None
-                        or old.model_dump(exclude={"status"}) != new.model_dump(exclude={"status"})
+                        or old.model_dump(exclude=audit_exclude) != new.model_dump(exclude=audit_exclude)
                         or (old.status != "granted" and old.status != new.status)
                         or len(session.planning.attempts) < len(previous.planning.attempts)
                     ):
                         raise ValueError(f"Planning {field} and consumed attempts cannot be replaced")
+                    if field == "eighth_attempt" and (
+                        new.transport_retries[:len(old.transport_retries)] != old.transport_retries
+                    ):
+                        raise ValueError("Planning transport retry history cannot be replaced")
                     if session.usage[:len(previous.usage)] != previous.usage:
                         raise ValueError(f"Planning {field} usage history cannot be replaced")
                 if session.planning.requalification and (
@@ -95,6 +105,14 @@ class Store:
                     session.planning.attempts[:5] != previous.planning.attempts[:5]
                 ):
                     raise ValueError("Planning sixth-attempt prior attempts cannot be replaced")
+                if session.planning.seventh_attempt and (
+                    session.planning.attempts[:6] != previous.planning.attempts[:6]
+                ):
+                    raise ValueError("Planning seventh-attempt prior attempts cannot be replaced")
+                if session.planning.eighth_attempt and (
+                    session.planning.attempts[:7] != previous.planning.attempts[:7]
+                ):
+                    raise ValueError("Planning eighth-attempt prior attempts cannot be replaced")
             db.execute(
                 "INSERT INTO sessions(id,state) VALUES(?,?) ON CONFLICT(id) DO UPDATE "
                 "SET state=excluded.state, updated_at=CURRENT_TIMESTAMP",

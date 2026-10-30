@@ -14,9 +14,11 @@ from uuid import uuid4
 from backend.app.domain import Session
 from backend.app.planning.allowance import state_hash
 from backend.app.planning.contracts import (
+    PlanningEighthAttempt,
     PlanningExtension,
     PlanningFifthAttempt,
     PlanningRequalification,
+    PlanningSeventhAttempt,
     PlanningSixthAttempt,
     content_hash,
 )
@@ -37,13 +39,46 @@ def read_session(config, session_id):
         db.close()
 
 
-def eligible(config, session, *, requalification=False, fifth_attempt=False, sixth_attempt=False):
-    if sum((requalification, fifth_attempt, sixth_attempt)) > 1:
+def eligible(config, session, *, requalification=False, fifth_attempt=False, sixth_attempt=False,
+             seventh_attempt=False, eighth_attempt=False):
+    if sum((requalification, fifth_attempt, sixth_attempt, seventh_attempt, eighth_attempt)) > 1:
         raise ValueError("Select only one planning grant")
     if config.mode != "live" or config.planning_max_attempts != 2:
         raise ValueError("Extension requires live mode and the ordinary two-attempt policy")
     PlanningService(None, None, config).guard(session)
     state = session.planning
+    if eighth_attempt:
+        if state.eighth_attempt:
+            raise ValueError("An eighth-attempt planning grant is already recorded")
+        if (
+            state.status != "blocked" or state.active or state.approval
+            or not state.seventh_attempt or state.seventh_attempt.status != "consumed"
+            or len(state.attempts) != 7
+            or [attempt.revision for attempt in state.attempts] != list(range(1, 8))
+            or len({attempt.plan_id for attempt in state.attempts}) != 1
+            or any(
+                attempt.requirements_revision != session.revision or not attempt.error
+                for attempt in state.attempts
+            )
+        ):
+            raise ValueError("Eighth-attempt grant requires seven failures and consumed prior grants")
+        return
+    if seventh_attempt:
+        if state.seventh_attempt:
+            raise ValueError("A seventh-attempt planning grant is already recorded")
+        if (
+            state.status != "blocked" or state.active or state.approval
+            or not state.sixth_attempt or state.sixth_attempt.status != "consumed"
+            or len(state.attempts) != 6
+            or [attempt.revision for attempt in state.attempts] != [1, 2, 3, 4, 5, 6]
+            or len({attempt.plan_id for attempt in state.attempts}) != 1
+            or any(
+                attempt.requirements_revision != session.revision or not attempt.error
+                for attempt in state.attempts
+            )
+        ):
+            raise ValueError("Seventh-attempt grant requires six failures and consumed prior grants")
+        return
     if sixth_attempt:
         if state.sixth_attempt:
             raise ValueError("A sixth-attempt planning grant is already recorded")
@@ -123,15 +158,23 @@ def summary(config, session):
         "sixth_attempt_status": (
             session.planning.sixth_attempt.status if session.planning.sixth_attempt else None
         ),
+        "seventh_attempt_status": (
+            session.planning.seventh_attempt.status if session.planning.seventh_attempt else None
+        ),
+        "eighth_attempt_status": (
+            session.planning.eighth_attempt.status if session.planning.eighth_attempt else None
+        ),
     }
 
 
-def preflight(config, session_id, *, requalification=False, fifth_attempt=False, sixth_attempt=False):
+def preflight(config, session_id, *, requalification=False, fifth_attempt=False, sixth_attempt=False,
+              seventh_attempt=False, eighth_attempt=False):
     session = read_session(config, session_id)
     result = summary(config, session)
     try:
         eligible(config, session, requalification=requalification,
-                 fifth_attempt=fifth_attempt, sixth_attempt=sixth_attempt)
+                 fifth_attempt=fifth_attempt, sixth_attempt=sixth_attempt, seventh_attempt=seventh_attempt,
+                 eighth_attempt=eighth_attempt)
         result["eligible"] = True
     except ValueError:
         result["eligible"] = False
@@ -139,13 +182,31 @@ def preflight(config, session_id, *, requalification=False, fifth_attempt=False,
 
 
 def issue(config, session_id, *, expected_state_hash, approval_text, reason, implementation_commit,
-          requalification=False, fifth_attempt=False, sixth_attempt=False):
+          requalification=False, fifth_attempt=False, sixth_attempt=False, seventh_attempt=False,
+          eighth_attempt=False):
     session = read_session(config, session_id)
     if state_hash(session) != expected_state_hash:
         raise ValueError("Session changed; repeat preflight before issuing an extension")
     eligible(config, session, requalification=requalification,
-             fifth_attempt=fifth_attempt, sixth_attempt=sixth_attempt)
-    if sixth_attempt:
+             fifth_attempt=fifth_attempt, sixth_attempt=sixth_attempt, seventh_attempt=seventh_attempt,
+             eighth_attempt=eighth_attempt)
+    if eighth_attempt:
+        grant_type = PlanningEighthAttempt
+        extra = {
+            "seventh_attempt_id": session.planning.seventh_attempt.id,
+            "seventh_attempt_hash": content_hash(
+                session.planning.seventh_attempt.model_dump(mode="json", round_trip=True)
+            ),
+        }
+    elif seventh_attempt:
+        grant_type = PlanningSeventhAttempt
+        extra = {
+            "sixth_attempt_id": session.planning.sixth_attempt.id,
+            "sixth_attempt_hash": content_hash(
+                session.planning.sixth_attempt.model_dump(mode="json", round_trip=True)
+            ),
+        }
+    elif sixth_attempt:
         grant_type = PlanningSixthAttempt
         extra = {
             "fifth_attempt_id": session.planning.fifth_attempt.id,
@@ -180,7 +241,11 @@ def issue(config, session_id, *, expected_state_hash, approval_text, reason, imp
         implementation_commit=implementation_commit, approval_text=approval_text,
         **extra,
     )
-    if sixth_attempt:
+    if eighth_attempt:
+        session.planning.eighth_attempt = grant
+    elif seventh_attempt:
+        session.planning.seventh_attempt = grant
+    elif sixth_attempt:
         session.planning.sixth_attempt = grant
     elif fifth_attempt:
         session.planning.fifth_attempt = grant
@@ -214,6 +279,12 @@ def main(argv=None):
     grant_mode.add_argument(
         "--sixth-attempt", action="store_true", help="Separate one-time sixth-attempt grant"
     )
+    grant_mode.add_argument(
+        "--seventh-attempt", action="store_true", help="Separate one-time seventh-attempt grant"
+    )
+    grant_mode.add_argument(
+        "--eighth-attempt", action="store_true", help="Separate one-time eighth-attempt grant"
+    )
     parser.add_argument("--expected-state-hash")
     parser.add_argument("--approval-file", type=Path)
     parser.add_argument("--reason")
@@ -232,18 +303,22 @@ def main(argv=None):
                 approval_text=args.approval_file.read_text(encoding="utf-8").strip(),
                 reason=args.reason, implementation_commit=args.implementation_commit,
                 requalification=args.requalify, fifth_attempt=args.fifth_attempt,
-                sixth_attempt=args.sixth_attempt,
+                sixth_attempt=args.sixth_attempt, seventh_attempt=args.seventh_attempt,
+                eighth_attempt=args.eighth_attempt,
             )
         else:
             result = preflight(
                 config, session_id, requalification=args.requalify,
-                fifth_attempt=args.fifth_attempt, sixth_attempt=args.sixth_attempt
+                fifth_attempt=args.fifth_attempt, sixth_attempt=args.sixth_attempt,
+                seventh_attempt=args.seventh_attempt, eighth_attempt=args.eighth_attempt
             )
         result["status"] = "recorded" if args.issue else "preflight"
     except (ValueError, OSError, sqlite3.Error):
         result = {
             "status": "blocked", "model_requests_possible": False,
             "failure": (
+                "eighth_attempt_preconditions_failed" if args.eighth_attempt else
+                "seventh_attempt_preconditions_failed" if args.seventh_attempt else
                 "sixth_attempt_preconditions_failed" if args.sixth_attempt else
                 "fifth_attempt_preconditions_failed" if args.fifth_attempt else
                 "requalification_preconditions_failed" if args.requalify else "extension_preconditions_failed"

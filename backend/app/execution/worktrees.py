@@ -11,6 +11,16 @@ from ..codex.transport import child_environment
 from ..planning.validation import safe_path
 
 
+def long_path(path: Path) -> Path:
+    """Return an extended-length Windows path so Python filesystem calls pass MAX_PATH."""
+    if os.name != "nt":
+        return path
+    text = str(path.absolute())
+    if text.startswith("\\\\"):
+        return path.absolute()
+    return Path("\\\\?\\" + text)
+
+
 class GitFailure(ValueError):
     def __init__(self, exit_code):
         super().__init__("Owned Git operation failed; generated diagnostics withheld")
@@ -35,7 +45,8 @@ class Worktrees:
         if ".." in path.parts:
             raise ValueError("Worktree paths cannot contain traversal")
         for ancestor in [path, *path.parents]:
-            if ancestor.is_symlink() or getattr(ancestor, "is_junction", lambda: False)():
+            probe = long_path(ancestor)
+            if probe.is_symlink() or getattr(probe, "is_junction", lambda: False)():
                 raise ValueError("Worktree roots cannot cross symlinks or junctions")
 
     @classmethod
@@ -139,7 +150,7 @@ class Worktrees:
         elif cwd.is_relative_to(self.workers):
             metadata = cwd / ".git"
             self.no_links(metadata)
-            text = metadata.read_text(encoding="utf-8").strip()
+            text = long_path(metadata).read_text(encoding="utf-8").strip()
             if not text.startswith("gitdir: "):
                 raise ValueError("Git policy requires owned worktree metadata")
             gitdir = Path(text[8:])
@@ -148,7 +159,7 @@ class Worktrees:
             self.no_links(gitdir)
             common_file = gitdir / "commondir"
             self.no_links(common_file)
-            common = (gitdir / common_file.read_text(encoding="utf-8").strip()).resolve()
+            common = (gitdir / long_path(common_file).read_text(encoding="utf-8").strip()).resolve()
             if common.name != ".git" or not common.is_relative_to(self.projects):
                 raise ValueError("Git policy rejects external common directories")
         else:
@@ -156,10 +167,10 @@ class Worktrees:
         self.no_links(common)
         config = common / "config"
         self.no_links(config)
-        if config.exists():
+        if long_path(config).exists():
             parser = configparser.RawConfigParser()
             try:
-                parser.read_string(config.read_text(encoding="utf-8"))
+                parser.read_string(long_path(config).read_text(encoding="utf-8"))
             except (configparser.Error, UnicodeError) as error:
                 raise ValueError("Git policy rejects malformed repository configuration") from error
             allowed = {
@@ -181,14 +192,14 @@ class Worktrees:
                 )
         for path in (common / "info/attributes", common / "objects/info/alternates"):
             self.no_links(path)
-            if path.exists():
+            if long_path(path).exists():
                 raise ValueError("Git policy rejects repository attributes and external object stores")
         pending, count = [common], 0
         while pending:
             directory = pending.pop()
-            if not directory.exists():
+            if not long_path(directory).exists():
                 continue
-            for entry in directory.iterdir():
+            for entry in long_path(directory).iterdir():
                 count += 1
                 if count > 16384:
                     raise ValueError("Git metadata inspection exceeds its policy bound")
