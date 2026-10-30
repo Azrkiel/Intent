@@ -10,12 +10,13 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from .builder import run_build, safe_index
+from .clarity.contracts import ReaderVariation
 from .clarity.gate import approval_ready
 from .demo import DemoModels
 from .discussion.routes import discussion_router
 from .discussion.service import Discussions
 from .domain import Build, Session, gate_for, public_session
-from .engine import Engine
+from .engine import Engine, invalidate_understanding
 from .execution.routes import execution_router
 from .execution.worker import Executor
 from .models import LiveModels, ModelError
@@ -43,6 +44,12 @@ class Approval(BaseModel):
 
 class NewSession(BaseModel):
     clarity_version: int | None = Field(default=None, ge=1, le=2)
+    clarity_reader_variation: ReaderVariation | None = None
+
+
+class ReaderMode(BaseModel):
+    mode: ReaderVariation
+    revision: int = Field(ge=0)
 
 
 class Readback(BaseModel):
@@ -151,6 +158,9 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
         session = Session(
             mode=settings.mode,
             clarity_version=(body and body.clarity_version) or settings.resolved_clarity_version(),
+            clarity_reader_variation=(
+                (body and body.clarity_reader_variation) or settings.clarity_reader_variation
+            ),
         )
         store.save(session)
         return public_session(session)
@@ -236,6 +246,20 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
                 await engine.confirm_readback(session, body.field, body.text_hash)
             except ValueError as error:
                 raise HTTPException(409, str(error)) from None
+            return public_session(session)
+
+    @app.post("/api/sessions/{id}/clarity/reader-variation")
+    async def reader_variation(id: str, body: ReaderMode):
+        async with locks[id]:
+            session = load(id)
+            guard_edit(session)
+            if session.clarity_version != 2 or body.revision != session.revision:
+                raise HTTPException(409, "This setting is no longer current.")
+            if body.mode != session.clarity_reader_variation:
+                session.clarity_reader_variation = body.mode
+                await executor.invalidate(id)
+                invalidate_understanding(session)  # readings made under the old mode cannot open the gate
+                store.save(session)
             return public_session(session)
 
     @app.post("/api/sessions/{id}/clarity/veto")

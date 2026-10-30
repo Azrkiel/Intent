@@ -216,22 +216,35 @@ class Engine:
 
         async def critic(lens):
             try:
-                result = await self.call(
-                    session,
-                    f"critic:{lens}" if lens != "single" else "baseline",
-                    Critique,
-                    prompts.critic_prompt(lens) if lens != "single" else prompts.BASELINE,
-                    payload,
-                )
                 valid_ids = {item.id for item in session.ledger}
-                valid = [
-                    q
-                    for q in result.candidates
-                    if (q.lens == lens or lens == "single") and set(q.targets) <= valid_ids
-                ]
-                if len(valid) != len(result.candidates):
-                    return lens, [], "Critic returned invalid targets or the wrong lens."
-                return lens, valid, None
+                feedback, reason = {}, ""
+                for _ in range(2):  # live critics put code_diff's file paths in targets
+                    result = await self.call(
+                        session,
+                        f"critic:{lens}" if lens != "single" else "baseline",
+                        Critique,
+                        prompts.critic_prompt(lens) if lens != "single" else prompts.BASELINE,
+                        {**payload, **feedback},
+                    )
+                    valid = [
+                        q
+                        for q in result.candidates
+                        if (q.lens == lens or lens == "single") and set(q.targets) <= valid_ids
+                    ]
+                    if len(valid) == len(result.candidates):
+                        return lens, valid, None
+                    # Model text lands in saved warnings: keep it short.
+                    lenses = sorted({q.lens[:40] for q in result.candidates} - {lens, "single"})[:3]
+                    unknown = sorted({t[:40] for q in result.candidates for t in q.targets} - valid_ids)[:5]
+                    detail = [f"lens {name}" for name in lenses]
+                    if unknown:
+                        detail.append(f"unknown targets {', '.join(unknown)}")
+                    reason = "; ".join(detail)
+                    feedback = {
+                        "review_feedback": f"Invalid: {reason}. targets holds only ledger IDs from the "
+                        f"ledger, never file paths; use lens='{lens}'."
+                    }
+                return lens, [], f"Critic returned invalid targets or the wrong lens ({reason})."
             except ModelError as error:
                 return lens, [], str(error)
 

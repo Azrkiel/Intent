@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from backend.app.clarity.contracts import (
     NORTH_STAR_FIELDS,
     RUBRIC,
+    RULE_TEXT,
     ClarityState,
     DecisionProbe,
     ProbeAnswer,
@@ -27,6 +28,14 @@ def test_fields_rubrics_and_thresholds_match_the_spec():
         1.0,
         0.80,
     )
+
+
+def test_w1_accepts_the_solo_user():
+    # Live judge failed W1 on "I" for solo apps (habit-tracker, private-notes).
+    from backend.app.clarity.prompts import RUBRIC_JUDGE
+
+    assert '"I"' in RULE_TEXT["W1"] and "'users'" in RULE_TEXT["W1"]
+    assert "W1" in RUBRIC_JUDGE and '"I"' in RUBRIC_JUDGE
 
 
 def test_session_defaults_to_v1_and_v2_state_roundtrips():

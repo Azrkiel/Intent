@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from .clarity.contracts import Thresholds
+from .clarity.contracts import ReaderVariation, Thresholds
 
 
 class Settings(BaseSettings):
@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     super_model: str = "nvidia/nemotron-3-super-120b-a12b"
     ultra_model: str = "nvidia/Nemotron-3-Ultra-550b-a55b"
     send_thinking_controls: bool = False
+    # Opt-in, Nano clarity passes only: faster, but the live rubric judge then failed W1 on "I".
+    nano_thinking_off: bool = False
     reasoning_budget: int = Field(default=2048, ge=256, le=8192)
     session_budget_usd: float = Field(default=2, gt=0, le=100)
     database_path: str = ".data/prompt-caller.sqlite3"
@@ -30,6 +32,7 @@ class Settings(BaseSettings):
     planning_max_attempts: int = Field(default=2, ge=1, le=2)
     planning_max_passes: int = Field(default=9, ge=1, le=9)
     clarity_version: int | None = Field(default=None, ge=1, le=2)
+    clarity_reader_variation: ReaderVariation = "perspective"
     clarity_alpha_pass: float = Field(default=0.80, ge=0, le=1)
     clarity_alpha_floor: float = Field(default=0.667, ge=0, le=1)
     canary_critical_recall: float = Field(default=1.0, ge=0, le=1)

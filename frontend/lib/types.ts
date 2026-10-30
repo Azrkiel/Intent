@@ -1,6 +1,6 @@
 import type { PlanningState } from "./planning";
 import type { FrameworkReview } from "./framework";
-import type { ClarityReadout, ClarityState } from "./clarity";
+import type { ClarityReadout, ClarityState, ReaderVariation } from "./clarity";
 
 export type Slot =
   "goal" | "core-flow" | "data" | "access" | "non-goals" | "success-criterion";
@@ -71,6 +71,7 @@ export interface Session {
   analysis_complete: boolean;
   framework_review?: FrameworkReview | null;
   clarity_version: 1 | 2;
+  clarity_reader_variation?: ReaderVariation;
   clarity?: ClarityState | null;
   clarity_readout?: ClarityReadout | null;
   readbacks?: Record<string, string>;

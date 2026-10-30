@@ -70,7 +70,12 @@ checking the account's support for `chat_template_kwargs.enable_thinking` and
 `reasoning_budget`. With controls enabled, Nano uses thinking off, Super uses the
 configured budget, and Ultra uses a larger budget. With controls disabled, prompt
 and output-token limits apply; the provider's default thinking behaviour is
-unverified. All model IDs and the API base URL can be changed in `.env`.
+unverified. Calls with an 8192-token output limit (clarity, framework map, compiler)
+wait 120s instead of 45s: with provider-default thinking, live Nano clarity passes ran
+up to 43s. `NANO_THINKING_OFF=true` sends the thinking-off control for Nano `clarity:*`
+passes only. It cut the rubric pass from about 23s to 7s in a live A/B (2026-10-30), but
+the judge then failed W1 on "I" in 3/3 runs and misjudged a clear ambition, so it stays
+off by default. Thinking off also made the extractor return slot names as ledger types. All model IDs and the API base URL can be changed in `.env`.
 
 Usage and latency are retained per successful API response, including invalid JSON
 responses. Dollar figures use the role's published price assumptions and are

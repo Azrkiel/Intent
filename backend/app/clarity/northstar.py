@@ -3,14 +3,18 @@
 import hashlib
 import re
 from collections import Counter
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from .contracts import (
     FIELD_LABELS,
     NORTH_STAR_FIELDS,
     PROMPT_ONCE_RULES,
+    REWRITE_RULES,
     RUBRIC,
     RULE_TEXT,
+    FieldJudgement,
+    FieldReading,
+    FieldSource,
     FieldState,
     NorthStarDraft,
     Probe,
@@ -39,6 +43,8 @@ EXAMPLES = {
     "good": ["Find what I saved in under 10 seconds", "Finish the task in under a minute"],
     "fails-if": ["If something I saved disappears after a reload", "If I can't tell what I already did"],
 }
+# Asked about by a read-back or reported as a failure, never by a follow-up question.
+NOT_ASKED = ("G3", "G4:readers")
 UNSURE = re.compile(
     r"^\s*(i\s*(do\s*n[o']?t|dunno)\s*know|idk|not sure|no idea|you decide|whatever|up to you)\b", re.I
 )
@@ -133,6 +139,34 @@ def evaluate(
     return state
 
 
+def next_target(fields: list[FieldState]) -> tuple[FieldState, list[str]] | None:
+    """The field the next question is about, with the failures that question can settle."""
+    by_field = {state.field: state for state in fields}
+    for name in NORTH_STAR_FIELDS:
+        state = by_field.get(name)
+        if state is None or state.passed:
+            continue
+        codes = [code for code in state.failing if code not in NOT_ASKED]
+        if codes:
+            return state, codes
+    return None
+
+
+def carry_passes(judgement: FieldJudgement, text: str, previous: FieldReading | None) -> None:
+    """Added words cannot undo a rule that asks for something to be said, so the judge cannot either.
+
+    Live probe 12: the judge passed W2, then failed it on the same words with more after them.
+    """
+    if previous is None or not text.startswith(previous.text):
+        return
+    passed = {v.rule for v in previous.judgement.verdicts if v.passed}
+    for verdict in judgement.verdicts:
+        if not verdict.passed and verdict.rule in passed and verdict.rule not in REWRITE_RULES:
+            verdict.passed = True
+            verdict.reason = "Passed earlier; the text only added words after that."[:300]
+            verdict.options = []
+
+
 def _distinct(items) -> list[str]:
     seen, kept = set(), []
     for item in items:
@@ -172,8 +206,9 @@ def _question(state: FieldState, code: str, revision: int) -> tuple[str, list[st
             None,
         )
         options = _options((ruling.options if ruling else [])[:2], [KEEP])
+        opening = f'You said "{word}"' if state.source == "user" else f'The draft says "{word}"'
         return (
-            f'You said "{word}" in {label}. What exactly do you mean?',
+            f"{opening} in {label}. What exactly do you mean?",
             options,
             prompt_id(state.field, "G1", word),
         )
@@ -209,50 +244,92 @@ def follow_up(
     """Propose and confirm: a vague answer gets Intent's extrapolated draft to check."""
     from ..domain import Candidate
 
-    by_field = {state.field: state for state in fields}
-    for name in NORTH_STAR_FIELDS:
-        state = by_field.get(name)
-        if state is None or state.passed:
-            continue
-        codes = [code for code in state.failing if code != "G3"]
-        if not codes:
-            continue  # only the read-back confirmation remains; the UI asks for it
-        question, options, key = _question(state, codes[0], revision)
-        if drafts:
-            guess = f' My best guess from what you told me: "{drafts[0]}".'
-            filled = f" I filled in: {'; '.join(assumed)}." if assumed else ""
-            question = f"{question}{guess}{filled} Does that fit? Pick one, or edit it."
-            keep = [KEEP] if KEEP in options else []
-            options = _distinct([*drafts[: 3 - len(keep)], *keep])
-        return Candidate(
-            id=key,
-            lens="north-star",
-            targets=[],
-            question=question[:500],
-            options=options,
-            code_diff=f"The {FIELD_LABELS[name]} answer sets which builds are proportionate "
-            "and which choices Intent may make for you.",
-            divergence=3,
-            uncertainty=3,
-            cost_to_change=3,
-            suggestion=bool(drafts),
-        )
-    return None
+    target = next_target(fields)
+    if target is None:
+        return None  # only read-backs remain; the UI asks for those
+    state, codes = target
+    question, options, key = _question(state, codes[0], revision)
+    probe = None
+    if codes[0].startswith("G4:"):
+        probe = next((p.question for p in state.probes if p.id == codes[0][3:]), None)
+    if drafts:
+        guess = f' My best guess from what you told me: "{drafts[0]}".'
+        filled = f" I filled in: {'; '.join(assumed)}." if assumed else ""
+        question = f"{question}{guess}{filled} Does that fit? Pick one, or edit it."
+        keep = [KEEP] if KEEP in options else []
+        options = _distinct([*drafts[: 3 - len(keep)], *keep])
+    return Candidate(
+        id=key,
+        lens="north-star",
+        targets=[],
+        question=question[:500],
+        options=options,
+        code_diff=f"The {FIELD_LABELS[state.field]} answer sets which builds are proportionate "
+        "and which choices Intent may make for you.",
+        divergence=3,
+        uncertainty=3,
+        cost_to_change=3,
+        suggestion=bool(drafts),
+        probe=probe,
+    )
+
+
+def question_field(question_id: str | None) -> str | None:
+    """The North Star field a question id asks about; a reply to it can change only that field."""
+    if not question_id:
+        return None
+    return next((name for name in NORTH_STAR_FIELDS if question_id.startswith(f"NS-{name}-")), None)
+
+
+class FieldEntry(NamedTuple):
+    text: str = ""
+    source: FieldSource = "user"
+
+
+def _edits_a_draft(answer: str, question: "Candidate") -> bool:
+    """The "Edit this draft" button sends a changed draft as typed text: most of its words survive."""
+    if not question.suggestion:
+        return False
+    said = set(re.findall(r"\w+", answer.casefold()))
+    drafts = [set(re.findall(r"\w+", o.casefold())) for o in question.options if o not in (KEEP, OWN)]
+    return any(draft and len(said & draft) / len(draft) >= 0.6 for draft in drafts)
+
+
+def _answered(entry: FieldEntry, question: "Candidate", text: str, picked: bool) -> FieldEntry:
+    answer = text.strip()
+    if answer in (KEEP, OWN) or (UNSURE.search(answer) and len(answer.split()) <= 4):
+        return entry
+    if picked:
+        return FieldEntry(answer, "drafted")  # complete by construction; fragments lost its details
+    if _edits_a_draft(answer, question):
+        return FieldEntry(answer, "mixed")
+    if question.probe:
+        answer = f"{question.probe} {answer}"
+    if not entry.text:
+        return FieldEntry(answer, "user")
+    if answer.casefold() in entry.text.casefold():
+        return entry
+    return FieldEntry(f"{entry.text} … {answer}", "user" if entry.source == "user" else "mixed")
+
+
+def field_entries(session: "Session") -> dict[str, FieldEntry]:
+    """Field text is deterministic: extracted quotes, then only the answers to that field's questions."""
+    entries = {
+        name: FieldEntry(session.north_star_quotes.get(name, ""), "user") for name in NORTH_STAR_FIELDS
+    }
+    turns = {turn.number: turn for turn in session.turns}
+    for asked in session.questions:  # oldest first
+        name = question_field(asked.question.id)
+        turn = turns.get(asked.turn)
+        if name and turn:
+            entries[name] = _answered(entries[name], asked.question, turn.text, turn.suggested)
+    return entries
 
 
 def accept_drafted(fields: list[FieldState], session: "Session") -> None:
-    """A field quoted only from drafts the user picked needs no separate read-back.
-
-    A quote that also occurs in a typed turn may be the user's own words, so it still needs one.
-    """
-    drafted = [turn.text for turn in session.turns if turn.suggested]
-    typed = [turn.text for turn in session.turns if not turn.suggested]
+    """A field holding only a draft the user picked needs no separate read-back; picking confirmed it."""
     for state in fields:
-        parts = state.text.split(" … ") if state.text else []
-        if parts and all(
-            any(part in text for text in drafted) and not any(part in text for text in typed)
-            for part in parts
-        ):
+        if state.text and state.source == "drafted":
             session.readbacks[state.field] = state.text_hash
 
 
