@@ -898,6 +898,46 @@ inferences as **Undecided — choose the simplest option and report the choice**
 Citations alone are not proof of semantic fidelity: use the live evaluation and
 review a sample of compiled briefs before making quality claims.
 
+### Clarity v2
+
+Clarity v2 is a per-session version, fixed when the session is created like `mode`. Live sessions
+default to v2 and demo sessions to v1 (the scripted demo and the 16 scripted evals stay on v1).
+`CLARITY_VERSION=1|2` overrides the default, and `POST /api/sessions` accepts an optional body
+`{"clarity_version": 1|2}`. Historical sessions stay on v1.
+
+**North Star.** Six fields must each pass: who and when, the job, ambition, today, what good looks
+like, and what fails it. A field passes only when all its checks pass: G1 (deterministic lexicon
+prompts for vague, escape, open-ended, absolute and subjective wording; non-blocking, prompted once),
+a rubric judge, G3 (the user confirms a read-back of the field) and G4 (two independent readers
+agree, Krippendorff alpha at or above `CLARITY_ALPHA_PASS`, default 0.80; the floor is
+`CLARITY_ALPHA_FLOOR`, default 0.667). There is no question cap. When an answer is vague,
+suggestion mode proposes an extrapolated draft with the assumptions it made; the user picks it,
+edits it or writes their own. A field built only from picked drafts skips G3, but the rubric and G4
+still run. Claims carry computed provenance (quote tiling and a novelty tripwire).
+
+**Decisions.** Build-changing choices are discovered by divergence between candidate builds, scored,
+and then asked, delegated, deferred (with a `due_phase`) or excluded. Choices Intent makes for the
+user are listed and can be vetoed. Planner-side enforcement of `due_phase` is not implemented.
+Settings: `DECISION_STOP_THRESHOLD` (default 1.5) and `DECISION_REPEAT_PENALTY` (default 0.5).
+
+**Scenarios and review.** The user approves concrete scenarios, plus what Intent filled in, instead
+of a prose playback. In v2, `POST /api/sessions/{id}/approve` requires a ready gate and current
+clarity with at least one scenario. A canary review plants known defects and measures recall;
+`CANARY_CRITICAL_RECALL` (default 1.0) and `CANARY_OVERALL_RECALL` (default 0.80) set the thresholds.
+
+**Routes.** `POST /api/sessions/{id}/clarity/readback` (`field`, `text_hash`, `revision`) confirms a
+read-back. `POST /api/sessions/{id}/clarity/veto` (`decision_id`, `revision`) vetoes a choice Intent
+made. The public session adds `clarity_version`, `clarity`, `readbacks`, `vetoes` and
+`clarity_readout` (`statements`, `unmapped_words`, `choices_made`, `decisions_open`, `scenarios`).
+The workspace Clarity panel (frontend phase P6) shows these fields, read-backs, choices with veto,
+scenarios and review status; it is not described here as browser-verified.
+
+**Evidence limits.** Offline tests, demo mode and scripted evals do not establish live model
+quality. `python -m backend.evals.run --demo --clarity-version 2` reports clarity metrics (fields
+passed, alpha, claims, decisions, canary recall, wasted questions) with a simulated user confirming
+read-backs; it checks plumbing only. The offline HTTP-contract test runs on v1; there is no offline
+v2 HTTP-contract test yet. No live qualification has been run for v2.
+
 ## Verification and evaluation
 
 ```powershell

@@ -6,6 +6,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from backend.app.clarity.metrics import clarity_metrics
 from backend.app.demo import DemoModels
 from backend.app.domain import Session, gate_for
 from backend.app.engine import Engine
@@ -51,8 +52,8 @@ def answer_for(question, fixture):
     return defaults.get(question.slot, question.options[0])
 
 
-async def run_case(fixture, settings, models, store, strategy):
-    session = Session(mode=settings.mode)
+async def run_case(fixture, settings, models, store, strategy, clarity_version=1):
+    session = Session(mode=settings.mode, clarity_version=clarity_version)
     store.save(session)
     engine = Engine(store, models, critic_mode=strategy)
     text = fixture["prompt"]
@@ -61,6 +62,11 @@ async def run_case(fixture, settings, models, store, strategy):
         async for event in engine.turn(session, text):
             if event["type"] == "error":
                 error = event["message"]
+        if session.clarity_version == 2 and session.clarity:
+            # Simulated user: confirms every read-back that is the only failing check.
+            for field in list(session.clarity.fields):
+                if field.failing == ["G3"]:
+                    await engine.confirm_readback(session, field.field, field.text_hash)
         if error or session.warnings:
             error = error or "; ".join(session.warnings)
             break
@@ -70,7 +76,8 @@ async def run_case(fixture, settings, models, store, strategy):
     ready = gate_for(session).ready
     if ready and not error:
         try:
-            await engine.playback(session)
+            if session.clarity_version == 1:
+                await engine.playback(session)
             session.approved_revision = session.revision
             await engine.compile(session)
         except ModelError as cause:
@@ -86,6 +93,7 @@ async def run_case(fixture, settings, models, store, strategy):
         "planted_ambiguities": fixture["ambiguities"],
         "structurally_untraceable_lines": unsupported_lines(session),
         "semantic_invented_requirements": None,
+        "clarity": clarity_metrics(session),
         "calls": len(session.usage),
         "estimated_usd": sum(item.estimated_usd for item in session.usage),
         "questions": [q.model_dump() for q in questions],
@@ -95,7 +103,7 @@ async def run_case(fixture, settings, models, store, strategy):
     }
 
 
-async def run(demo, output):
+async def run(demo, output, clarity_version=1):
     settings = Settings(mode="demo" if demo else "live")
     if not demo and not (settings.nebius_api_key and settings.nebius_api_key.get_secret_value()):
         raise SystemExit("Live evaluation needs NEBIUS_API_KEY. --demo checks plumbing only.")
@@ -106,7 +114,7 @@ async def run(demo, output):
             store = Store(str(Path(folder) / "eval.sqlite3"))
             for strategy in ["lenses", "single"]:
                 for fixture in load_fixtures():
-                    result = await run_case(fixture, settings, models, store, strategy)
+                    result = await run_case(fixture, settings, models, store, strategy, clarity_version)
                     results.append(result)
                     print(
                         f"{strategy:6} {fixture['id']:20} ready={result['ready']} "
@@ -122,11 +130,14 @@ async def run(demo, output):
         if demo
         else "Keyword hits are only a screening proxy. Manually score each planted ambiguity "
         "and semantic invented requirement using the saved questions, ledger and brief.",
+        "clarity_version": clarity_version,
         "comparison": "Same extractor, ranker, slot fallback, compiler and verifier for both strategies. "
         "Six critics (up to 18 candidates/turn) vs one general critic (up to 3/turn). "
         "Model-call and candidate budgets differ; report cost alongside quality.",
         "results": results,
     }
+    if clarity_version == 2:
+        report["notice"] += " Read-backs were confirmed by a simulated user."
     path = Path(output)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -144,5 +155,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compare six lenses with a single general critic.")
     parser.add_argument("--demo", action="store_true", help="Test plumbing only; makes no API calls.")
     parser.add_argument("--output", default=".data/evals/latest.json")
+    parser.add_argument("--clarity-version", type=int, choices=[1, 2], default=1)
     args = parser.parse_args()
-    asyncio.run(run(args.demo, args.output))
+    asyncio.run(run(args.demo, args.output, args.clarity_version))
