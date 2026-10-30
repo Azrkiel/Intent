@@ -32,6 +32,8 @@ FAST_PREFIXES = (
 
 class ModelError(RuntimeError):
     raw: str | None = None  # last unparseable model output; only kept when LiveModels.capture_raw is on
+    invalid_output = False  # the provider answered, but with output that failed after its repair retry
+    transient = False  # the provider was busy or unreachable; no answer was received
 
 
 class LiveModels:
@@ -225,6 +227,7 @@ class LiveModels:
                             category = "deterministic acceptance"
                 if attempt:
                     failure = ModelError(f"{role} failed {category} after one repair retry.")
+                    failure.invalid_output = True
                     if self.capture_raw:
                         failure.raw = content[:16000]
                         self.raw_failures.setdefault(session.id, []).append(
@@ -272,7 +275,9 @@ class LiveModels:
                     "Provider is busy or temporarily unavailable."
                     if code in {502, 503, 504, 529} else "Check server configuration."
                 )
-                raise ModelError(f"Token Factory {role} request failed{detail}. {advice}") from error
+                failure = ModelError(f"Token Factory {role} request failed{detail}. {advice}")
+                failure.transient = code is None or code in {502, 503, 504, 529}
+                raise failure from error
             finally:
                 self.reserved[session.id] = max(0, self.reserved.get(session.id, 0) - reserve)
         raise ModelError(f"{role} did not return a result.")

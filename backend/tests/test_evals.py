@@ -72,7 +72,8 @@ async def test_schema_failure_raw_output_lands_in_the_case_result(tmp_path):
         Store(str(tmp_path / "e.sqlite3")), "single",
     )
     assert "JSON parsing" in result["error"]
-    assert result["raw_failures"] == [{"role": "extractor", "category": "JSON parsing", "raw": "{oops"}]
+    # Each of the extractor's two tries keeps its raw output.
+    assert result["raw_failures"] == [{"role": "extractor", "category": "JSON parsing", "raw": "{oops"}] * 2
     await client.close()
 
 

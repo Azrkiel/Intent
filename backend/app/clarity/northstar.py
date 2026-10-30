@@ -167,6 +167,17 @@ def carry_passes(judgement: FieldJudgement, text: str, previous: FieldReading | 
             verdict.options = []
 
 
+def settled_probes(reading: FieldReading) -> set[str]:
+    """Questions both readers answered the same way; only the others are read again."""
+    first = {x.probe_id: x.choice for x in reading.reader_a}
+    second = {x.probe_id: x.choice for x in reading.reader_b}
+    return {
+        probe.id
+        for probe in reading.probes
+        if first.get(probe.id, -1) != -1 and first.get(probe.id) == second.get(probe.id)
+    }
+
+
 def _distinct(items) -> list[str]:
     seen, kept = set(), []
     for item in items:
