@@ -203,6 +203,33 @@ async def test_probes_and_drafts_are_scoped_to_their_field(tmp_path):
     assert "scope" in prompts.READER_PROBES and "scope" in prompts.SUGGEST
 
 
+async def test_the_judge_sees_the_rules_a_field_passed_last_time(tmp_path):
+    # Live, the judge re-judged from scratch each round: W2 passed at round 4 and failed at round 7.
+    from backend.app.clarity import prompts
+    from backend.app.domain import Session
+
+    class Judged(DemoModels):
+        payloads = []
+
+        async def call(self, session, role, schema, instruction, payload):
+            if role == "clarity:rubric":
+                self.payloads.append(payload)
+            return await super().call(session, role, schema, instruction, payload)
+
+    models = Judged()
+    engine, session = await analyzed(tmp_path, models, answered=True)
+    who = next(f for f in session.clarity.fields if f.field == "who-when")
+    prior = session.rubric_passes["who-when"]
+    assert prior.text == who.text and set(prior.passed) == {"W1", "W2", "W3", "W4"}
+    assert all("previous" not in entry for entry in models.payloads[0]["fields"])
+    [event async for event in engine.turn(session, "I also check it on my laptop at lunch.")]
+    entry = next(e for e in models.payloads[-1]["fields"] if e["field"] == "who-when")
+    assert entry["previous"] == {"text": prior.text, "passed": prior.passed}
+    assert "previous" in prompts.RUBRIC_JUDGE
+    restored = Session.model_validate_json(session.model_dump_json(round_trip=True))
+    assert restored.rubric_passes == session.rubric_passes
+
+
 async def test_demo_fields_show_distinct_text_from_the_conversation(tmp_path):
     engine, session = await analyzed(tmp_path)
     texts = [f.text for f in session.clarity.fields]

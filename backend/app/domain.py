@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
-from .clarity.contracts import ClarityState, Decision, ReaderVariation
+from .clarity.contracts import ClarityState, Decision, PriorVerdicts, ReaderVariation
 from .discussion.contracts import DiscussionTarget
 from .framework import FrameworkReview, framework_blockers, framework_progress, reviewed_context
 from .planning.contracts import PlanningState
@@ -191,6 +191,8 @@ class Session(Contract):
     clarity_reader_variation: ReaderVariation = "perspective"
     clarity: ClarityState | None = None
     readbacks: dict[str, str] = Field(default_factory=dict)
+    # Survives new turns like read-backs: a fresh judge re-rolled passed rules every round.
+    rubric_passes: dict[str, PriorVerdicts] = Field(default_factory=dict)
     vetoes: list[Decision] = Field(default_factory=list, max_length=12)
     playback: Playback | None = None
     playback_revision: int | None = None

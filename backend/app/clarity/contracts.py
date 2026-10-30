@@ -74,6 +74,13 @@ class Contract(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class PriorVerdicts(Contract):
+    """The rules a North Star field passed when last judged; shown to the next judge."""
+
+    text: Text
+    passed: list[Identifier] = Field(default_factory=list, max_length=8)
+
+
 class Thresholds(Contract):
     alpha_pass: float = Field(default=0.80, ge=0, le=1)
     alpha_floor: float = Field(default=0.667, ge=0, le=1)

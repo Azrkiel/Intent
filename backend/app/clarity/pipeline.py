@@ -23,6 +23,7 @@ from .contracts import (
     FieldState,
     NorthStarDraft,
     NorthStarProbes,
+    PriorVerdicts,
     RoundTrip,
     RubricJudgement,
     ScenarioDrafts,
@@ -137,6 +138,11 @@ class ClarityPipeline:
                             rule: RULE_TEXT[rule]
                             for rule in (*RUBRIC[f.field], *PROMPT_ONCE_RULES.get(f.field, ()))
                         },
+                        **(
+                            {"previous": session.rubric_passes[f.field].model_dump()}
+                            if f.field in session.rubric_passes
+                            else {}
+                        ),
                     }
                     for f in present
                 ]
@@ -159,6 +165,10 @@ class ClarityPipeline:
             sets = {entry.field: entry.probes for entry in probe_sets.sets}
             for f in present:
                 f.judgement = judged.get(f.field)
+                if f.judgement:
+                    session.rubric_passes[f.field] = PriorVerdicts(
+                        text=f.text, passed=[v.rule for v in f.judgement.verdicts if v.passed][:8]
+                    )
                 f.probes = [
                     p.model_copy(update={"id": f"{f.field}.p{i + 1}"})
                     for i, p in enumerate(sets.get(f.field, []))
