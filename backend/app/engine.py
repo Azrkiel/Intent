@@ -230,8 +230,9 @@ class Engine:
                     if (q.lens == lens or lens == "single") and set(q.targets) <= valid_ids
                 ]
                 if len(valid) != len(result.candidates):
-                    lenses = sorted({q.lens for q in result.candidates} - {lens, "single"})
-                    unknown = sorted({t for q in result.candidates for t in q.targets} - valid_ids)
+                    # Model text lands in saved warnings: keep it short.
+                    lenses = sorted({q.lens[:40] for q in result.candidates} - {lens, "single"})[:3]
+                    unknown = sorted({t[:40] for q in result.candidates for t in q.targets} - valid_ids)[:5]
                     detail = [f"lens {name}" for name in lenses]
                     if unknown:
                         detail.append(f"unknown targets {', '.join(unknown)}")
