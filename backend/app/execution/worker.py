@@ -7,6 +7,7 @@ from pathlib import Path
 
 from ..codex.client import Client
 from ..codex.protocol import CodexError
+from ..codex.sandbox import app_server_arguments
 from ..codex.transport import Transport
 from ..domain import gate_for
 from ..planning.validation import safe_path, validate_plan
@@ -44,7 +45,8 @@ class Executor(ContextExecution):
         executable = shutil.which(self.settings.codex_command)
         if not executable:
             raise CodexError("Codex executable is unavailable")
-        transport = Transport([executable, "app-server"], cwd=run.worktree, home=self.profile)
+        arguments = app_server_arguments(run.project, self.profile)
+        transport = Transport([executable, "app-server", *arguments], cwd=run.worktree, home=self.profile)
         await transport.start()
         return Client(transport, self.settings.codex_approval_timeout_seconds)
 

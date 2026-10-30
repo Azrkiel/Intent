@@ -10,6 +10,7 @@ from pathlib import Path
 
 from backend.app.codex.client import Client
 from backend.app.codex.protocol import CodexError
+from backend.app.codex.sandbox import app_server_arguments
 from backend.app.codex.transport import Transport
 from backend.app.execution.worker import Executor
 from backend.app.settings import Settings
@@ -22,7 +23,8 @@ async def configured_client(config):
     if not executable:
         raise CodexError("Configured executable unavailable")
     home = config.codex_home or os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))
-    transport = Transport([executable, "app-server"], cwd=str(Path.cwd()), home=home)
+    cwd = str(Path.cwd())
+    transport = Transport([executable, "app-server", *app_server_arguments(cwd, home)], cwd=cwd, home=home)
     try:
         await transport.start()
     except BaseException:

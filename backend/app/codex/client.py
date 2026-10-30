@@ -6,9 +6,12 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field
 
 from .protocol import QUALIFIED_VERSION, CodexError
+from .sandbox import PROFILE
 
+# On Windows the app-server's permission profile is the sandbox: a legacy policy would replace it.
+WINDOWS_PROFILE = os.name == "nt"
 THREAD_POLICY = {
-    "sandbox": "workspace-write",
+    **({} if WINDOWS_PROFILE else {"sandbox": "workspace-write"}),
     "approvalPolicy": "on-request",
     "approvalsReviewer": "user",
     "config": {
@@ -67,9 +70,17 @@ class Client:
         for key in ("mcp_servers", "plugins", "hooks", "notify", "apps", "browser_use", "computer_use"):
             if config.get(key):
                 raise CodexError("Inherited tools or hooks require a separately qualified Codex profile")
-        # Without a sandbox Codex routes every workspace edit and command to a human approval.
-        if os.name == "nt" and (config.get("windows") or {}).get("sandbox") not in {"unelevated", "elevated"}:
-            raise CodexError('Set [windows] sandbox = "unelevated" in the selected Codex profile')
+        # Legacy Windows sandboxes leave credentials readable and raw sockets open; MXC with the
+        # generated profile blocks both, and an explicit selection fails rather than falling back.
+        if WINDOWS_PROFILE and (
+            (config.get("windows") or {}).get("sandbox") != "mxc"
+            or config.get("default_permissions") != PROFILE
+            or config.get("sandbox_mode")
+        ):
+            raise CodexError(
+                f"Workers need the MXC sandbox and the {PROFILE} permissions: "
+                "remove sandbox_mode from the selected Codex profile"
+            )
         servers = await self.transport.request("mcpServerStatus/list", {"limit": 100})
         if servers.get("data") or servers.get("nextCursor"):
             raise CodexError("Inherited MCP servers are unsupported for this executor")
@@ -134,13 +145,19 @@ class Client:
                 "cwd": cwd,
                 "approvalPolicy": "on-request",
                 "approvalsReviewer": "user",
-                "sandboxPolicy": {
-                    "type": "workspaceWrite",
-                    "writableRoots": [cwd],
-                    "networkAccess": False,
-                    "excludeSlashTmp": True,
-                    "excludeTmpdirEnvVar": True,
-                },
+                **(
+                    {}
+                    if WINDOWS_PROFILE
+                    else {
+                        "sandboxPolicy": {
+                            "type": "workspaceWrite",
+                            "writableRoots": [cwd],
+                            "networkAccess": False,
+                            "excludeSlashTmp": True,
+                            "excludeTmpdirEnvVar": True,
+                        }
+                    }
+                ),
             },
         )
         return result["turn"]["id"]

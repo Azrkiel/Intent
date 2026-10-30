@@ -407,6 +407,14 @@ links in owned Git metadata are rejected. Worktrees are materialized from raw bl
 without checkout filters. Passing this policy proves scoped artifacts and Git
 checks, not application correctness or semantic compliance with textual exclusions.
 
+**Windows worker sandbox:** workers run under MXC with an allowlist from
+`backend/app/codex/sandbox.py`: no network including loopback, writes only to the
+worktree, reads only from the worktree, its project, Program Files and the tools on
+PATH. The profile check rejects `unelevated`, `elevated` and `sandbox_mode`, and no
+legacy `sandbox` or `sandboxPolicy` is sent, because each would replace the allowlist.
+Inside workers `fs.realpathSync` still fails on the drive root, so Node tools that
+call it (some bundlers) need checking on a real project.
+
 **Phase 2 offline evidence (2026-10-27):** 156 backend tests, Ruff, and 16/16 scripted
 evaluations pass. Tests use real local subprocesses and temporary Git repositories,
 including Windows descendant cleanup after parent exit, cancellation, stale

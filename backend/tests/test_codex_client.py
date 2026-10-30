@@ -52,11 +52,34 @@ def test_worker_shell_keeps_core_environment_because_transport_already_filters_s
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows sandbox setting")
-async def test_windows_profile_without_a_sandbox_fails_profile_check(tmp_path):
-    connection = await client("sandbox_disabled")
+@pytest.mark.parametrize("scenario", ["sandbox_disabled", "sandbox_unelevated", "sandbox_legacy_mode"])
+async def test_windows_profile_without_mxc_fails_profile_check(tmp_path, scenario):
+    connection = await client(scenario)
     try:
-        with pytest.raises(CodexError, match="sandbox"):
+        with pytest.raises(CodexError, match="MXC"):
             await connection.qualify(str(tmp_path))
+    finally:
+        await connection.close()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows sandbox setting")
+async def test_windows_threads_and_turns_send_no_policy_that_would_replace_the_allowlist(tmp_path):
+    connection = await client()
+    try:
+        await connection.qualify(str(tmp_path))
+        sent = []
+        request = connection.transport.request
+
+        async def record(method, params):
+            sent.append(params)
+            return await request(method, params)
+
+        connection.transport.request = record
+        thread = await connection.start_thread(str(tmp_path))
+        await connection.start_turn(thread, "Synthetic", str(tmp_path))
+        await connection.resume(thread, str(tmp_path))
+        assert len(sent) == 3
+        assert not any({"sandbox", "sandboxPolicy"} & set(params) for params in sent)
     finally:
         await connection.close()
 

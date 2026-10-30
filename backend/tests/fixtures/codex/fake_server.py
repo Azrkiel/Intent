@@ -122,7 +122,12 @@ for line in sys.stdin:
                 "config": {
                     "model": None if scenario == "implicit_model" else "synthetic-default",
                     "model_provider": "openai",
-                    "windows": {} if scenario == "sandbox_disabled" else {"sandbox": "unelevated"},
+                    "windows": {
+                        "sandbox_disabled": {},
+                        "sandbox_unelevated": {"sandbox": "unelevated"},
+                    }.get(scenario, {"sandbox": "mxc"}),
+                    "default_permissions": "intent-worker",
+                    "sandbox_mode": "workspace-write" if scenario == "sandbox_legacy_mode" else None,
                     "mcp_servers": {"external": {}} if scenario == "unsafe_config" else {},
                 },
                 "origins": {},
@@ -141,7 +146,7 @@ for line in sys.stdin:
             result = {"data": [{"cwd": str(Path.cwd()), "skills": [], "errors": []}]}
         elif method == "thread/start":
             assert scenario != "reconcile_only"
-            assert params["sandbox"] == "workspace-write"
+            assert params.get("sandbox") == (None if os.name == "nt" else "workspace-write")
             assert params["approvalPolicy"] == "on-request"
             assert params["approvalsReviewer"] == "user"
             assert params["config"]["features.multi_agent"] is False

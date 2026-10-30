@@ -13,6 +13,7 @@ def child_environment() -> dict[str, str]:
         "PATH",
         "PATHEXT",
         "SYSTEMROOT",
+        "SYSTEMDRIVE",
         "WINDIR",
         "COMSPEC",
         "TEMP",
