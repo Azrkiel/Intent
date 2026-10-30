@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { ClarityPanel } from "../components/clarity-panel";
+import { awaitingScenarioApproval } from "./clarity";
 import type { Session } from "./types";
 
 const field = (name: string, failing: string[]) => ({
@@ -113,5 +114,17 @@ describe("clarity panel", () => {
     const html = render({ ...session, revision: 3 });
     expect(html).toContain("Needs a fresh check");
     expect(html).not.toContain("Add a link");
+  });
+
+  it("expands the scenarios and names the approval step only while they await approval", () => {
+    const ready = { ...session, gate: { ready: true, blockers: [] }, brief: null } as unknown as Session;
+    expect(awaitingScenarioApproval(ready)).toBe(true);
+    expect(render(ready)).toMatch(/<details class="framework-map" open="">\s*<summary>Scenarios to approve/);
+    const approved = { ...ready, brief: { lines: [] } } as unknown as Session;
+    expect(awaitingScenarioApproval(approved)).toBe(false);
+    expect(render(approved)).not.toMatch(/<details class="framework-map" open="">\s*<summary>Scenarios/);
+    expect(awaitingScenarioApproval({ ...ready, clarity_version: 1 } as unknown as Session)).toBe(false);
+    expect(awaitingScenarioApproval({ ...ready, gate: { ready: false, blockers: [] } } as unknown as Session)).toBe(false);
+    expect(awaitingScenarioApproval({ ...ready, revision: 3 } as unknown as Session)).toBe(false);
   });
 });

@@ -2255,6 +2255,9 @@ html {
   background: var(--green-soft);
   border-color: #4b632e;
 }
+.scenario-card:focus {
+  outline: none;
+}
 .ready-card h3 {
   font: 17px var(--serif);
   margin-bottom: 7px;
