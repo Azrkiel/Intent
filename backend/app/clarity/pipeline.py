@@ -46,6 +46,7 @@ from .northstar import (
     follow_up,
     next_target,
     question_field,
+    settled_probes,
     text_hash,
 )
 from .provenance import aspect_gaps, build_claims, build_scenarios, tiling_gaps
@@ -199,30 +200,51 @@ class ClarityPipeline:
                 for f in present
             ]
         }
-        judgement, probe_sets = await gather_all(
-            self.call(session, "clarity:rubric", RubricJudgement, prompts.RUBRIC_JUDGE, judge_payload),
-            self.call(
-                session,
-                "clarity:probes",
-                NorthStarProbes,
-                prompts.READER_PROBES,
-                {
-                    "fields": [
-                        {"field": f.field, "scope": QUESTIONS[f.field], "text": f.text} for f in present
-                    ]
-                },
-            ),
+        # A field keeps its questions and settled answers: regenerating them on every edit gave each
+        # answer a fresh chance to fail, and rubric and readers never passed together (live probe 14).
+        kept = {
+            name: reading
+            for name, reading in previous.items()
+            if reading.variation == session.clarity_reader_variation
+        }
+        unprobed = [f for f in present if f.field not in kept]
+        rubric_call = self.call(
+            session, "clarity:rubric", RubricJudgement, prompts.RUBRIC_JUDGE, judge_payload
         )
+        if unprobed:
+            judgement, probe_sets = await gather_all(
+                rubric_call,
+                self.call(
+                    session,
+                    "clarity:probes",
+                    NorthStarProbes,
+                    prompts.READER_PROBES,
+                    {
+                        "fields": [
+                            {"field": f.field, "scope": QUESTIONS[f.field], "text": f.text}
+                            for f in unprobed
+                        ]
+                    },
+                ),
+            )
+            sets = {entry.field: entry.probes for entry in probe_sets.sets}
+        else:
+            judgement, sets = await rubric_call, {}
         judged = {entry.field: entry for entry in judgement.fields}
-        sets = {entry.field: entry.probes for entry in probe_sets.sets}
+        settled = {}
         for f in present:
             f.judgement = judged.get(f.field)
             if f.judgement:
                 carry_passes(f.judgement, f.text, previous.get(f.field))
-            f.probes = [
-                p.model_copy(update={"id": f"{f.field}.p{i + 1}"})
-                for i, p in enumerate(sets.get(f.field, []))
-            ]
+            if f.field in kept:
+                f.probes = kept[f.field].probes
+                settled[f.field] = settled_probes(kept[f.field])
+            else:
+                f.probes = [
+                    p.model_copy(update={"id": f"{f.field}.p{i + 1}"})
+                    for i, p in enumerate(sets.get(f.field, []))
+                ]
+                settled[f.field] = set()
         state.failures.extend(
             f"clarity: reader probes missing for {FIELD_LABELS[f.field]}" for f in present if not f.probes
         )
@@ -231,20 +253,34 @@ class ClarityPipeline:
                 {
                     "field": f.field,
                     "text": f.text,
-                    "questions": [p.model_dump(include={"id", "question", "options"}) for p in f.probes],
+                    "questions": [
+                        p.model_dump(include={"id", "question", "options"})
+                        for p in f.probes
+                        if p.id not in settled[f.field]
+                    ],
                 }
                 for f in present
+                if any(p.id not in settled[f.field] for p in f.probes)
             ]
         }
-        role_b, prompt_b = READER_B[session.clarity_reader_variation]
-        first, second = await gather_all(
-            self.call(session, "clarity:reader:a", Answers, prompts.READER, reader_payload),
-            self.call(session, role_b, Answers, prompt_b, reader_payload),
-        )
+        first, second = Answers(answers=[]), Answers(answers=[])
+        if reader_payload["fields"]:
+            role_b, prompt_b = READER_B[session.clarity_reader_variation]
+            first, second = await gather_all(
+                self.call(session, "clarity:reader:a", Answers, prompts.READER, reader_payload),
+                self.call(session, role_b, Answers, prompt_b, reader_payload),
+            )
         for f in present:
             ids = {p.id for p in f.probes}
-            f.reader_a = [x for x in first.answers if x.probe_id in ids]
-            f.reader_b = [x for x in second.answers if x.probe_id in ids]
+            reading = kept.get(f.field)
+            kept_a = [x for x in reading.reader_a if x.probe_id in settled[f.field]] if reading else []
+            kept_b = [x for x in reading.reader_b if x.probe_id in settled[f.field]] if reading else []
+            f.reader_a = kept_a + [
+                x for x in first.answers if x.probe_id in ids - settled[f.field]
+            ]
+            f.reader_b = kept_b + [
+                x for x in second.answers if x.probe_id in ids - settled[f.field]
+            ]
             complete = (
                 f.judgement
                 and f.probes
@@ -430,6 +466,11 @@ class ClarityPipeline:
             review, roundtrip = await gather_all(review_call, roundtrip_call)
             entail = Entailment()
         result = score(review, canaries, id_map, state.thresholds)
+        # A planted defect can hide the only claim citing a ledger item, so an accurate reviewer
+        # reports that item as omitted. That is the plant's doing, not a gap in the real claims.
+        planted = {id_map[c.target] for c in canaries if c.target in id_map}
+        hidden = {s.item_id for c in state.claims if c.id in planted for s in c.spans}
+        result.omitted_ledger_ids = [key for key in result.omitted_ledger_ids if key not in hidden]
         verdicts = {v.claim_id: v for v in entail.verdicts}
         result.entailment_failures = [
             c.id for c in checkable if c.id not in verdicts or not verdicts[c.id].entailed
