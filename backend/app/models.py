@@ -222,7 +222,7 @@ class LiveModels:
                 if attempt:
                     failure = ModelError(f"{role} failed {category} after one repair retry.")
                     if self.capture_raw:
-                        failure.raw = content[:4000]
+                        failure.raw = content[:16000]
                         self.raw_failures.setdefault(session.id, []).append(
                             {"role": role, "category": category, "raw": failure.raw}
                         )

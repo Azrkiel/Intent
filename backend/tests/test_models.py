@@ -173,7 +173,7 @@ async def test_raw_output_kept_for_eval_only_when_capture_is_on():
             api_key="test", base_url="https://test.invalid/v1", max_retries=0,
             http_client=httpx.AsyncClient(
                 transport=httpx.MockTransport(
-                    lambda request: httpx.Response(200, json=completion("bad" * 3000))
+                    lambda request: httpx.Response(200, json=completion("bad" * 6000))
                 )
             ),
         )
@@ -185,7 +185,7 @@ async def test_raw_output_kept_for_eval_only_when_capture_is_on():
     session = Session()
     with pytest.raises(ModelError) as caught:
         await provider.call(session, "extractor", Delta, "Extract.", {})
-    assert caught.value.raw.startswith("badbad") and len(caught.value.raw) == 4000
+    assert caught.value.raw.startswith("badbad") and len(caught.value.raw) == 16000
     assert provider.raw_failures[session.id] == [
         {"role": "extractor", "category": "JSON parsing", "raw": caught.value.raw}
     ]
