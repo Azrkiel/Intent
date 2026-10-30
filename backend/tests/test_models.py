@@ -164,3 +164,33 @@ async def test_nano_thinking_is_off_by_default_and_super_is_untouched(role, cont
         assert "reasoning_budget" not in requests[0]
     finally:
         await provider.close()
+
+
+async def test_raw_output_kept_for_eval_only_when_capture_is_on():
+    def make(capture):
+        client = AsyncOpenAI(
+            api_key="test", base_url="https://test.invalid/v1", max_retries=0,
+            http_client=httpx.AsyncClient(
+                transport=httpx.MockTransport(
+                    lambda request: httpx.Response(200, json=completion("bad" * 3000))
+                )
+            ),
+        )
+        provider = LiveModels(Settings(), client=client)
+        provider.capture_raw = capture
+        return provider, client
+
+    provider, client = make(True)
+    session = Session()
+    with pytest.raises(ModelError) as caught:
+        await provider.call(session, "extractor", Delta, "Extract.", {})
+    assert caught.value.raw.startswith("badbad") and len(caught.value.raw) == 4000
+    assert provider.raw_failures[session.id] == [
+        {"role": "extractor", "category": "JSON parsing", "raw": caught.value.raw}
+    ]
+    await client.close()
+    provider, client = make(False)
+    with pytest.raises(ModelError) as caught:
+        await provider.call(Session(), "extractor", Delta, "Extract.", {})
+    assert caught.value.raw is None and not provider.raw_failures
+    await client.close()
