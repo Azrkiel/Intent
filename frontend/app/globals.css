@@ -1530,18 +1530,18 @@ html {
 .brand {
   display: flex;
   align-items: center;
-  font-size: 19px;
-  font-weight: 650;
   white-space: nowrap;
-  font: 600 34px var(--display);
-  letter-spacing: 1.7px;
   gap: 9px;
 }
-.brand-period {
-  font: 11px var(--sans);
-  color: var(--green);
-  vertical-align: super;
-  margin-left: 4px;
+.brand-wordmark {
+  display: inline-flex;
+  width: 81px;
+  flex-shrink: 0;
+}
+.brand-wordmark img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 .brand-mark,
 .brand-mark.small {
@@ -2555,8 +2555,8 @@ summary:focus-visible {
     padding-left: 14px;
     padding-right: 14px;
   }
-  .brand {
-    font-size: 30px;
+  .brand-wordmark {
+    width: 73px;
   }
   .workspace {
     padding: 28px 24px 0;

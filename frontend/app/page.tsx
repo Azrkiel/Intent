@@ -65,8 +65,8 @@ function Brand({ footer = false }: { footer?: boolean }) {
         width={48}
         height={48}
       />
-      <span>
-        INTENT<span className={styles.brandDot}>.</span>
+      <span className={styles.wordmark}>
+        <img src="/brand/intent-wordmark.svg" alt="" width={386} height={200} />
       </span>
     </Link>
   );

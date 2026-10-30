@@ -493,8 +493,8 @@ export default function Home() {
       <aside className="sidebar">
         <a className="brand" href="/" aria-label="Intent home">
           <Mark />
-          <span>
-            INTENT<span className="brand-period">.</span>
+          <span className="brand-wordmark">
+            <img src="/brand/intent-wordmark.svg" alt="" width={386} height={200} />
           </span>
         </a>
         <button

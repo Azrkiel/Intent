@@ -62,17 +62,24 @@
   justify-self: center;
   line-height: 1;
   padding: 10px;
+  gap: 6px;
 }
-.brand img,
-.footerBrand img {
+.brand > img,
+.footerBrand > img {
   object-fit: contain;
 }
-.brand > span {
-  font: 600 33px/0.95 var(--display);
-  letter-spacing: 2.2px;
+.wordmark {
+  display: inline-flex;
+  width: 92px;
+  flex-shrink: 0;
 }
-.brandDot {
-  color: var(--green);
+.wordmark > img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.footerBrand .wordmark {
+  width: 77px;
 }
 .primaryAction,
 .secondaryAction {
@@ -528,10 +535,10 @@
     justify-self: start;
     padding: 0;
   }
-  .brand > span {
-    font-size: 30px;
+  .brand .wordmark {
+    width: 73px;
   }
-  .brand img {
+  .brand > img {
     width: 40px;
     height: 40px;
   }
@@ -648,13 +655,12 @@
   .brand {
     gap: 3px;
   }
-  .brand img {
+  .brand > img {
     width: 36px;
     height: 36px;
   }
-  .brand > span {
-    font-size: 27px;
-    letter-spacing: 1.4px;
+  .brand .wordmark {
+    width: 66px;
   }
   .faqLink {
     display: none;

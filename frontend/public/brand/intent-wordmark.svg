@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="386" height="200" viewBox="0 0 386 200">
+  <title>Intent</title>
+  <g fill="#f2f3eb">
+    <path d="M0 0h16v200H0z"/>
+    <path d="M32 0h20l34 160V0h11v200H78L43 40v160H32z"/>
+    <path d="M106 0h58v11h-21v189h-16V11h-21z"/>
+    <path d="M173 0h52v11h-36v77h32v11h-32v90h38v11h-54z"/>
+    <path d="M237 0h20l34 160V0h11v200h-19L248 40v160h-11z"/>
+    <path d="M311 0h58v11h-21v189h-16V11h-21z"/>
+  </g>
+  <circle cx="374" cy="188" r="12" fill="#b6ff3b"/>
+</svg>
