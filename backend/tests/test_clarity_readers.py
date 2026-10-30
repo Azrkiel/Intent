@@ -146,3 +146,13 @@ async def test_live_routing_per_reader_role():
     assert warm["temperature"] == 0.8 and warm["model"] == s.nano_model
     assert tier["temperature"] == 0.2 and tier["model"] == s.super_model
     assert usage_tier.model == s.super_model
+
+
+async def test_clarity_passes_get_the_long_output_limit():
+    # Live Nano filled 4096 tokens on every rubric/probe pass with default thinking.
+    roles = ("clarity:rubric", "clarity:probes", "clarity:suggest", "clarity:north-star", "clarity:reader:a")
+    for role in roles:
+        request, _ = await live_request(role)
+        assert request["max_tokens"] == 8192
+    request, _ = await live_request("extractor")
+    assert request["max_tokens"] == 4096

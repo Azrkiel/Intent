@@ -123,7 +123,7 @@ class LiveModels:
             else self.settings.super_model
         )
         input_rate, output_rate = (1, 3) if compiler else (0.06, 0.24) if fast else (0.30, 0.90)
-        max_tokens = 8192 if compiler or role in ("framework:map", "clarity:claims") else 4096
+        max_tokens = 8192 if compiler or role == "framework:map" or role.startswith("clarity:") else 4096
         messages = [
             {
                 "role": "system",
