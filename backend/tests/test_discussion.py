@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from backend.app.main import create_app
 from backend.app.settings import Settings
-from backend.tests.planning_fixtures import ready_session
+from backend.tests.planning_fixtures import ready_session, reviewed_framework
 
 
 @pytest.fixture
@@ -278,6 +278,7 @@ def test_budget_failure_retains_durable_failure_without_constructing_a_provider(
     client, session, config = fixture
     config.mode = session.mode = "live"
     config.session_budget_usd = 0.000001
+    reviewed_framework(session)
     client.app.state.store.save(session)
     provider = LiveModels(config)
     client.app.state.engine.models = provider

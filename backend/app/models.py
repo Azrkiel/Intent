@@ -12,6 +12,18 @@ from .settings import Settings
 
 T = TypeVar("T", bound=BaseModel)
 
+FAST_PREFIXES = (
+    "clarity:north-star",
+    "clarity:rubric",
+    "clarity:probes",
+    "clarity:reader",
+    "clarity:suggest",
+    "clarity:candidate",
+    "clarity:entailment",
+    "clarity:roundtrip",
+    "clarity:align",
+)
+
 
 class ModelError(RuntimeError):
     pass
@@ -31,7 +43,7 @@ class LiveModels:
             await self.client.close()
 
     async def call(self, session: Session, role: str, schema: type[T], instruction: str, payload: dict) -> T:
-        fast = role in {"extractor", "playback", "filler"}
+        fast = role in {"extractor", "playback", "filler"} or role.startswith(FAST_PREFIXES)
         compiler = role == "compiler"
         model = (
             self.settings.ultra_model
@@ -41,7 +53,7 @@ class LiveModels:
             else self.settings.super_model
         )
         input_rate, output_rate = (1, 3) if compiler else (0.06, 0.24) if fast else (0.30, 0.90)
-        max_tokens = 8192 if compiler else 4096
+        max_tokens = 8192 if compiler or role in ("framework:map", "clarity:claims") else 4096
         messages = [
             {
                 "role": "system",
@@ -81,7 +93,7 @@ class LiveModels:
                         model=model,
                         messages=messages,
                         response_format={"type": "json_object"},
-                        temperature=0.2,
+                        temperature=0.9 if role.startswith("clarity:candidate") else 0.2,
                         max_tokens=max_tokens,
                         extra_body=extras,
                     )
@@ -102,7 +114,10 @@ class LiveModels:
                 content = re.sub(r"<think>.*?</think>", "", content, flags=re.S).strip()
                 if content.startswith("```"):
                     content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content).strip()
-                limited = role.startswith("planner:") and response.choices[0].finish_reason == "length"
+                limited = (
+                    role.startswith(("planner:", "framework:", "clarity:"))
+                    and response.choices[0].finish_reason == "length"
+                )
                 validation_error = None
                 if limited:
                     detail = "The response reached its output limit. Return a more concise complete object."

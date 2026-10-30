@@ -12,7 +12,7 @@ from backend.app.planning.demo import demo_response
 from backend.app.planning.service import PlanningService
 from backend.app.settings import Settings
 from backend.app.store import Store
-from backend.tests.planning_fixtures import ready_session
+from backend.tests.planning_fixtures import ready_session, reviewed_framework
 from backend.tests.test_models import completion
 
 
@@ -25,6 +25,7 @@ async def test_outline_semantics_receive_one_repair_with_preserved_usage(tmp_pat
         id="L7", type="decision", text="An unresolved design choice", status="open", turn=1,
     ))
     store = Store(str(tmp_path / "sessions.db"))
+    reviewed_framework(session)
     store.save(session)
     requests = []
     remaining_roles = iter([
@@ -79,6 +80,7 @@ async def test_schema_error_then_semantic_error_does_not_get_a_third_response(tm
     session = ready_session()
     session.mode = "live"
     store = Store(str(tmp_path / "sessions.db"))
+    reviewed_framework(session)
     store.save(session)
     requests = []
 

@@ -13,7 +13,7 @@ from backend.app.planning.demo import demo_response
 from backend.app.planning.service import PlanningService
 from backend.app.settings import Settings
 from backend.app.store import Store
-from backend.tests.planning_fixtures import ready_session
+from backend.tests.planning_fixtures import ready_session, reviewed_framework
 from backend.tests.test_models import completion
 
 
@@ -25,6 +25,7 @@ async def test_wrong_section_reference_uses_existing_repair_before_acceptance(
     session = ready_session()
     session.mode = "live"
     store = Store(str(tmp_path / "sessions.db"))
+    reviewed_framework(session)
     store.save(session)
     target = f"planner:{section}:{'main' if section == 'screen' else 'foundation'}"
     requests = []

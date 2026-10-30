@@ -1697,6 +1697,61 @@ html {
   align-items: start;
   grid-template-columns: minmax(0, 1fr) 310px;
 }
+.framework-review {
+  border-top: 1px solid var(--line);
+  padding: 16px;
+  overflow-wrap: anywhere;
+}
+.framework-heading h3 {
+  margin: 0 0 6px;
+  font: 500 12px var(--mono);
+}
+.framework-heading > span {
+  color: var(--green);
+  font-size: 11px;
+}
+.framework-note,
+.framework-review small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.framework-review summary {
+  cursor: pointer;
+  padding: 10px 0;
+  font-size: 11px;
+}
+.framework-blockers ul,
+.framework-area ol {
+  margin: 0;
+  padding: 0 0 8px 16px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.framework-blockers li,
+.framework-area li {
+  margin: 0 0 12px;
+}
+.framework-area {
+  border-top: 1px solid var(--line);
+}
+.framework-entry-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  text-transform: capitalize;
+}
+.framework-tag {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--muted);
+  font-size: 9px;
+}
+.framework-tag.confirmed { color: var(--green); }
+.framework-area p { margin: 6px 0; }
+.framework-retry { margin-top: 8px; text-decoration: underline; }
 .conversation-panel,
 .ledger-panel {
   border: 1px solid var(--line);
@@ -3576,3 +3631,10 @@ summary:focus-visible {
     font-size: 23px;
   }
 }
+
+.clarity-readout { font-size: 0.82rem; color: var(--muted); margin: 0.5rem 0; }
+.north-star { list-style: none; padding: 0; display: grid; gap: 0.6rem; }
+.clarity-readback { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.clarity-readback p { flex-basis: 100%; margin: 0.25rem 0; }
+.clarity-review { font-size: 0.82rem; margin: 0.5rem 0; }
+.drafted-label { color: var(--muted); font-size: 0.75rem; }

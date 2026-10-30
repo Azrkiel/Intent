@@ -6,7 +6,7 @@ from backend.app.models import ModelError
 from backend.app.planning.service import PlanningService
 from backend.app.settings import Settings
 from backend.app.store import Store
-from backend.tests.planning_fixtures import ready_session
+from backend.tests.planning_fixtures import ready_session, reviewed_framework
 
 
 async def collect(service, session):
@@ -197,6 +197,7 @@ async def test_live_adapter_planning_uses_super_and_retains_repaired_response_us
     session = ready_session()
     session.mode = "live"
     store = Store(str(tmp_path / "live.db"))
+    reviewed_framework(session)
     store.save(session)
     requests = []
     roles = [
@@ -252,6 +253,7 @@ async def test_planning_uses_existing_budget_without_resetting_usage(setup):
         )
     ]
     provider = LiveModels(Settings(mode="live"))
+    reviewed_framework(session)
     store.save(session)
     events = await collect(PlanningService(store, provider, provider.settings), session)
     assert events[-1]["type"] == "plan_error"

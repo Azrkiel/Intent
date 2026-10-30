@@ -6,7 +6,9 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
+from .clarity.contracts import ClarityState, Decision
 from .discussion.contracts import DiscussionTarget
+from .framework import FrameworkReview, framework_blockers, framework_progress, reviewed_context
 from .planning.contracts import PlanningState
 
 ItemType = Literal[
@@ -23,7 +25,9 @@ ItemType = Literal[
 ]
 Status = Literal["confirmed", "inferred", "open", "conflict"]
 Slot = Literal["goal", "core-flow", "data", "access", "non-goals", "success-criterion"]
-Lens = Literal["data", "identity", "behaviour", "contradictions", "edges", "done-ness"]
+Lens = Literal[
+    "data", "identity", "behaviour", "contradictions", "edges", "done-ness", "north-star", "decision"
+]
 SLOTS = ["goal", "core-flow", "data", "access", "non-goals", "success-criterion"]
 LENSES = ["data", "identity", "behaviour", "contradictions", "edges", "done-ness"]
 
@@ -64,6 +68,7 @@ class Turn(Contract):
     text: str
     question_id: str | None = None
     scope: DiscussionTarget | None = Field(default=None, exclude_if=lambda value: value is None)
+    suggested: bool = Field(default=False, exclude_if=lambda value: not value)
     at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
@@ -78,6 +83,7 @@ class Candidate(Contract):
     uncertainty: int = Field(ge=1, le=3)
     cost_to_change: int = Field(ge=1, le=3)
     slot: Slot | None = None
+    suggestion: bool = Field(default=False, exclude_if=lambda value: not value)
 
     @field_validator("options")
     @classmethod
@@ -127,12 +133,13 @@ class BriefLine(Contract):
 
 class Brief(Contract):
     lines: list[BriefLine] = Field(default_factory=list, max_length=150)
+    framework_lines: list[BriefLine] = Field(default_factory=list, max_length=200)
 
     @computed_field
     @property
     def markdown(self) -> str:
         sections: dict[str, list[str]] = {}
-        for line in self.lines:
+        for line in [*self.lines, *self.framework_lines]:
             section = " ".join(line.section.split())
             text = " ".join(line.text.split())
             sections.setdefault(section, []).append(f"- {text} [{', '.join(line.ledger_ids)}]")
@@ -179,6 +186,11 @@ class Session(Contract):
     rejected_candidates: list[Candidate] = Field(default_factory=list)
     current_question: Candidate | None = None
     analysis_complete: bool = False
+    framework_review: FrameworkReview | None = None
+    clarity_version: int = Field(default=1, ge=1, le=2)
+    clarity: ClarityState | None = None
+    readbacks: dict[str, str] = Field(default_factory=dict)
+    vetoes: list[Decision] = Field(default_factory=list, max_length=12)
     playback: Playback | None = None
     playback_revision: int | None = None
     approved_revision: int | None = None
@@ -262,12 +274,28 @@ def gate_for(session: Session) -> Gate:
     missing = [slot for slot in SLOTS if slot not in filled]
     blockers = [f"Clarify: {q.question}" for q in session.candidates if q.impact >= 12]
     blockers.extend(f"Resolve conflict: {item.text}" for item in session.ledger if item.status == "conflict")
+    if session.clarity_version == 2:
+        from .clarity.gate import clarity_blockers
+
+        blockers.extend(clarity_blockers(session))
+    else:
+        blockers.extend(framework_blockers(session))
     if not session.analysis_complete:
         blockers.append("All six lenses must finish before building.")
     ready = not missing and not blockers
+    if session.clarity_version == 2:
+        from .clarity.gate import clarity_progress
+
+        progress = len(filled) / 6 * 30 + clarity_progress(session) * 65
+    elif session.mode == "live" or session.framework_review:
+        progress = len(filled) / 6 * 45 + framework_progress(session) * 40
+        if session.framework_review and not framework_blockers(session):
+            progress += 15
+    else:
+        progress = len(filled) / 6 * 85
     return Gate(
         ready=ready,
-        percent=100 if ready else min(95, round(len(filled) / 6 * 85)),
+        percent=100 if ready else min(95, round(progress)),
         filled=filled,
         missing=missing,
         blockers=blockers,
@@ -313,15 +341,33 @@ def trace_brief(session: Session, brief: Brief, rejected: list[int] | None = Non
                     "and list the choice in your final summary.",
                 )
             )
-    return Brief(lines=lines)
+    framework_lines = []
+    if session.clarity_version == 2:
+        from .clarity.gate import brief_lines
+
+        framework_lines = brief_lines(session)
+    else:
+        review = reviewed_context(session)
+        if review:
+            for section in session.framework_review.framework.sections:
+                for entry in section.entries:
+                    label = "confirmed" if entry.status == "confirmed" else "proposal"
+                    framework_lines.append(BriefLine(
+                        section=f"Framework {label}: {section.area}",
+                        text=f"{entry.aspect}: {entry.text}", ledger_ids=entry.ledger_ids,
+                    ))
+    return Brief(lines=lines, framework_lines=framework_lines)
 
 
 def public_session(session: Session) -> dict:
+    from .clarity.gate import readout
+
     return {
         **session.model_dump(
             mode="json",
             exclude={"planning": {"extension", "requalification", "fifth_attempt", "sixth_attempt"}}
         ),
         "gate": gate_for(session).model_dump(),
+        "clarity_readout": readout(session) if session.clarity_version == 2 else None,
         "estimated_usd": round(sum(item.estimated_usd for item in session.usage), 6),
     }

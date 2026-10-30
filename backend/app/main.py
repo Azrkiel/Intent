@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from .builder import run_build, safe_index
+from .clarity.gate import approval_ready
 from .demo import DemoModels
 from .discussion.routes import discussion_router
 from .discussion.service import Discussions
@@ -40,11 +41,26 @@ class Approval(BaseModel):
     revision: int = Field(ge=0)
 
 
+class NewSession(BaseModel):
+    clarity_version: int | None = Field(default=None, ge=1, le=2)
+
+
+class Readback(BaseModel):
+    field: str = Field(min_length=1, max_length=20)
+    text_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
+    revision: int = Field(ge=0)
+
+
+class Veto(BaseModel):
+    decision_id: str = Field(min_length=1, max_length=80)
+    revision: int = Field(ge=0)
+
+
 def create_app(settings: Settings | None = None, *, codex_factory=None):
     settings = settings or Settings()
     store = Store(settings.database_path)
     models = DemoModels() if settings.mode == "demo" else LiveModels(settings)
-    engine = Engine(store, models)
+    engine = Engine(store, models, thresholds=settings.thresholds())
     planner = PlanningService(store, models, settings)
     executor = Executor(settings, store, codex_factory)
     locks = defaultdict(asyncio.Lock)
@@ -131,8 +147,11 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
         return store.list()
 
     @app.post("/api/sessions")
-    async def new_session():
-        session = Session(mode=settings.mode)
+    async def new_session(body: NewSession | None = None):
+        session = Session(
+            mode=settings.mode,
+            clarity_version=(body and body.clarity_version) or settings.resolved_clarity_version(),
+        )
         store.save(session)
         return public_session(session)
 
@@ -170,6 +189,7 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
             guard_edit(session)
             if not session.turns:
                 raise HTTPException(409, "Describe your idea first.")
+            await executor.invalidate(id)
             await engine.extract_latest(session)
             async for _ in engine.analyze(session):
                 pass
@@ -192,14 +212,63 @@ def create_app(settings: Settings | None = None, *, codex_factory=None):
             guard_edit(session)
             if (
                 not gate_for(session).ready
-                or session.playback_revision != session.revision
+                or not approval_ready(session)
                 or approval.revision != session.revision
             ):
                 raise HTTPException(
-                    409, "Review the current playback after the understanding meter is ready."
+                    409,
+                    "Approve the current scenarios after the understanding meter is ready."
+                    if session.clarity_version == 2
+                    else "Review the current playback after the understanding meter is ready.",
                 )
             session.approved_revision = session.revision
             store.save(session)
+            return public_session(session)
+
+    @app.post("/api/sessions/{id}/clarity/readback")
+    async def readback(id: str, body: Readback):
+        async with locks[id]:
+            session = load(id)
+            guard_edit(session)
+            if session.clarity_version != 2 or body.revision != session.revision:
+                raise HTTPException(409, "This read-back is no longer current.")
+            try:
+                await engine.confirm_readback(session, body.field, body.text_hash)
+            except ValueError as error:
+                raise HTTPException(409, str(error)) from None
+            return public_session(session)
+
+    @app.post("/api/sessions/{id}/clarity/veto")
+    async def veto(id: str, body: Veto):
+        async with locks[id]:
+            session = load(id)
+            guard_edit(session)
+            decision = next(
+                (
+                    d
+                    for d in (session.clarity.decisions if session.clarity else [])
+                    if d.id == body.decision_id and d.status == "delegated"
+                ),
+                None,
+            )
+            if session.clarity_version != 2 or body.revision != session.revision or decision is None:
+                raise HTTPException(409, "Only a current choice Intent made for you can be vetoed.")
+            if len(session.vetoes) >= 12:
+                raise HTTPException(409, "Too many vetoed choices in this session.")
+            session.vetoes.append(
+                decision.model_copy(
+                    update={
+                        "id": f"V{len(session.vetoes) + 1}",
+                        "status": "open",
+                        "owner": None,
+                        "outcome": None,
+                        "because": None,
+                        "quality": {},
+                    }
+                )
+            )
+            await executor.invalidate(id)
+            await engine.reanalyze(session)
             return public_session(session)
 
     @app.post("/api/sessions/{id}/compile")

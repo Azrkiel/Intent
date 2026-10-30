@@ -16,7 +16,7 @@ from backend.app.planning.service import PlanningService
 from backend.app.settings import Settings
 from backend.app.store import Store
 from backend.planning_extension import issue, preflight
-from backend.tests.planning_fixtures import ready_session
+from backend.tests.planning_fixtures import ready_session, reviewed_framework
 
 
 @pytest.fixture
@@ -37,6 +37,7 @@ def setup(tmp_path):
               output_tokens=1, estimated_usd=0.01, latency_ms=1)
         for _ in range(2)
     ]
+    reviewed_framework(session)
     store.save(session)
     return config, store, session
 

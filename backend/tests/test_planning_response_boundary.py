@@ -22,7 +22,7 @@ from backend.app.planning.service import PlanningService
 from backend.app.planning.validation import validate_plan
 from backend.app.settings import Settings
 from backend.app.store import Store
-from backend.tests.planning_fixtures import outline, phase, ready_session, screen
+from backend.tests.planning_fixtures import outline, phase, ready_session, reviewed_framework, screen
 from backend.tests.test_models import completion
 
 
@@ -135,6 +135,7 @@ async def test_complete_pipeline_validates_diagrams_sources_runner_graph_and_exp
     session = ready_session()
     session.mode = "live"
     store = Store(str(tmp_path / "sessions.db"))
+    reviewed_framework(session)
     store.save(session)
     requests = []
 
