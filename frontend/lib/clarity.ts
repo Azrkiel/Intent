@@ -1,3 +1,5 @@
+import type { Session } from "./types";
+
 export type NorthStarField = "who-when" | "job" | "ambition" | "today" | "good" | "fails-if";
 
 export type ReaderVariation = "perspective" | "temperature" | "tier";
@@ -74,4 +76,18 @@ export interface ClarityReadout {
   choices_made: number;
   decisions_open: number;
   scenarios: number;
+}
+
+/** v2 only: the clarity gate is open and the user has not yet approved the current scenarios. */
+export function awaitingScenarioApproval(session: Session): boolean {
+  const clarity = session.clarity;
+  return (
+    session.clarity_version === 2 &&
+    session.gate.ready &&
+    !session.brief &&
+    Boolean(clarity) &&
+    clarity!.revision === session.revision &&
+    clarity!.mode === session.mode &&
+    clarity!.scenarios.length > 0
+  );
 }

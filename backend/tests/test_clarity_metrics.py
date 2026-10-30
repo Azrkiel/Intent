@@ -4,7 +4,7 @@ from backend.tests.clarity_fixtures import reading_queue_session
 
 
 def test_metrics_report_fields_alpha_review_and_waste():
-    session = reading_queue_session()
+    session = reading_queue_session(answered=False)
     session.clarity = ClarityState(
         revision=1,
         source_hash="a" * 64,

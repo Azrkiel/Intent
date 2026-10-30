@@ -33,6 +33,29 @@ def make_question(lens, question, options, code_diff, slot=None, targets=None, s
     )
 
 
+# v2 sessions ask North Star and decision questions; their answers fill the gate's slots,
+# so the v1 slot questions only remain as a fallback for whatever is still missing.
+NORTH_STAR_SLOTS = {
+    "who-when": ("user", "access"),
+    "good": ("success-criterion", "success-criterion"),
+}
+DECISION_SLOTS = {"data-model": ("data", "data")}
+
+
+def v2_answer_slot(question, text):
+    """The ledger type and slot a scripted v2 answer fills, or None."""
+    if question.lens == "north-star":
+        return next(
+            (slot for name, slot in NORTH_STAR_SLOTS.items() if question.id.startswith(f"NS-{name}-")), None
+        )
+    if question.lens == "decision":
+        category = question.id.split(":")[1] if question.id.startswith("D:") else ""
+        if category == "identity" and text.strip() == question.options[0].strip():
+            return "non-goal", "non-goals"
+        return DECISION_SLOTS.get(category)
+    return None
+
+
 def slot_question(slot: str) -> Candidate:
     questions = {
         "goal": (
@@ -184,6 +207,9 @@ class DemoModels:
                 for item in session.ledger:
                     if item.type == "feature" and "automatic" in item.text.lower():
                         updates.append({"id": item.id, "text": text, "source": text, "status": "confirmed"})
+            elif session.clarity_version == 2 and v2_answer_slot(question, text):
+                kind, slot = v2_answer_slot(question, text)
+                add(kind, text, text, slot)
             else:
                 types = {
                     "goal": "goal",
@@ -216,6 +242,10 @@ class DemoModels:
             add("goal", "Build a personal habit tracker", habit.group(), "goal")
         else:
             add("goal", text[:500], text[:500], "goal")
+        if session.clarity_version == 2:
+            opening = re.split(r"[.!?;,]", text, maxsplit=1)[0].strip()
+            if opening:
+                add("feature", opening, opening, "core-flow")
         no_login = re.search(r"no login|without (?:an? )?(?:account|login)", text, re.I)
         if no_login:
             add("constraint", "No login screen", no_login.group(), "access")

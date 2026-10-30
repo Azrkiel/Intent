@@ -1,5 +1,7 @@
 """Scripted clarity responses for demo sessions; never live semantic evidence or a fallback."""
 
+import re
+
 from .clarity.canary import INVENTED, NEGATION, SCOPE_CREEP, VAGUE
 from .clarity.contracts import (
     NORTH_STAR_FIELDS,
@@ -10,6 +12,7 @@ from .clarity.contracts import (
     ClaimDraft,
     ClaimMapDraft,
     ClaimReview,
+    DecisionProbe,
     DecisionProbes,
     Entailment,
     FieldJudgement,
@@ -30,6 +33,7 @@ from .clarity.contracts import (
     Span,
     Suggestions,
 )
+from .clarity.northstar import KEEP, OWN
 from .framework import ASPECTS
 
 SLOT_TAGS = {
@@ -42,13 +46,57 @@ SLOT_TAGS = {
 }
 
 
+# Scripted drafts for the propose-and-confirm follow-ups: (drafts, assumptions) per North Star field.
+FIELD_DRAFTS = {
+    "who-when": (
+        ["Just me, on my laptop or phone, once a day", "Me and two friends, on our phones, every week"],
+        ["Scripted assumption: one person uses it on a personal device"],
+    ),
+    "job": (
+        ["Track whether I did the thing today", "Keep a record of what I finished each day"],
+        ["Scripted assumption: one main job for the first version"],
+    ),
+    "ambition": (
+        ["A personal tool only I use, for months", "Shared with two friends for a year"],
+        ["Scripted assumption: no public launch planned"],
+    ),
+    "today": (
+        ["I keep notes in a phone app and lose track of them", "I rely on memory and forget most days"],
+        ["Scripted assumption: nothing purpose-built is in use today"],
+    ),
+    "good": (
+        ["I finish the daily check in under a minute", "I see my last 30 days in one glance"],
+        ["Scripted assumption: speed matters more than extra features"],
+    ),
+    "fails-if": (
+        ["If an entry I saved is gone after I reload the page", "If I cannot tell what I already did today"],
+        ["Scripted assumption: losing saved data is the worst failure"],
+    ),
+}
+
+
+def _first_clause(text):
+    clause = re.split(r"[.!?;,]", text, maxsplit=1)[0].strip()
+    return clause[:200] or text.strip()[:200]
+
+
+def _field_quotes(session, field):
+    """Distinct per field: the job comes from the opening request, the rest from the user's own answers."""
+    prefix = f"NS-{field}-"
+    answers = [
+        entry.answer.strip()
+        for entry in session.questions
+        if entry.question.id.startswith(prefix) and entry.answer.strip() not in (KEEP, OWN)
+    ]
+    if field == "job" and session.turns:
+        return [_first_clause(session.turns[0].text), *answers]
+    return answers
+
+
 def demo_clarity(session, role, payload):
-    first = session.turns[0].text if session.turns else ""
     if role == "clarity:north-star":
-        drafted = [turn.text for turn in session.turns if turn.suggested]
-        quote = drafted[-1] if drafted else first
         return NorthStarDraft(
-            fields=[FieldQuotes(field=f, quotes=[quote]) for f in NORTH_STAR_FIELDS if quote]
+            fields=[FieldQuotes(field=f, quotes=_field_quotes(session, f)) for f in NORTH_STAR_FIELDS]
         )
     if role == "clarity:rubric":
         return RubricJudgement(
@@ -81,19 +129,18 @@ def demo_clarity(session, role, payload):
                 for entry in payload["fields"]
             ]
         )
-    if role.startswith("clarity:reader:") or role.startswith("clarity:candidate:"):
+    if role.startswith("clarity:candidate:"):
+        # Four scripted candidate builds disagree on every probe, so each surfaces as a decision.
+        choice = 0 if int(role.rsplit(":", 1)[1]) <= 2 else 1
+        return Answers(answers=[ProbeAnswer(probe_id=q["id"], choice=choice) for q in payload["probes"]])
+    if role.startswith("clarity:reader:"):
         questions = [q for entry in payload.get("fields", []) for q in entry["questions"]] or payload.get(
             "probes", []
         )
         return Answers(answers=[ProbeAnswer(probe_id=q["id"], choice=0) for q in questions])
     if role == "clarity:suggest":
-        return Suggestions(
-            drafts=[
-                "Scripted draft: only me, on my laptop, daily",
-                "Scripted draft: me and two friends, weekly",
-            ],
-            assumed=["Scripted assumption: a laptop browser"],
-        )
+        drafts, assumed = FIELD_DRAFTS[payload["field"]]
+        return Suggestions(drafts=drafts, assumed=assumed)
     if role == "clarity:claims":
         confirmed = [item for item in session.ledger if item.status == "confirmed" and item.source]
         claims = [
@@ -143,7 +190,39 @@ def demo_clarity(session, role, payload):
             )
         return ScenarioDrafts(scenarios=scenarios)
     if role == "clarity:decision-probes":
-        return DecisionProbes()
+        if not payload["claims"]:
+            return DecisionProbes()
+        areas = ("journeys", "failure-recovery")
+        journey = [c["id"] for c in payload["claims"] if c["tags"][0].split("/")[0] in areas]
+        cites = (journey or [payload["claims"][0]["id"]])[:8]
+        return DecisionProbes(
+            probes=[
+                DecisionProbe(
+                    id="data",
+                    question="Should your information stay on this device, or be stored on a server?",
+                    options=["Keep it on this device only", "Store it on a server so it follows me"],
+                    code_diff="Browser storage only versus a server database, sync routes and hosting.",
+                    context="Where saved information lives",
+                    drivers=["who-when", "ambition"],
+                    kano="must-be",
+                    category="data-model",
+                    claims=cites,
+                    pros=["Scripted example of a one-way choice"],
+                ),
+                DecisionProbe(
+                    id="scope",
+                    question="Should the first version leave out accounts, payments and sharing?",
+                    options=["Leave them out of the first version", "Include one from the start"],
+                    code_diff="No auth, billing or sharing code versus sign-in, payments and invites.",
+                    context="What the first version excludes",
+                    drivers=["ambition", "job"],
+                    kano="must-be",
+                    category="identity",
+                    claims=cites,
+                    pros=["Scripted example of a scope choice"],
+                ),
+            ]
+        )
     if role == "clarity:review":
         # Scripted reviewer: recognizes the application's own mutation catalogue. Demo only.
         ledger = {item["id"]: item for item in payload["ledger"]}

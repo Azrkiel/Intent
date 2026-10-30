@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  awaitingScenarioApproval,
   FIELD_LABELS,
   NORTH_STAR_ORDER,
   READER_VARIATIONS,
@@ -165,7 +166,10 @@ export function ClarityPanel({
         </details>
       )}
       {current && clarity && clarity.scenarios.length > 0 && (
-        <details className="framework-map">
+        <details
+          className="framework-map"
+          open={awaitingScenarioApproval(session)}
+        >
           <summary>Scenarios to approve ({clarity.scenarios.length})</summary>
           <ol>
             {clarity.scenarios.map((scenario) => (
