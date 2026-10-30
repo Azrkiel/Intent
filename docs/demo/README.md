@@ -11,6 +11,15 @@ recorded live integration with Nebius Token Factory and NVIDIA Nemotron.
 Both versions are 1920 × 1080, 30 fps, H.264 MP4, without narration.
 Chapters appear in one bottom progress bar; each scene focuses on a single idea.
 
+## Earlier versions
+
+- **Previous clean cut (2:00):** [with music](archive/previous/intent-demo-music.mp4)
+  · [silent](archive/previous/intent-demo-silent.mp4). Bottom chapter bar with fades
+  through black, before the animated transitions and graph-entry trim.
+- **Original demo (2:20):** [with music](archive/original/intent-demo-music.mp4)
+  · [silent](archive/original/intent-demo-silent.mp4). The version published in
+  commit `d6d270a`.
+
 ## Key moments
 
 - **0:50:** Current Graph & notes canvas, followed by Markdown editing.
