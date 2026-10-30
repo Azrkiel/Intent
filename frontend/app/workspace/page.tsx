@@ -1460,6 +1460,8 @@ export default function Home() {
                     )}
                   </div>
                   <div className="lenses-section">
+                    {session?.clarity_version !== 2 && (
+                    <>
                     <div className="lenses-heading">
                       <span>Angles</span>
                       {busy && <LoaderCircle size={12} className="spin" />}
@@ -1484,6 +1486,8 @@ export default function Home() {
                         </span>
                       ))}
                     </div>
+                    </>
+                    )}
                     {session?.current_question && (
                       <button
                         className="ranking-button"

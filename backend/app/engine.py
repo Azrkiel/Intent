@@ -108,7 +108,7 @@ class Engine:
         self.thresholds = thresholds or Thresholds()
 
     def clarity_pipeline(self):
-        return ClarityPipeline(self.call, self.store.save, self.thresholds)
+        return ClarityPipeline(self.call, self.store.save, self.thresholds, self.critic_seeds)
 
     async def confirm_readback(self, session: Session, field: str, digest: str):
         state = session.clarity
@@ -170,7 +170,8 @@ class Engine:
         yield stage("Extracting the intent behind your words…", session)
         try:
             await self.extract_latest(session)
-            yield stage("Ledger updated. Checking six perspectives…", session)
+            if session.clarity_version != 2:
+                yield stage("Ledger updated. Checking six perspectives…", session)
             async for event in self.analyze(session):
                 yield event
         except (ModelError, ValueError) as error:
@@ -222,49 +223,66 @@ class Engine:
         session.extracted_revision = session.revision
         self.store.save(session)
 
+    async def critique(self, session: Session, lens: str, payload: dict):
+        try:
+            valid_ids = {item.id for item in session.ledger}
+            feedback, reason = {}, ""
+            for _ in range(2):  # live critics put code_diff's file paths in targets
+                result = await self.call(
+                    session,
+                    f"critic:{lens}" if lens != "single" else "baseline",
+                    Critique,
+                    prompts.critic_prompt(lens) if lens != "single" else prompts.BASELINE,
+                    {**payload, **feedback},
+                )
+                valid = [
+                    q
+                    for q in result.candidates
+                    if (q.lens == lens or lens == "single") and set(q.targets) <= valid_ids
+                ]
+                if len(valid) == len(result.candidates):
+                    return lens, valid, None
+                # Model text lands in saved warnings: keep it short.
+                lenses = sorted({q.lens[:40] for q in result.candidates} - {lens, "single"})[:3]
+                unknown = sorted({t[:40] for q in result.candidates for t in q.targets} - valid_ids)[:5]
+                detail = [f"lens {name}" for name in lenses]
+                if unknown:
+                    detail.append(f"unknown targets {', '.join(unknown)}")
+                reason = "; ".join(detail)
+                feedback = {
+                    "review_feedback": f"Invalid: {reason}. targets holds only ledger IDs from the "
+                    f"ledger, never file paths; use lens='{lens}'."
+                }
+            return lens, [], f"Critic returned invalid targets or the wrong lens ({reason})."
+        except ModelError as error:
+            return lens, [], str(error)
+
+    async def critic_seeds(self, session: Session) -> tuple[list[str], list[str]]:
+        """Clarity v2 critics only seed decision probes, so they wait until the North Star passes."""
+        payload = context(session)
+        results = await asyncio.gather(*[self.critique(session, lens, payload) for lens in LENSES])
+        seeds = [question.question for _, found, _ in results for question in found]
+        failures = [f"{lens}: {error}" for lens, _, error in results if error]
+        return seeds, failures
+
     async def analyze(self, session: Session):
         invalidate_understanding(session)
         self.store.save(session)
         payload = context(session)
 
         async def critic(lens):
-            try:
-                valid_ids = {item.id for item in session.ledger}
-                feedback, reason = {}, ""
-                for _ in range(2):  # live critics put code_diff's file paths in targets
-                    result = await self.call(
-                        session,
-                        f"critic:{lens}" if lens != "single" else "baseline",
-                        Critique,
-                        prompts.critic_prompt(lens) if lens != "single" else prompts.BASELINE,
-                        {**payload, **feedback},
-                    )
-                    valid = [
-                        q
-                        for q in result.candidates
-                        if (q.lens == lens or lens == "single") and set(q.targets) <= valid_ids
-                    ]
-                    if len(valid) == len(result.candidates):
-                        return lens, valid, None
-                    # Model text lands in saved warnings: keep it short.
-                    lenses = sorted({q.lens[:40] for q in result.candidates} - {lens, "single"})[:3]
-                    unknown = sorted({t[:40] for q in result.candidates for t in q.targets} - valid_ids)[:5]
-                    detail = [f"lens {name}" for name in lenses]
-                    if unknown:
-                        detail.append(f"unknown targets {', '.join(unknown)}")
-                    reason = "; ".join(detail)
-                    feedback = {
-                        "review_feedback": f"Invalid: {reason}. targets holds only ledger IDs from the "
-                        f"ledger, never file paths; use lens='{lens}'."
-                    }
-                return lens, [], f"Critic returned invalid targets or the wrong lens ({reason})."
-            except ModelError as error:
-                return lens, [], str(error)
+            return await self.critique(session, lens, payload)
 
         candidates, failures = [], []
         tasks = [
             asyncio.create_task(critic(lens))
-            for lens in (LENSES if self.critic_mode == "lenses" else ["single"])
+            for lens in (
+                []
+                if session.clarity_version == 2
+                else LENSES
+                if self.critic_mode == "lenses"
+                else ["single"]
+            )
         ]
         try:
             for task in asyncio.as_completed(tasks):
@@ -281,9 +299,8 @@ class Engine:
         mandatory_questions = []
         if session.ledger and session.clarity_version == 2:
             yield stage("Checking how specific each part of your North Star is…", session)
-            mandatory_questions = await self.clarity_pipeline().run(session, [q.question for q in candidates])
+            mandatory_questions = await self.clarity_pipeline().run(session, [])
             failures.extend(session.clarity.failures)
-            candidates = []  # critic questions seed decision probes; agreement drops them
         elif session.ledger:
             yield stage("Mapping journeys, components, data and recovery paths…", session)
             try:
