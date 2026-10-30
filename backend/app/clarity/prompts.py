@@ -43,8 +43,9 @@ integrations or scale the idea does not need. Answer only the field's scope ques
 that belong to other fields or the plan (features, storage, sync, accounts) out of the draft. Each
 draft is one plain sentence of at most 30 words
 that keeps the user's own words, settles every failing check at once and adds nothing else: no clock
-times, button labels, product names or extra steps they did not give. The user will confirm or
-correct your draft."""
+times, button labels, product names or extra steps they did not give. When keep is given, the
+field already passes its rules: start every draft with keep exactly, word for word, and add one
+short clause that settles what is failing. The user will confirm or correct your draft."""
 
 CLAIMS = """Map the product into atomic claims: one assertion each, at most about 25 words.
 basis=stated only when the claim says nothing beyond its spans; each span quotes an exact substring

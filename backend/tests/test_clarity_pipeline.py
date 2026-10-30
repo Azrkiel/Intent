@@ -51,6 +51,36 @@ async def test_reader_disagreement_asks_a_north_star_question(tmp_path):
     assert not gate_for(session).ready
 
 
+async def test_reader_disagreement_drafts_extend_the_field_instead_of_rewriting_it(tmp_path):
+    # Live probe 9: the field passed every rubric rule, then a G4 draft rewrote it, dropped
+    # "at 7 am" and W2 failed again.
+    from backend.app.clarity.contracts import Suggestions
+
+    class Disagree(DemoModels):
+        payload = None
+
+        async def call(self, session, role, schema, instruction, payload):
+            result = await super().call(session, role, schema, instruction, payload)
+            if role == "clarity:reader:b":
+                first = result.answers[0]
+                result.answers[0] = ProbeAnswer(probe_id=first.probe_id, choice=1)
+            if role == "clarity:suggest":
+                self.payload = payload
+                keep = payload["keep"]
+                return Suggestions(drafts=[f"{keep}, on my phone", f"{keep}, on my laptop", "A rewrite"])
+            return result
+
+    models = Disagree()
+    _, session = await analyzed(tmp_path, models)
+    field = next(f for f in session.clarity.fields if f.field == models.payload["field"])
+    probe = next(p for p in field.probes if f"G4:{p.id}" in field.failing)
+    assert models.payload["keep"] == field.text
+    assert any(probe.question in item for item in models.payload["failing"])
+    question = session.current_question
+    assert "G4" in question.id and "A rewrite" not in question.options
+    assert all(option.startswith(field.text) for option in question.options if option != "Keep my wording")
+
+
 @pytest.mark.parametrize("role", ["clarity:north-star", "clarity:claims", "clarity:review"])
 async def test_failed_passes_keep_the_gate_closed(tmp_path, role):
     class Fails(DemoModels):

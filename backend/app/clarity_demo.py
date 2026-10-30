@@ -140,6 +140,8 @@ def demo_clarity(session, role, payload):
         return Answers(answers=[ProbeAnswer(probe_id=q["id"], choice=0) for q in questions])
     if role == "clarity:suggest":
         drafts, assumed = FIELD_DRAFTS[payload["field"]]
+        if payload.get("keep"):
+            drafts = [f"{payload['keep']}; {draft[0].lower()}{draft[1:]}" for draft in drafts]
         return Suggestions(drafts=drafts, assumed=assumed)
     if role == "clarity:claims":
         confirmed = [item for item in session.ledger if item.status == "confirmed" and item.source]

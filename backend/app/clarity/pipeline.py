@@ -202,6 +202,12 @@ class ClarityPipeline:
         skip = {"G3", "G4:readers"}
         target = next((f for f in state.fields if not f.passed and set(f.failing) - skip), None)
         if target:
+            probes = {f"G4:{p.id}": p.question for p in target.probes}
+            failing = [code for code in target.failing if code not in skip]
+            # Only readers disagree: a rewrite re-rolled the rules the text passed (live probe 9), so
+            # extend it. Vague words are replaced, not extended. Options hold 250 characters.
+            only_readers = all(code in probes for code in failing)
+            keep = target.text if only_readers and 0 < len(target.text) <= 180 else None
             drafts = await self.call(
                 session,
                 "clarity:suggest",
@@ -212,11 +218,21 @@ class ClarityPipeline:
                     "label": FIELD_LABELS[target.field],
                     "scope": QUESTIONS[target.field],
                     "current": target.text,
-                    "failing": [describe(code) for code in target.failing if code not in skip],
+                    "failing": [
+                        f'settle a question a reader could not answer: "{probes[code]}"'
+                        if code in probes
+                        else describe(code)
+                        for code in failing
+                    ],
                     "turns": [t.text for t in session.turns],
+                    **({"keep": keep} if keep else {}),
                 },
             )
-            screened = [d for d in drafts.drafts if not any(flag.auto for flag in scan(d))]
+            screened = [
+                d
+                for d in drafts.drafts
+                if not any(flag.auto for flag in scan(d)) and (not keep or d.startswith(keep))
+            ]
             state.suggestions = screened if len(screened) >= 2 else []
             state.assumed = list(drafts.assumed) if state.suggestions else []
 
