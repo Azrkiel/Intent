@@ -1,19 +1,25 @@
-# Prompt Caller
+# Intent
 
 Turn a rough software idea into a brief a coding agent can build from. The application
 keeps an explicit **Intent Ledger**, asks one build-changing question at a time, plays
 back its understanding, and compiles a brief with a source for every requirement.
+(Earlier work used the name Prompt Caller, which remains in some identifiers.)
 
-This is a local, single-user MVP. The default **demo mode is scripted**: it makes no
-model calls and the build preview is a clearly labeled prebuilt example. The live
-Nemotron adapter and Claude Code subprocess adapter are implemented, but need your
-credentials and a live smoke test before a demo or submission.
+This is a single-user MVP. The default **demo mode is scripted**: it makes no model
+calls and the build preview is a clearly labeled prebuilt example. Live mode runs on
+NVIDIA Nemotron through Nebius Token Factory and needs your own API key. One live
+clarification turn with Nano and Super has been recorded. Live Ultra compilation
+and a live agent build are implemented but were not part of that recording.
+
+A hosted scripted demo runs at <https://show-intent.fly.dev>; its workspace asks you
+to sign in with GitHub.
 
 ## Demo video
 
-[Watch the 2:00 Intent demo](docs/demo/README.md). It includes the current Graph &
-notes view, a recorded live Nebius Token Factory/NVIDIA Nemotron Nano and Super
-turn, and a labeled prebuilt preview. Silent and music versions are available.
+[Watch the 2:20 Intent demo](docs/demo/README.md). It includes the current Graph &
+notes view, the saved result of a live Nebius Token Factory/NVIDIA Nemotron Nano and
+Super turn with its request timing, and a labeled prebuilt preview. Silent and music
+versions are available.
 
 ## Run locally
 
@@ -122,12 +128,14 @@ Super's requested 2048-token budget and Ultra's requested 6144-token budget. The
 verify outgoing fields only. Provider acceptance and actual thinking behaviour remain
 unverified; `SEND_THINKING_CONTROLS=false` remains the compatibility default.
 
-Live qualification remains pending: configure `NEBIUS_API_KEY` in `.env`, rerun both
-commands, then complete a new live browser conversation through playback approval,
-Ultra compilation and Super verification. Audit every brief line against its cited
-source, verify all confirmed decisions remain, and check corrections, failure/retry
-and session restoration. Save the session export and `CLAUDE.md` locally under
-`.data/live-check/`. No live session or model-quality pass is claimed.
+That entry records the first attempt. Live requests have since succeeded: the
+2026-10-30 demo recording captured one production-app clarification turn with eight
+Nano and six Super HTTP 200 responses. To extend qualification, complete a live browser
+conversation through playback approval, Ultra compilation and Super verification.
+Audit every brief line against its cited source, verify all confirmed decisions remain,
+and check corrections, failure/retry and session restoration. Save the session export
+and `CLAUDE.md` locally under `.data/live-check/`. No full live session or model-quality
+pass is claimed.
 
 ### Offline qualification
 
@@ -1086,10 +1094,9 @@ export, transcript comparison, persistent sessions, and the restricted coding ad
 Browser speech depends on browser support and may use the browser vendor's recognition
 service; it is not guaranteed to run locally. Text is always available.
 
-Before submission: run the live model smoke test, tune prompts against the eight
-fixtures, manually audit brief fidelity, validate microphone behaviour in the demo
-browser, test the authenticated CLI path, and extend generated-app execution to a
-real backend if the demo must prove cross-device sync. Speculative criticism while
+Remaining work: tune prompts against the eight fixtures, manually audit brief fidelity,
+validate microphone behaviour, test the authenticated CLI path, and extend
+generated-app execution to a real backend for cross-device sync. Speculative criticism while
 the user is still speaking and instant Nano filler acknowledgments are not implemented;
 the current pipeline starts after the user sends the final transcript.
 
