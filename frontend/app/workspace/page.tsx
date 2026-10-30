@@ -28,7 +28,9 @@ import {
 import { api, consumeEvents } from "@/lib/stream";
 import { PlanPanel } from "@/components/plan-panel";
 import { ExecutionPanel } from "@/components/execution-panel";
+import { ClarityPanel } from "@/components/clarity-panel";
 import { FrameworkReviewPanel } from "@/components/framework-review";
+import { FIELD_LABELS, type NorthStarField } from "@/lib/clarity";
 import {
   recognitionConstructor,
   speak,
@@ -82,17 +84,20 @@ function QuestionCard({
   onAnswer,
   disabled,
   past = false,
+  onEdit,
 }: {
   question: Question;
   onAnswer?: (value: string) => void;
   disabled?: boolean;
   past?: boolean;
+  onEdit?: (value: string) => void;
 }) {
   return (
     <div className={`question-card ${past ? "past" : ""}`}>
       <div className="question-eyebrow">
         <GitBranch size={13} />{" "}
-        {LENSES.find((lens) => lens.id === question.lens)?.short}
+        {LENSES.find((lens) => lens.id === question.lens)?.short ??
+          (question.lens === "north-star" ? "North Star" : "Decision")}
       </div>
       <h3>{question.question}</h3>
       {!past && (
@@ -111,6 +116,15 @@ function QuestionCard({
             </button>
           ))}
         </div>
+      )}
+      {!past && question.suggestion && onEdit && (
+        <button
+          className="text-button"
+          disabled={disabled}
+          onClick={() => onEdit(question.options[0])}
+        >
+          Edit this draft
+        </button>
       )}
       {!past && (
         <details className="question-why">
@@ -339,6 +353,36 @@ export default function Home() {
       setBusy(false);
       setStage("");
     }
+  }
+
+  async function clarityCall(
+    path: string,
+    body: Record<string, unknown>,
+    message: string,
+  ) {
+    if (!session || busy) return;
+    setBusy(true);
+    setError("");
+    setStage(message);
+    try {
+      remember(
+        await api<Session>(`/sessions/${session.id}/clarity/${path}`, {
+          ...body,
+          revision: session.revision,
+        }),
+      );
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The request failed.");
+    } finally {
+      setBusy(false);
+      setStage("");
+    }
+  }
+
+  function correctField(field: NorthStarField) {
+    setView("clarify");
+    setInput(`About ${FIELD_LABELS[field]}: actually, `);
+    setTimeout(() => textarea.current?.focus(), 50);
   }
 
   async function action(
@@ -702,6 +746,12 @@ export default function Home() {
                               <div className="user-message">
                                 <div>
                                   <p>{turn.text}</p>
+                                  {turn.suggested && (
+                                    <small className="drafted-label">
+                                      {" "}
+                                      · drafted by Intent, picked by you
+                                    </small>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -714,6 +764,10 @@ export default function Home() {
                               question={session.current_question}
                               onAnswer={send}
                               disabled={disabled}
+                              onEdit={(value) => {
+                                setInput(value);
+                                setTimeout(() => textarea.current?.focus(), 50);
+                              }}
                             />
                           </div>
                         )}
@@ -899,7 +953,12 @@ export default function Home() {
 
               {view === "brief" && (
                 <div className="brief-content">
-                  {!session?.playback && !session?.brief ? (
+                  {!session?.playback &&
+                  !session?.brief &&
+                  !(
+                    session?.clarity_version === 2 &&
+                    session.clarity?.scenarios.length
+                  ) ? (
                     <div className="review-empty">
                       <FileText size={32} />
                       <h2>Clarify your idea first.</h2>
@@ -914,6 +973,82 @@ export default function Home() {
                     </div>
                   ) : (
                     <>
+                      {session?.clarity_version === 2 &&
+                        !session.brief &&
+                        Boolean(session.clarity?.scenarios.length) && (
+                          <div className="playback-card scenario-card">
+                            <div className="eyebrow">
+                              <Check size={14} />
+                              Review
+                            </div>
+                            <h2>Your scenarios.</h2>
+                            {session.clarity!.scenarios.map((scenario) => (
+                              <p key={scenario.id}>
+                                <strong>{scenario.title}.</strong> Given{" "}
+                                {scenario.given}, when {scenario.when}, then{" "}
+                                {scenario.then}.
+                              </p>
+                            ))}
+                            {(() => {
+                              const filled = [
+                                ...session
+                                  .clarity!.claims.filter(
+                                    (c) => c.status === "proposal",
+                                  )
+                                  .map((c) => c.text),
+                                ...session
+                                  .clarity!.decisions.filter(
+                                    (d) => d.status === "delegated",
+                                  )
+                                  .map((d) => `${d.question} → ${d.outcome}`),
+                              ];
+                              return (
+                                filled.length > 0 && (
+                                  <>
+                                    <h3>What I filled in for you</h3>
+                                    <ul>
+                                      {filled.map((text, i) => (
+                                        <li key={i}>{text}</li>
+                                      ))}
+                                    </ul>
+                                    <p className="framework-note">
+                                      Approving includes these. Veto a choice in
+                                      the Clarity panel, or choose Edit to
+                                      change anything.
+                                    </p>
+                                  </>
+                                )
+                              );
+                            })()}
+                            <div className="playback-actions">
+                              <button
+                                className="secondary-button"
+                                onClick={() => {
+                                  setView("clarify");
+                                  setInput("Actually, ");
+                                  setTimeout(
+                                    () => textarea.current?.focus(),
+                                    50,
+                                  );
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="primary-button"
+                                disabled={busy || !session.gate.ready}
+                                onClick={() => action("approve")}
+                              >
+                                {busy ? (
+                                  <LoaderCircle size={15} className="spin" />
+                                ) : (
+                                  <Check size={15} />
+                                )}
+                                Approve scenarios
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       {session?.playback && (
                         <div className="playback-card">
                           <div className="eyebrow">
@@ -933,7 +1068,7 @@ export default function Home() {
                             <Volume2 size={14} />
                             Read it aloud
                           </button>
-                          {!session.brief && (
+                          {!session.brief && session.clarity_version !== 2 && (
                             <div className="playback-actions">
                               <button
                                 className="secondary-button"
@@ -1225,14 +1360,37 @@ export default function Home() {
               </div>
               {hasTurns && (
                 <>
-                  {session && (
-                    <FrameworkReviewPanel
-                      session={session}
-                      busy={busy}
-                      disabled={disabled}
-                      onRetry={() => void action("analyze")}
-                    />
-                  )}
+                  {session &&
+                    (session.clarity_version === 2 ? (
+                      <ClarityPanel
+                        session={session}
+                        busy={busy}
+                        disabled={disabled}
+                        onConfirm={(field, textHash) =>
+                          void clarityCall(
+                            "readback",
+                            { field, text_hash: textHash },
+                            "Checking the rest of your North Star…",
+                          )
+                        }
+                        onCorrect={correctField}
+                        onVeto={(decisionId) =>
+                          void clarityCall(
+                            "veto",
+                            { decision_id: decisionId },
+                            "Turning that choice into a question…",
+                          )
+                        }
+                        onRetry={() => void action("analyze")}
+                      />
+                    ) : (
+                      <FrameworkReviewPanel
+                        session={session}
+                        busy={busy}
+                        disabled={disabled}
+                        onRetry={() => void action("analyze")}
+                      />
+                    ))}
                   <div
                     className="ledger-tabs"
                     role="group"
