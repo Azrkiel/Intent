@@ -1,11 +1,12 @@
+import os
 import sys
 from pathlib import Path
 
 import pytest
 
-from backend.app.codex.client import Client
+from backend.app.codex.client import THREAD_POLICY, Client
 from backend.app.codex.protocol import CodexError
-from backend.app.codex.transport import Transport
+from backend.app.codex.transport import Transport, child_environment
 
 FAKE = Path(__file__).parent / "fixtures/codex/fake_server.py"
 
@@ -40,6 +41,33 @@ async def test_ineligible_accounts_limits_and_inherited_tools_block(tmp_path, sc
     try:
         with pytest.raises(CodexError):
             await connection.qualify(str(tmp_path))
+    finally:
+        await connection.close()
+
+
+def test_worker_shell_keeps_core_environment_because_transport_already_filters_secrets():
+    # "none" leaves Windows shells without PATH or SYSTEMROOT, so no command can start.
+    assert THREAD_POLICY["config"]["shell_environment_policy.inherit"] == "core"
+    assert not {"NEBIUS_API_KEY", "OPENAI_API_KEY"} & {k.upper() for k in child_environment()}
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows sandbox setting")
+async def test_windows_profile_without_a_sandbox_fails_profile_check(tmp_path):
+    connection = await client("sandbox_disabled")
+    try:
+        with pytest.raises(CodexError, match="sandbox"):
+            await connection.qualify(str(tmp_path))
+    finally:
+        await connection.close()
+
+
+@pytest.mark.parametrize("scenario", ["version_drift", "version_unknown"])
+async def test_unqualified_cli_version_fails_profile_check_before_dispatch(tmp_path, scenario):
+    connection = await client(scenario)
+    try:
+        with pytest.raises(CodexError, match="version"):
+            await connection.qualify(str(tmp_path))
+        assert connection.account_fingerprint is None
     finally:
         await connection.close()
 

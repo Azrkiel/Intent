@@ -1,4 +1,5 @@
 import hashlib
+import os
 import time
 from uuid import uuid4
 
@@ -17,7 +18,7 @@ THREAD_POLICY = {
         "sandbox_workspace_write.network_access": False,
         "sandbox_workspace_write.exclude_slash_tmp": True,
         "sandbox_workspace_write.exclude_tmpdir_env_var": True,
-        "shell_environment_policy.inherit": "none",
+        "shell_environment_policy.inherit": "core",
     },
 }
 
@@ -48,6 +49,11 @@ class Client:
 
     async def qualify(self, cwd: str, model: str | None = None, expected_account: str | None = None):
         await self.transport.initialize()
+        if self.transport.server_version != QUALIFIED_VERSION:
+            raise CodexError(
+                f"Codex CLI version {self.transport.server_version or 'unknown'} differs from "
+                f"the qualified protocol {QUALIFIED_VERSION}"
+            )
         account = (await self.transport.request("account/read", {"refreshToken": False})).get("account")
         if not isinstance(account, dict) or account.get("type") != "chatgpt" or not account.get("email"):
             raise CodexError("Execution requires an identifiable Codex-managed ChatGPT login")
@@ -61,6 +67,9 @@ class Client:
         for key in ("mcp_servers", "plugins", "hooks", "notify", "apps", "browser_use", "computer_use"):
             if config.get(key):
                 raise CodexError("Inherited tools or hooks require a separately qualified Codex profile")
+        # Without a sandbox Codex routes every workspace edit and command to a human approval.
+        if os.name == "nt" and (config.get("windows") or {}).get("sandbox") not in {"unelevated", "elevated"}:
+            raise CodexError('Set [windows] sandbox = "unelevated" in the selected Codex profile')
         servers = await self.transport.request("mcpServerStatus/list", {"limit": 100})
         if servers.get("data") or servers.get("nextCursor"):
             raise CodexError("Inherited MCP servers are unsupported for this executor")

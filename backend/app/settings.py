@@ -54,5 +54,5 @@ class Settings(BaseSettings):
     codex_worktree_root: str = ".data/worktrees"
     codex_max_workers: int = Field(default=1, ge=1, le=2)
     codex_global_max_workers: int = Field(default=2, ge=1, le=2)
-    codex_timeout_seconds: int = Field(default=300, ge=10, le=1800)
+    codex_timeout_seconds: int = Field(default=1800, ge=10, le=1800)
     codex_approval_timeout_seconds: int = Field(default=120, ge=1, le=300)

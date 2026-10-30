@@ -53,7 +53,13 @@ for line in sys.stdin:
     if method == "initialize":
         assert not initialized
         initialized = True
-        result = {"userAgent": "synthetic/0.164.0"}
+        result = {
+            "userAgent": "synthetic/0.0.1 (synthetic)"
+            if scenario == "version_drift"
+            else "synthetic"
+            if scenario == "version_unknown"
+            else "synthetic/0.165.0 (synthetic)"
+        }
     elif method == "initialized":
         notifications_enabled = True
         continue
@@ -116,6 +122,7 @@ for line in sys.stdin:
                 "config": {
                     "model": None if scenario == "implicit_model" else "synthetic-default",
                     "model_provider": "openai",
+                    "windows": {} if scenario == "sandbox_disabled" else {"sandbox": "unelevated"},
                     "mcp_servers": {"external": {}} if scenario == "unsafe_config" else {},
                 },
                 "origins": {},
@@ -142,7 +149,7 @@ for line in sys.stdin:
                 "id": thread_id,
                 "cwd": params["cwd"],
                 "model": params.get("model", "synthetic-default"),
-                "cliVersion": "0.164.0",
+                "cliVersion": "0.165.0",
                 "turns": [],
             }
             result = {"thread": thread}

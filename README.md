@@ -300,7 +300,7 @@ Defaults remain loopback ports 3000/8000. The alternate origin is restricted to
 ## Codex execution and phase staging API
 
 Phase 2 is implemented and verified offline against synthetic app-server processes
-using the installed CLI 0.164.0 schema. It adds initialization, account/model/policy
+using the CLI schema (now pinned to 0.165.0; see `QUALIFIED_VERSION`). It adds initialization, account/model/policy
 checks, streamed events, durable permission requests, interruption, owned Git
 worktrees, and restart reconciliation. Phase 2 was accepted on 2026-10-27.
 Individual successful turns stop at `verifying`. Phase 3 adds a scheduler that

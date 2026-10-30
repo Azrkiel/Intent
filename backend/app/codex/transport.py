@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 import signal
 from uuid import uuid4
 
@@ -46,6 +47,7 @@ class Transport:
         self.writer = asyncio.Lock()
         self.handshake = asyncio.Lock()
         self.initialized = False
+        self.server_version = None
         self.counter = 0
         self.tasks = []
         self.stderr_bytes = 0
@@ -152,9 +154,11 @@ class Transport:
     async def initialize(self):
         async with self.handshake:
             if not self.initialized:
-                await self.request(
+                result = await self.request(
                     "initialize", {"clientInfo": {"name": "intent", "title": "Intent", "version": "0.1.0"}}
                 )
+                agent = re.match(r"[^/\s]+/(\S+)", str(result.get("userAgent", "")))
+                self.server_version = agent.group(1) if agent else None
                 await self.send({"method": "initialized"})
                 self.initialized = True
 

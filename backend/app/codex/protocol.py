@@ -1,6 +1,6 @@
 import json
 
-QUALIFIED_VERSION = "0.164.0"
+QUALIFIED_VERSION = "0.165.0"
 
 
 class CodexError(RuntimeError):
