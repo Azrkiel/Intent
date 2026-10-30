@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
+from .clarity.contracts import ClarityState, Decision
 from .discussion.contracts import DiscussionTarget
 from .framework import FrameworkReview, framework_blockers, framework_progress, reviewed_context
 from .planning.contracts import PlanningState
@@ -24,7 +25,9 @@ ItemType = Literal[
 ]
 Status = Literal["confirmed", "inferred", "open", "conflict"]
 Slot = Literal["goal", "core-flow", "data", "access", "non-goals", "success-criterion"]
-Lens = Literal["data", "identity", "behaviour", "contradictions", "edges", "done-ness"]
+Lens = Literal[
+    "data", "identity", "behaviour", "contradictions", "edges", "done-ness", "north-star", "decision"
+]
 SLOTS = ["goal", "core-flow", "data", "access", "non-goals", "success-criterion"]
 LENSES = ["data", "identity", "behaviour", "contradictions", "edges", "done-ness"]
 
@@ -65,6 +68,7 @@ class Turn(Contract):
     text: str
     question_id: str | None = None
     scope: DiscussionTarget | None = Field(default=None, exclude_if=lambda value: value is None)
+    suggested: bool = Field(default=False, exclude_if=lambda value: not value)
     at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
@@ -79,6 +83,7 @@ class Candidate(Contract):
     uncertainty: int = Field(ge=1, le=3)
     cost_to_change: int = Field(ge=1, le=3)
     slot: Slot | None = None
+    suggestion: bool = Field(default=False, exclude_if=lambda value: not value)
 
     @field_validator("options")
     @classmethod
@@ -182,6 +187,10 @@ class Session(Contract):
     current_question: Candidate | None = None
     analysis_complete: bool = False
     framework_review: FrameworkReview | None = None
+    clarity_version: int = Field(default=1, ge=1, le=2)
+    clarity: ClarityState | None = None
+    readbacks: dict[str, str] = Field(default_factory=dict)
+    vetoes: list[Decision] = Field(default_factory=list, max_length=12)
     playback: Playback | None = None
     playback_revision: int | None = None
     approved_revision: int | None = None

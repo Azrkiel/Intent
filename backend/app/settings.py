@@ -3,6 +3,8 @@ from typing import Literal
 from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from .clarity.contracts import Thresholds
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
@@ -27,6 +29,24 @@ class Settings(BaseSettings):
     allow_claude_build: bool = False
     planning_max_attempts: int = Field(default=2, ge=1, le=2)
     planning_max_passes: int = Field(default=9, ge=1, le=9)
+    clarity_version: int | None = Field(default=None, ge=1, le=2)
+    clarity_alpha_pass: float = Field(default=0.80, ge=0, le=1)
+    clarity_alpha_floor: float = Field(default=0.667, ge=0, le=1)
+    canary_critical_recall: float = Field(default=1.0, ge=0, le=1)
+    canary_overall_recall: float = Field(default=0.80, ge=0, le=1)
+    decision_stop_threshold: float = Field(default=1.5, ge=0, le=9)
+    decision_repeat_penalty: float = Field(default=0.5, ge=0, le=9)
+
+    def resolved_clarity_version(self) -> int:
+        return self.clarity_version or (2 if self.mode == "live" else 1)
+
+    def thresholds(self) -> Thresholds:
+        return Thresholds(
+            alpha_pass=self.clarity_alpha_pass, alpha_floor=self.clarity_alpha_floor,
+            canary_critical_recall=self.canary_critical_recall,
+            canary_overall_recall=self.canary_overall_recall,
+            decision_stop=self.decision_stop_threshold, repeat_penalty=self.decision_repeat_penalty,
+        )
     allow_codex_execution: bool = False
     codex_command: str = "codex"
     codex_home: str | None = None

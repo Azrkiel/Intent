@@ -1,10 +1,11 @@
 import type { PlanningState } from "./planning";
 import type { FrameworkReview } from "./framework";
+import type { ClarityReadout, ClarityState } from "./clarity";
 
 export type Slot =
   "goal" | "core-flow" | "data" | "access" | "non-goals" | "success-criterion";
 export type Lens =
-  "data" | "identity" | "behaviour" | "contradictions" | "edges" | "done-ness";
+  "data" | "identity" | "behaviour" | "contradictions" | "edges" | "done-ness" | "north-star" | "decision";
 export interface LedgerItem {
   id: string;
   type: string;
@@ -26,6 +27,7 @@ export interface Question {
   cost_to_change: number;
   impact: number;
   slot: Slot | null;
+  suggestion?: boolean;
 }
 export interface Gate {
   ready: boolean;
@@ -50,6 +52,7 @@ export interface Session {
     number: number;
     text: string;
     question_id: string | null;
+    suggested?: boolean;
     at: string;
   }[];
   ledger: LedgerItem[];
@@ -67,6 +70,10 @@ export interface Session {
   } | null;
   analysis_complete: boolean;
   framework_review?: FrameworkReview | null;
+  clarity_version: 1 | 2;
+  clarity?: ClarityState | null;
+  clarity_readout?: ClarityReadout | null;
+  readbacks?: Record<string, string>;
   warnings: string[];
   estimated_usd: number;
   usage: {
