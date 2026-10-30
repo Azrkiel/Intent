@@ -100,7 +100,7 @@ test("clarity v2 confirms read-backs and approves scenarios", async ({
   await expect(page.getByText("CLAUDE.md").first()).toBeVisible();
   // Once approved, the clarify step offers the brief instead.
   const nav = page.getByRole("navigation", { name: "Workspace", exact: true });
-  await nav.getByRole("button", { name: "Conversation", exact: true }).click();
+  await nav.getByRole("button", { name: "Intentions", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Review brief", exact: true }),
   ).toBeVisible();
