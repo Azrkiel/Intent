@@ -22,6 +22,8 @@ def offline_live(tmp_path, monkeypatch):
     settings = Settings(
         _env_file=None,
         mode="live",
+        # The mock handler maps only v1 schema titles, so this stays the v1 HTTP-contract check.
+        clarity_version=1,
         NEBIUS_API_KEY="offline-test-only",
         database_path=str(tmp_path / "sessions.db"),
         build_root=str(tmp_path / "builds"),
