@@ -333,14 +333,14 @@ export function GraphDiscussion({
       )}
       {loading ? (
         <p className="discussion-muted" role="status">
-          Loading this section’s conversation…
+          Loading this section’s intentions…
         </p>
       ) : (
         <>
           {!!view?.messages.length ? (
             <ol
               className="discussion-history"
-              aria-label="Section conversation"
+              aria-label="Section intentions"
             >
               {view.messages.map((message) => (
                 <Message

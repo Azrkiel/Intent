@@ -221,7 +221,7 @@ export function PlanPanel({
   return (
     <div className="plan-panel">
       <div className="plan-intro">
-        <span className="eyebrow">YOUR PROJECT, IN CONVERSATION</span>
+        <span className="eyebrow">YOUR PROJECT, WITH INTENTION</span>
         <h3>See the plan. Shape every part.</h3>
         <p>
           Select a section to ask questions, explain your vision, or dictate a
