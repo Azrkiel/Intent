@@ -33,7 +33,15 @@ from .decisions import attach_confirmations, quality, settle
 from .decisions import build as build_decisions
 from .gate import describe
 from .lexicon import scan
-from .northstar import accept_drafted, evaluate, fatigued, field_texts, follow_up, text_hash
+from .northstar import (
+    accept_drafted,
+    evaluate,
+    fatigued,
+    field_texts,
+    follow_up,
+    picked_drafts,
+    text_hash,
+)
 from .provenance import aspect_gaps, build_claims, build_scenarios, tiling_gaps
 
 CANDIDATES = 4
@@ -104,12 +112,15 @@ class ClarityPipeline:
             {"turns": [{"number": t.number, "text": t.text} for t in session.turns]},
         )
         texts, _ = field_texts(draft, user_texts)  # invalid quotes are dropped, like ledger sources
+        picked = picked_drafts(session)
+        texts.update(picked)
         state.fields = [
             FieldState(
                 field=name,
                 text=texts.get(name, ""),
                 text_hash=text_hash(texts.get(name, "")),
-                flags=scan(texts.get(name, "")),
+                # Picked drafts were screened when drafted; their wording is Intent's, not the user's.
+                flags=[] if name in picked else scan(texts.get(name, "")),
             )
             for name in NORTH_STAR_FIELDS
         ]
@@ -172,7 +183,9 @@ class ClarityPipeline:
         accept_drafted(state.fields, session)
         self.refresh_fields(session, state)
         state.fatigued = fatigued(session)  # recorded for evals; drafting does not wait for fatigue
-        target = next((f for f in state.fields if not f.passed and set(f.failing) - {"G3"}), None)
+        # Same field follow_up asks about: it skips read-backs and missing reader probes.
+        skip = {"G3", "G4:readers"}
+        target = next((f for f in state.fields if not f.passed and set(f.failing) - skip), None)
         if target:
             drafts = await self.call(
                 session,
@@ -183,7 +196,7 @@ class ClarityPipeline:
                     "field": target.field,
                     "label": FIELD_LABELS[target.field],
                     "current": target.text,
-                    "failing": [describe(code) for code in target.failing if code != "G3"],
+                    "failing": [describe(code) for code in target.failing if code not in skip],
                     "turns": [t.text for t in session.turns],
                 },
             )

@@ -240,6 +240,24 @@ def follow_up(
     return None
 
 
+def picked_drafts(session: "Session") -> dict[str, str]:
+    """Each field's latest answer, when it is a draft the user picked: it replaces the field whole.
+
+    Live extraction quoted fragments of picked drafts, dropping the details they were written to add.
+    """
+    turns = {turn.number: turn for turn in session.turns}
+    picked = {}
+    for asked in session.questions:  # oldest first, so the latest answer wins
+        name = next((n for n in NORTH_STAR_FIELDS if asked.question.id.startswith(f"NS-{n}-")), None)
+        turn = turns.get(asked.turn)
+        if name and turn:
+            if turn.suggested and turn.text.strip() not in (KEEP, OWN):
+                picked[name] = turn.text
+            else:
+                picked.pop(name, None)  # a later typed answer goes back to extraction
+    return picked
+
+
 def accept_drafted(fields: list[FieldState], session: "Session") -> None:
     """A field quoted only from drafts the user picked needs no separate read-back.
 

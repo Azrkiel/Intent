@@ -36,7 +36,10 @@ they said, filling each gap with a concrete, proportionate assumption. Write 2-3
 answers in the user's voice (first person), each satisfying the failing checks: concrete, measurable
 where asked, and free of vague words such as easy, fast, simple or etc. List every assumption you
 added in assumed, in plain words, so the user can check it. Do not add features, accounts, servers,
-integrations or scale the idea does not need. The user will confirm or correct your draft."""
+integrations or scale the idea does not need. Each draft is one plain sentence of at most 30 words
+that keeps the user's own words, settles every failing check at once and adds nothing else: no clock
+times, button labels, product names or extra steps they did not give. The user will confirm or
+correct your draft."""
 
 CLAIMS = """Map the product into atomic claims: one assertion each, at most about 25 words.
 basis=stated only when the claim says nothing beyond its spans; each span quotes an exact substring

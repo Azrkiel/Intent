@@ -123,6 +123,64 @@ async def test_unanswered_field_gets_a_draft_and_picking_it_settles_the_field(tm
     assert who.passed  # picked draft: rubric passes and no separate read-back is needed
 
 
+async def test_a_picked_draft_replaces_the_field_whole_and_is_not_flag_checked(tmp_path):
+    # Live extraction quoted a fragment of the picked draft, dropping the device and frequency it
+    # added, so W3/W4 kept failing; its "every" then drew a vague-word question about Intent's words.
+    from backend.app.clarity.contracts import FieldQuotes, NorthStarDraft
+
+    class Fragments(DemoModels):
+        seen = []
+
+        async def call(self, session, role, schema, instruction, payload):
+            result = await super().call(session, role, schema, instruction, payload)
+            if role == "clarity:north-star":
+                picked = [t.text for t in session.turns if t.suggested]
+                if picked:
+                    fields = [f for f in result.fields if f.field != "who-when"]
+                    fragment = FieldQuotes(field="who-when", quotes=[picked[-1][:12]])
+                    result = NorthStarDraft(fields=[*fields, fragment])
+            if role == "clarity:rubric":
+                self.seen = [f for f in payload["fields"] if f["field"] == "who-when"]
+            return result
+
+    models = Fragments()
+    engine, session = await analyzed(tmp_path, models, answered=False)
+    question = session.current_question
+    draft = "Every weekday I open it on my phone after breakfast"
+    question.options = [draft, *question.options[1:]]
+    [event async for event in engine.turn(session, draft)]
+    who = next(f for f in session.clarity.fields if f.field == "who-when")
+    assert who.text == draft and who.flags == []
+    assert models.seen and models.seen[0]["text"] == draft and models.seen[0]["flags"] == []
+
+
+async def test_drafts_are_written_for_the_field_the_follow_up_asks_about(tmp_path):
+    # A field missing reader probes is skipped by follow_up, so drafting it put its drafts on the
+    # next field's question.
+    from backend.app.clarity.contracts import NorthStarProbes, RubricJudgement
+
+    class SkippedField(DemoModels):
+        drafted = []
+
+        async def call(self, session, role, schema, instruction, payload):
+            result = await super().call(session, role, schema, instruction, payload)
+            if role == "clarity:probes":
+                return NorthStarProbes(sets=[s for s in result.sets if s.field != "who-when"])
+            if role == "clarity:rubric":
+                for field in result.fields:
+                    if field.field == "job":
+                        field.verdicts[0].passed = False
+                return RubricJudgement(fields=result.fields)
+            if role == "clarity:suggest":
+                self.drafted.append(payload["field"])
+            return result
+
+    models = SkippedField()
+    _, session = await analyzed(tmp_path, models, answered=True)
+    assert models.drafted and set(models.drafted) == {"job"}
+    assert session.current_question.id.startswith("NS-job-") and session.current_question.suggestion
+
+
 async def test_demo_fields_show_distinct_text_from_the_conversation(tmp_path):
     engine, session = await analyzed(tmp_path)
     texts = [f.text for f in session.clarity.fields]
