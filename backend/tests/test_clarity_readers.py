@@ -302,3 +302,54 @@ async def test_a_spent_budget_is_not_retried(tmp_path):
     events = [event async for event in engine.turn(session, "A habit tracker for me.")]
     assert models.extractions == 1
     assert [event for event in events if event["type"] == "error"]
+
+
+async def test_an_accurate_reviewer_is_not_blocked_by_gaps_the_planted_defects_caused(tmp_path):
+    class Honest(DemoModels):
+        async def call(self, session, role, schema, instruction, payload):
+            result = await super().call(session, role, schema, instruction, payload)
+            if role == "clarity:review":
+                # Report every ledger item whose only claim the plant corrupted or removed.
+                cited = {s["item_id"] for c in payload["claims"] for s in c.get("spans", [])}
+                confirmed = [
+                    i["id"] for i in payload["ledger"] if i["status"] == "confirmed" and i.get("source")
+                ]
+                result.omitted_ledger_ids = [key for key in confirmed if key not in cited]
+            return result
+
+    models = Honest()
+    engine = Engine(Store(str(tmp_path / "db")), models)
+    session = reading_queue_session()
+    [event async for event in engine.analyze(session)]
+    state = session.clarity
+    await engine.clarity_pipeline().downstream(session, state)
+    claims = {s.item_id for c in state.claims if c.status == "confirmed" for s in c.spans}
+    assert claims
+    assert not set(state.review.omitted_ledger_ids) & claims
+
+
+def test_an_item_planted_as_omitted_is_never_still_cited_by_another_planted_claim():
+    from backend.app.clarity.canary import plant
+    from backend.app.clarity.contracts import Claim, Span
+
+    claims = [
+        Claim(
+            id=f"C{index}",
+            text=f"Claim number {index}",
+            tags=["scope/included"],
+            basis="stated",
+            status="confirmed",
+            spans=[Span(item_id=f"L{index}", quote=f"Claim number {index}")],
+        )
+        for index in range(1, 9)
+    ]
+    ledger_ids = [claim.spans[0].item_id for claim in claims]
+    omitted = 0
+    for seed in range(300):
+        copy, canaries, _ = plant(claims, ledger_ids, f"seed-{seed}")
+        cited = {span.item_id for claim in copy for span in claim.spans}
+        for canary in canaries:
+            if canary.kind == "omitted":
+                omitted += 1
+                assert canary.target not in cited
+    assert omitted

@@ -466,6 +466,11 @@ class ClarityPipeline:
             review, roundtrip = await gather_all(review_call, roundtrip_call)
             entail = Entailment()
         result = score(review, canaries, id_map, state.thresholds)
+        # A planted defect can hide the only claim citing a ledger item, so an accurate reviewer
+        # reports that item as omitted. That is the plant's doing, not a gap in the real claims.
+        planted = {id_map[c.target] for c in canaries if c.target in id_map}
+        hidden = {s.item_id for c in state.claims if c.id in planted for s in c.spans}
+        result.omitted_ledger_ids = [key for key in result.omitted_ledger_ids if key not in hidden]
         verdicts = {v.claim_id: v for v in entail.verdicts}
         result.entailment_failures = [
             c.id for c in checkable if c.id not in verdicts or not verdicts[c.id].entailed

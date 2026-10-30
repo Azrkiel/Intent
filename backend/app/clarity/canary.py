@@ -54,7 +54,15 @@ def plant(
     cited = Counter(
         s.item_id for c in claims if c.status == "confirmed" for s in {x.item_id: x for x in c.spans}.values()
     )
-    sole = [c for c in stated if c not in picks and c.spans and all(cited[s.item_id] == 1 for s in c.spans)]
+    # A planted citation can point at any item; an item still cited in the copy can't look omitted.
+    recited = {s.item_id for c in copy if c.id in {key for key, _ in planted} for s in c.spans}
+    sole = [
+        c
+        for c in stated
+        if c not in picks
+        and c.spans
+        and all(cited[s.item_id] == 1 and s.item_id not in recited for s in c.spans)
+    ]
     if sole:
         dropped = rng.choice(sole)
         copy = [c for c in copy if c.id != dropped.id]
