@@ -33,9 +33,7 @@ export function PlanPanel({
   modeMismatch: boolean;
 }) {
   const [detail, setDetail] = useState<PlanDetail | null>(null);
-  const [view, setView] = useState<"graph" | "human" | "engineering" | "vault">(
-    "graph",
-  );
+  const [view, setView] = useState<"graph" | "vault">("graph");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const alive = useRef(true);
@@ -348,25 +346,13 @@ export function PlanPanel({
           aria-pressed={view === "graph"}
           onClick={() => setView("graph")}
         >
-          Project graph
+          Graph
         </button>
         <button
           aria-pressed={view === "vault"}
           onClick={() => setView("vault")}
         >
-          Graph & notes
-        </button>
-        <button
-          aria-pressed={view === "human"}
-          onClick={() => setView("human")}
-        >
-          Vision & wireframes
-        </button>
-        <button
-          aria-pressed={view === "engineering"}
-          onClick={() => setView("engineering")}
-        >
-          Engineering & work packages
+          Notes
         </button>
       </div>
       <div hidden={view !== "vault"}>
@@ -385,50 +371,36 @@ export function PlanPanel({
                 ? "Draft sections · final validation and semantic review pending"
                 : `Revision ${detail.plan?.revision} · one plan, connected views`}
             </p>
-            {view === "graph" ? (
-              detail.graph ? (
-                <PlanGraph
-                  key={graphKey(detail.graph)}
-                  graph={detail.graph}
-                  activity={activity.key === sourceKey ? activity.data : {}}
-                  discussion={(node) => (
-                    <GraphDiscussion
-                      key={`${graphKey(detail.graph!)}:${node.id}`}
-                      session={session}
-                      nodeId={node.id}
-                      source={detail.graph!.source}
-                      onActivity={(data) => {
-                        if (
-                          alive.current &&
-                          displayedSource.current === sourceKey
-                        )
-                          setActivity({ key: sourceKey, data });
-                      }}
-                      busy={busy}
-                      setBusy={setBusy}
-                      onSession={reportSession}
-                      modeMismatch={modeMismatch}
-                    />
-                  )}
-                  stale={modeMismatch || stale}
-                />
-              ) : (
-                <p role="status" className="plan-notice">
-                  Loading the graph of accepted sections…
-                </p>
-              )
+            {detail.graph ? (
+              <PlanGraph
+                key={graphKey(detail.graph)}
+                graph={detail.graph}
+                activity={activity.key === sourceKey ? activity.data : {}}
+                discussion={(node) => (
+                  <GraphDiscussion
+                    key={`${graphKey(detail.graph!)}:${node.id}`}
+                    session={session}
+                    nodeId={node.id}
+                    source={detail.graph!.source}
+                    onActivity={(data) => {
+                      if (
+                        alive.current &&
+                        displayedSource.current === sourceKey
+                      )
+                        setActivity({ key: sourceKey, data });
+                    }}
+                    busy={busy}
+                    setBusy={setBusy}
+                    onSession={reportSession}
+                    modeMismatch={modeMismatch}
+                  />
+                )}
+                stale={modeMismatch || stale}
+              />
             ) : (
-              <pre
-                className="plan-document"
-                tabIndex={0}
-                aria-label={
-                  view === "human"
-                    ? "Vision and wireframes"
-                    : "Engineering plan"
-                }
-              >
-                {detail.views?.[view]}
-              </pre>
+              <p role="status" className="plan-notice">
+                Loading the graph of accepted sections…
+              </p>
             )}
           </>
         ) : (

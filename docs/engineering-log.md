@@ -163,9 +163,9 @@ run a backend or synchronize across devices.
 Open **Project graph** (or **Explore project graph** from the compiled brief).
 A draft-vision root is available before a plan exists. After approving the current
 requirements playback, choose **Generate phase plan**.
-Validated outline, wireframe, and phase sections appear progressively. Switch
-between **Project graph**, **Vision & wireframes**, and **Engineering & work
-packages** to inspect the same revision. The graph starts at the project root;
+Validated outline, wireframe, and phase sections appear progressively in the
+**Graph** tab; the vision and engineering documents for the same revision are in
+**Export instruction bundle** and the **Notes** tab. The graph starts at the project root;
 use search, filters, the keyboard outline, and the node inspector to reach every
 scope, source quote, acceptance condition, proposed check, and planned handoff.
 Use **Fit** for the whole overview or **Center root** to return to the project
@@ -243,7 +243,7 @@ available separately.
 
 ## Editable Markdown vault and graph
 
-Open **Workspace → Project graph → Graph & notes**. The vault works
+Open **Workspace → Project graph → Notes**. The vault works
 before a phase plan exists: edit the main `Plan.md` note and create your own notes.
 After generating a phase plan, choose **Add phase plan** to add linked vision,
 specification, architecture, screen, phase, work-package and task notes. This is a
