@@ -74,3 +74,19 @@ async def test_schema_failure_raw_output_lands_in_the_case_result(tmp_path):
     assert "JSON parsing" in result["error"]
     assert result["raw_failures"] == [{"role": "extractor", "category": "JSON parsing", "raw": "{oops"}]
     await client.close()
+
+
+def test_v2_simulated_user_picks_the_closest_draft_and_v1_still_types():
+    from backend.app.clarity.northstar import KEEP
+    from backend.evals.run import answer_for
+
+    fixture = load_fixtures()[0]
+    answer = fixture["ambiguities"][0]["answer"]
+    question = candidate(divergence=3, uncertainty=3, cost_to_change=3).model_copy(update={
+        "lens": "north-star", "suggestion": True,
+        "options": ["Something unrelated entirely", answer + " today", KEEP],
+    })
+    assert answer_for(question, fixture, 2) == answer + " today"
+    assert answer_for(question, fixture, 1) != answer + " today"
+    decision = question.model_copy(update={"lens": "decision", "suggestion": False})
+    assert answer_for(decision, fixture, 2) == answer + " today"

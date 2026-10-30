@@ -1,12 +1,14 @@
 import argparse
 import asyncio
 import json
+import re
 import statistics
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 from backend.app.clarity.metrics import clarity_metrics
+from backend.app.clarity.northstar import KEEP, OWN
 from backend.app.demo import DemoModels
 from backend.app.domain import Session, gate_for
 from backend.app.engine import Engine
@@ -32,7 +34,26 @@ def unsupported_lines(session):
     return sum(not line.ledger_ids or not set(line.ledger_ids) <= known for line in session.brief.lines)
 
 
-def answer_for(question, fixture):
+STOP = {"and", "the", "for", "with", "that", "this", "are", "not", "but", "can", "will", "all", "any"}
+
+
+def words(text):
+    return set(re.findall(r"[a-z0-9]{3,}", text.casefold())) - STOP
+
+
+def pick_option(question, fixture):
+    """Simulated user picks the offered draft/option closest to the fixture's answers (token overlap)."""
+    options = [o for o in question.options if o.strip() not in (KEEP, OWN)] or question.options
+    gaps = [g["answer"] + " " + " ".join(g["keywords"]) for g in fixture["ambiguities"]]
+    target = words(" ".join([fixture["prompt"], *gaps]))
+    best = max(options, key=lambda option: len(words(option) & target))
+    # Fewer than three shared words is noise; fall back to the first option, which is the model's own best guess.
+    return best if len(words(best) & target) >= 3 else options[0]
+
+
+def answer_for(question, fixture, clarity_version=1):
+    if clarity_version == 2 and (question.suggestion or question.lens == "decision"):
+        return pick_option(question, fixture)
     text = (question.question + " " + question.code_diff).casefold()
     matches = [
         (sum(word.casefold() in text for word in gap["keywords"]), gap) for gap in fixture["ambiguities"]
@@ -74,7 +95,7 @@ async def run_case(fixture, settings, models, store, strategy, clarity_version=1
             break
         if gate_for(session).ready or not session.current_question:
             break
-        text = answer_for(session.current_question, fixture)
+        text = answer_for(session.current_question, fixture, clarity_version)
     ready = gate_for(session).ready
     if ready and not error:
         try:
@@ -155,7 +176,9 @@ async def run(demo, output, clarity_version=1, max_total_usd=None, fixture_ids=N
         "results": results,
     }
     if clarity_version == 2:
-        report["notice"] += " Read-backs were confirmed by a simulated user."
+        report["notice"] += (
+            " Read-backs were confirmed, and drafts/options were picked, by a simulated user."
+        )
     path = Path(output)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
