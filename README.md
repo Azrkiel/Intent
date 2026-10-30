@@ -910,9 +910,9 @@ like, and what fails it. A field passes only when all its checks pass: G1 (deter
 prompts for vague, escape, open-ended, absolute and subjective wording; non-blocking, prompted once),
 a rubric judge, G3 (the user confirms a read-back of the field) and G4 (two independent readers
 agree, Krippendorff alpha at or above `CLARITY_ALPHA_PASS`, default 0.80; the floor is
-`CLARITY_ALPHA_FLOOR`, default 0.667). There is no question cap. When an answer is vague,
-suggestion mode proposes an extrapolated draft with the assumptions it made; the user picks it,
-edits it or writes their own. A field built only from picked drafts skips G3, but the rubric and G4
+`CLARITY_ALPHA_FLOOR`, default 0.667). There is no question cap. Every follow-up for a
+failing field carries Intent's extrapolated drafts and the assumptions behind them; the user picks
+one, edits it or writes their own. A field built only from picked drafts skips G3, but the rubric and G4
 still run. Claims carry computed provenance (quote tiling and a novelty tripwire).
 
 **Decisions.** Build-changing choices are discovered by divergence between candidate builds, scored,
