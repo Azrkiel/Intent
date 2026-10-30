@@ -70,7 +70,9 @@ checking the account's support for `chat_template_kwargs.enable_thinking` and
 `reasoning_budget`. With controls enabled, Nano uses thinking off, Super uses the
 configured budget, and Ultra uses a larger budget. With controls disabled, prompt
 and output-token limits apply; the provider's default thinking behaviour is
-unverified. All model IDs and the API base URL can be changed in `.env`.
+unverified. `NANO_THINKING_OFF=true` (default since 2026-10-30) sends Nano's
+thinking-off control either way: with provider-default thinking, live Nano clarity
+passes ran up to 43s against the 45s client timeout. All model IDs and the API base URL can be changed in `.env`.
 
 Usage and latency are retained per successful API response, including invalid JSON
 responses. Dollar figures use the role's published price assumptions and are
