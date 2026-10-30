@@ -36,7 +36,7 @@ import {
 } from "@/lib/vault";
 
 const colors: Record<NoteKind, string> = {
-  plan: "#bce3b4",
+  plan: "#b6ff3b",
   phase: "#a8b8ef",
   package: "#edbb91",
   task: "#93b9c1",
@@ -110,6 +110,7 @@ export function VaultGraph({
   );
   const topology = JSON.stringify([visible.map((n) => n.id), edges]);
   const active = hovered || selected;
+  const noteCount = visible.filter((node) => !node.missing).length;
   const neighbors = new Set([
     active,
     ...edges.flatMap((e) =>
@@ -323,9 +324,16 @@ export function VaultGraph({
     >
       <div className="vault-graph-caption">
         <span className="vault-live-dot" />
-        {visible.filter((n) => !n.missing).length} notes<span>·</span>
+        {noteCount} {noteCount === 1 ? "note" : "notes"}
+        <span>·</span>
         {edges.length} links
       </div>
+      {graph.nodes.length === 1 && graph.nodes[0].id === "plan" && (
+        <div className="vault-graph-guide">
+          <strong>Connect your thinking.</strong>
+          <p>Add a note, then link it from your plan.</p>
+        </div>
+      )}
       <button
         className="vault-icon-button vault-settings-button"
         aria-label="Graph settings"
@@ -512,7 +520,7 @@ export function VaultGraph({
                 y1={a.y}
                 x2={b.x}
                 y2={b.y}
-                stroke={lit ? "#b8ccad" : "#657168"}
+                stroke={lit ? "#b6ff3b" : "#657168"}
                 opacity={active ? (lit ? 0.6 : 0.13) : 0.35}
                 strokeWidth={lit ? 1.3 : 0.8}
                 markerEnd={arrows ? `url(#${arrowId})` : undefined}
@@ -582,8 +590,8 @@ export function VaultGraph({
                     y={radius + 18}
                     fill={lit ? "#e1e8df" : "#727e74"}
                     opacity={lit ? 1 : 0.4}
-                    fontSize={node.id === "plan" ? 12 : 10.5}
-                    fontWeight={node.id === "plan" ? 600 : 400}
+                    fontSize={node.id === "plan" ? 16 : 14}
+                    fontWeight={node.id === "plan" ? 400 : 300}
                   >
                     {node.title.length > 36
                       ? node.title.slice(0, 34) + "…"

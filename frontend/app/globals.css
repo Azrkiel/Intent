@@ -1585,10 +1585,11 @@ html {
   border-radius: 3px;
   box-shadow: none;
 }
-.new-session:not(:disabled):hover,
-.primary-button:not(:disabled):hover,
-.send-button:not(:disabled):hover {
-  background: #ccff7a;
+.new-session:not(:disabled):is(:hover, :focus-visible),
+.primary-button:not(:disabled):is(:hover, :focus-visible),
+.send-button:not(:disabled):is(:hover, :focus-visible) {
+  background: var(--green);
+  color: #fff;
 }
 .new-session > span {
   margin-left: auto;
@@ -3476,7 +3477,36 @@ summary:focus-visible {
   padding: 10px 12px;
 }
 .graph-workspace-page .plan-tabs {
-  padding-top: 10px;
+  padding: 12px 0;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  border-bottom: 1px solid var(--line);
+}
+.graph-workspace-page .plan-tabs button {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 12px 16px;
+  border-radius: 2px;
+  font-size: 17px;
+  font-weight: 300;
+  border: 1px solid transparent;
+  color: var(--text);
+}
+.graph-workspace-page .plan-tabs button[aria-pressed="true"] {
+  background: transparent;
+  color: var(--green);
+  box-shadow: inset 0 -2px var(--green);
+}
+.graph-workspace-page .plan-tabs button:is(:hover, :focus-visible) {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+.graph-workspace-page .plan-tabs button:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
 }
 
 /* Keep planning and execution in the current Intent workspace theme. */
@@ -3497,11 +3527,15 @@ summary:focus-visible {
   border-radius: 6px;
   font-size: 16px;
 }
-.workspace-nav-link[aria-current="page"],
-.workspace-nav-link:hover:not(:disabled) {
+.workspace-nav-link[aria-current="page"] {
   color: var(--green);
   background: var(--green-soft);
   border-color: var(--line);
+}
+.workspace-nav-link:not(:disabled):is(:hover, :focus-visible) {
+  color: #fff;
+  background: var(--green);
+  border-color: var(--green);
 }
 .workspace-nav-link svg {
   flex-shrink: 0;
@@ -3607,14 +3641,6 @@ summary:focus-visible {
   background: var(--paper);
   border-color: var(--line);
   color: var(--text);
-}
-.graph-workspace-page .vault-workspace {
-  --vault-bg: var(--bg);
-  --vault-panel: var(--paper);
-  --vault-line: var(--line);
-  --vault-ink: var(--ink);
-  --vault-muted: var(--muted);
-  --vault-accent: var(--green);
 }
 @media (max-width: 1050px) {
   .workspace-nav-link {

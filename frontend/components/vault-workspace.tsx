@@ -524,14 +524,15 @@ export function VaultWorkspace({
       <div className="vault-grid">
         <nav className="vault-files" aria-label="Vault notes">
           <div className="vault-files-heading">
-            <span>EXPLORER</span>
+            <span>Notes</span>
             <button
-              className="vault-icon-button"
+              className="vault-button vault-new-note"
               aria-label="New note"
               disabled={locked}
               onClick={() => setDialog({ title: "New note", path: "" })}
             >
               <FilePlus2 size={16} />
+              <span>New note</span>
             </button>
           </div>
           <label className="vault-search">
@@ -640,7 +641,9 @@ export function VaultWorkspace({
               aria-label="Import Markdown files or ZIP"
               onChange={(e) => void importFiles(e.target.files)}
             />
-            <p>{notes.length} notes · Markdown only</p>
+            <p>
+              {notes.length} {notes.length === 1 ? "note" : "notes"} · Markdown
+            </p>
           </div>
         </nav>
         <VaultGraph
