@@ -3638,3 +3638,6 @@ summary:focus-visible {
 .clarity-readback p { flex-basis: 100%; margin: 0.25rem 0; }
 .clarity-review { font-size: 0.82rem; margin: 0.5rem 0; }
 .drafted-label { color: var(--muted); font-size: 0.75rem; }
+.clarity-reader-check { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; font-size: 0.82rem; margin: 0.5rem 0; }
+.clarity-reader-check select { background: var(--paper); border: 1px solid var(--line); color: var(--ink); border-radius: 6px; padding: 0.2rem 0.4rem; font: inherit; }
+.clarity-reader-check small { color: var(--muted); flex-basis: 100%; }

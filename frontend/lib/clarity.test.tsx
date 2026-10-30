@@ -83,6 +83,7 @@ function render(value = session) {
       onConfirm() {},
       onCorrect() {},
       onVeto() {},
+      onReaderVariation() {},
       onRetry() {},
     }),
   );
@@ -107,6 +108,35 @@ describe("clarity panel", () => {
     expect(render({ ...session, mode: "demo" })).toContain(
       "Scripted example · no model reasoning",
     );
+  });
+
+  it("labels the reader check and selects the session's mode", () => {
+    const html = render({ ...session, clarity_reader_variation: "tier" });
+    expect(html).toContain("Reader check:");
+    for (const label of [
+      "Different perspective",
+      "Different temperature",
+      "Different model",
+    ])
+      expect(html).toContain(label);
+    expect(html).toMatch(/<option value="tier" selected/);
+    expect(render()).toMatch(/<option value="perspective" selected/);
+  });
+
+  it("disables the selector while busy", () => {
+    const html = renderToStaticMarkup(
+      createElement(ClarityPanel, {
+        session,
+        busy: true,
+        disabled: false,
+        onConfirm() {},
+        onCorrect() {},
+        onVeto() {},
+        onReaderVariation() {},
+        onRetry() {},
+      }),
+    );
+    expect(html).toMatch(/<select[^>]*disabled/);
   });
 
   it("hides stale clarity", () => {

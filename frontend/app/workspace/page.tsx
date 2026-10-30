@@ -1381,6 +1381,13 @@ export default function Home() {
                             "Turning that choice into a question…",
                           )
                         }
+                        onReaderVariation={(mode) =>
+                          void clarityCall(
+                            "reader-variation",
+                            { mode },
+                            "Changing the reader check…",
+                          )
+                        }
                         onRetry={() => void action("analyze")}
                       />
                     ) : (

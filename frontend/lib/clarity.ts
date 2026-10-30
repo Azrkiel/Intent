@@ -1,5 +1,13 @@
 export type NorthStarField = "who-when" | "job" | "ambition" | "today" | "good" | "fails-if";
 
+export type ReaderVariation = "perspective" | "temperature" | "tier";
+
+export const READER_VARIATIONS: { id: ReaderVariation; label: string }[] = [
+  { id: "perspective", label: "Different perspective" },
+  { id: "temperature", label: "Different temperature" },
+  { id: "tier", label: "Different model" },
+];
+
 export const NORTH_STAR_ORDER: NorthStarField[] = ["who-when", "job", "ambition", "today", "good", "fails-if"];
 
 export const FIELD_LABELS: Record<NorthStarField, string> = {
