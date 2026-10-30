@@ -141,12 +141,13 @@ def test_http_contract_pipeline_compiles_tracks_usage_restores_and_invalidates(o
     )
 
 
-@pytest.mark.parametrize("role", ["extractor", "critic:edges"])
-def test_invalid_json_closes_gate_retains_both_attempts_and_retries(offline_live, role):
+# The extractor asks afresh once, so it needs four bad replies to fail the turn.
+@pytest.mark.parametrize("role,attempts", [("extractor", 4), ("critic:edges", 2)])
+def test_invalid_json_closes_gate_retains_both_attempts_and_retries(offline_live, role, attempts):
     client, _, _, requests, failures = offline_live
     state = client.post("/api/sessions", json={}).json()
     base = f"/api/sessions/{state['id']}"
-    failures[role] = 2
+    failures[role] = attempts
     response = client.post(base + "/turns", json={"text": "I want a habit tracker, no login"})
     assert response.status_code == 200
     state = client.get(base).json()
@@ -154,7 +155,7 @@ def test_invalid_json_closes_gate_retains_both_attempts_and_retries(offline_live
     assert not state["analysis_complete"]
     assert not state["gate"]["ready"]
     assert state["warnings"]
-    assert len([item for item in state["usage"] if item["role"] == role]) == 2
+    assert len([item for item in state["usage"] if item["role"] == role]) == attempts
     assert len(state["usage"]) == len(requests)
     assert client.post(base + "/compile").status_code == 409
     retry = client.post(base + "/analyze")

@@ -9,10 +9,10 @@ from openai import AsyncOpenAI
 
 from backend.app.clarity.contracts import Answers
 from backend.app.demo import DemoModels
-from backend.app.domain import Session, gate_for
+from backend.app.domain import Delta, Session, gate_for
 from backend.app.engine import Engine
 from backend.app.main import create_app
-from backend.app.models import LiveModels
+from backend.app.models import LiveModels, ModelError
 from backend.app.settings import Settings
 from backend.app.store import Store
 from backend.tests.clarity_fixtures import reading_queue_session
@@ -164,3 +164,141 @@ async def test_clarity_passes_get_the_long_output_limit():
         assert request["max_tokens"] == 8192
     request, _ = await live_request("playback")
     assert request["max_tokens"] == 4096
+
+
+class StableProbes(DemoModels):
+    """Reader b cannot answer the first question until the field text changes."""
+
+    def __init__(self):
+        self.calls = []
+        self.open_first = True
+
+    async def call(self, session, role, schema, instruction, payload):
+        self.calls.append((role, payload))
+        result = await super().call(session, role, schema, instruction, payload)
+        if role == "clarity:reader:b" and self.open_first:
+            first = result.answers[0]
+            result.answers[0] = first.model_copy(update={"choice": -1})
+        return result
+
+
+async def read_twice(tmp_path, change):
+    models = StableProbes()
+    engine = Engine(Store(str(tmp_path / "db")), models)
+    session = reading_queue_session()
+    [event async for event in engine.analyze(session)]
+    pipeline = engine.clarity_pipeline()
+    target = next(f for f in session.clarity.fields if f.text)
+    question = session.north_star_readings[target.field].probes[0].id
+    assert f"G4:{question}" in target.failing
+    models.calls.clear()
+    models.open_first = False
+    target.text = change(target.text)
+    await pipeline.read_fields(session, session.clarity, [target])
+    return models.calls, target, question, session
+
+
+@pytest.mark.parametrize("change", [lambda t: t + " More words.", lambda t: "Rewritten: " + t])
+async def test_an_edit_keeps_questions_and_only_rereads_the_open_ones(tmp_path, change):
+    calls, target, question, session = await read_twice(tmp_path, change)
+    roles = [role for role, _ in calls]
+    assert "clarity:probes" not in roles and "clarity:rubric" in roles
+    payloads = [payload for role, payload in calls if role.startswith("clarity:reader:")]
+    assert len(payloads) == 2
+    for payload in payloads:
+        asked = [q["id"] for f in payload["fields"] for q in f["questions"] if f["field"] == target.field]
+        assert asked == [question]
+    assert {x.probe_id for x in target.reader_a} == {p.id for p in target.probes}
+    assert {x.probe_id for x in target.reader_b} == {p.id for p in target.probes}
+    assert all(x.choice != -1 for x in target.reader_b)
+    assert session.north_star_readings[target.field].text == target.text
+
+
+async def test_changing_the_reader_variation_reads_every_question_again(tmp_path):
+    models = StableProbes()
+    engine = Engine(Store(str(tmp_path / "db")), models)
+    session = reading_queue_session()
+    [event async for event in engine.analyze(session)]
+    target = next(f for f in session.clarity.fields if f.text)
+    models.calls.clear()
+    session.clarity_reader_variation = "tier"
+    target.text += " More words."
+    await engine.clarity_pipeline().read_fields(session, session.clarity, [target])
+    roles = [role for role, _ in models.calls]
+    assert "clarity:probes" in roles and "clarity:reader:b:tier" in roles
+
+
+def test_unknown_slot_hint_is_dropped_but_the_item_is_kept():
+    delta = Delta.model_validate(
+        {
+            "add": [{"type": "non-goal", "text": "never share data", "slot": "non-goal"}],
+            "update": [{"id": "L1", "slot": "nonsense"}],
+        }
+    )
+    assert delta.add[0].slot is None and delta.add[0].text == "never share data"
+    assert delta.update[0].slot is None
+    kept = Delta.model_validate({"add": [{"type": "goal", "text": "x", "slot": "goal"}]})
+    assert kept.add[0].slot == "goal"
+
+
+class FlakyExtractor(DemoModels):
+    def __init__(self, error):
+        self.error, self.extractions = error, 0
+
+    async def call(self, session, role, schema, instruction, payload):
+        if role == "extractor":
+            self.extractions += 1
+            if self.extractions == 1:
+                raise self.error
+        return await super().call(session, role, schema, instruction, payload)
+
+
+async def test_a_malformed_extractor_reply_gets_one_fresh_try_without_ending_the_turn(tmp_path):
+    error = ModelError("extractor failed schema validation after one repair retry.")
+    error.invalid_output = True
+    models = FlakyExtractor(error)
+    engine = Engine(Store(str(tmp_path / "db")), models)
+    session = Session(mode="demo", clarity_version=2)
+    events = [event async for event in engine.turn(session, "A habit tracker for me.")]
+    assert models.extractions == 2
+    assert not [event for event in events if event["type"] == "error"]
+
+
+async def test_a_malformed_clarity_reply_also_gets_one_fresh_try(tmp_path):
+    calls = []
+
+    class Flaky(DemoModels):
+        async def call(self, session, role, schema, instruction, payload):
+            calls.append(role)
+            if calls.count("clarity:rubric") == 1 and role == "clarity:rubric":
+                error = ModelError("clarity:rubric failed schema validation after one repair retry.")
+                error.invalid_output = True
+                raise error
+            return await super().call(session, role, schema, instruction, payload)
+
+    engine = Engine(Store(str(tmp_path / "db")), Flaky())
+    session = Session(mode="demo", clarity_version=2)
+    events = [event async for event in engine.turn(session, "A habit tracker for me.")]
+    assert calls.count("clarity:rubric") == 2
+    assert not [event for event in events if event["type"] == "error"]
+
+
+async def test_a_busy_provider_gets_one_more_try_after_a_short_wait(tmp_path, monkeypatch):
+    monkeypatch.setattr("backend.app.engine.PROVIDER_RETRY_SECONDS", 0)
+    error = ModelError("Token Factory extractor request failed (HTTP 529). Provider is busy.")
+    error.transient = True
+    models = FlakyExtractor(error)
+    engine = Engine(Store(str(tmp_path / "db")), models)
+    session = Session(mode="demo", clarity_version=2)
+    events = [event async for event in engine.turn(session, "A habit tracker for me.")]
+    assert models.extractions == 2
+    assert not [event for event in events if event["type"] == "error"]
+
+
+async def test_a_spent_budget_is_not_retried(tmp_path):
+    models = FlakyExtractor(ModelError("Session budget reached."))
+    engine = Engine(Store(str(tmp_path / "db")), models)
+    session = Session(mode="demo", clarity_version=2)
+    events = [event async for event in engine.turn(session, "A habit tracker for me.")]
+    assert models.extractions == 1
+    assert [event for event in events if event["type"] == "error"]

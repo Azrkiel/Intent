@@ -98,6 +98,9 @@ def invalidate_understanding(session: Session):
     session.warnings = []
 
 
+PROVIDER_RETRY_SECONDS = 5
+
+
 class Engine:
     def __init__(self, store: Store, models, critic_mode="lenses", thresholds=None):
         self.store, self.models = store, models
@@ -134,7 +137,17 @@ class Engine:
 
     async def call(self, session, role, schema, instruction, payload):
         try:
-            return await self.models.call(session, role, schema, instruction, payload)
+            try:
+                return await self.models.call(session, role, schema, instruction, payload)
+            except ModelError as error:
+                # One malformed reply must not end the user's turn; a repaired reply can repeat the
+                # mistake (live: "Fields" twice), so ask afresh. Budget failures never retry.
+                malformed = error.invalid_output and (role == "extractor" or role.startswith("clarity:"))
+                if not malformed and not error.transient:
+                    raise
+                if error.transient:
+                    await asyncio.sleep(PROVIDER_RETRY_SECONDS)
+                return await self.models.call(session, role, schema, instruction, payload)
         finally:
             # Failed validation can still consume tokens; preserve every billed response.
             self.store.save(session)

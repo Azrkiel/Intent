@@ -36,12 +36,19 @@ class Contract(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+def known_slot(value):
+    # Models write near-misses such as "non-goal". A slot is an optional hint: drop it, keep the item.
+    return value if value in SLOTS else None
+
+
 class DraftItem(Contract):
     type: ItemType
     text: str = Field(min_length=1, max_length=2000)
     status: Status = "inferred"
     source: str | None = Field(default=None, max_length=6000)
     slot: Slot | None = None
+
+    _known_slot = field_validator("slot", mode="before")(known_slot)
 
 
 class LedgerItem(DraftItem):
@@ -55,6 +62,8 @@ class ItemUpdate(Contract):
     status: Status | None = None
     source: str | None = Field(default=None, max_length=6000)
     slot: Slot | None = None
+
+    _known_slot = field_validator("slot", mode="before")(known_slot)
 
 
 class Delta(Contract):
