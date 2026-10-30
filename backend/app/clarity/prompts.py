@@ -24,6 +24,10 @@ READER = """You are an independent reader. Using ONLY the field text supplied wi
 answer every question by option index (0-based). Answer -1 when the text does not let you tell.
 Do not guess from what similar products usually do."""
 
+READER_SKEPTIC = READER + """
+Read as a skeptical first-time user who has never seen this product: take nothing for granted, and
+answer -1 whenever a reasonable person could pick a different option from the words alone."""
+
 SUGGEST = """The user has an idea but may not know the details a builder needs; you are the
 builder. For this North Star field, extrapolate the most plausible specific answer from everything
 they said, filling each gap with a concrete, proportionate assumption. Write 2-3 alternative complete

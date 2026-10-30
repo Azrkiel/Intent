@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from .clarity.contracts import Thresholds
+from .clarity.contracts import ReaderVariation, Thresholds
 
 
 class Settings(BaseSettings):
@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     planning_max_attempts: int = Field(default=2, ge=1, le=2)
     planning_max_passes: int = Field(default=9, ge=1, le=9)
     clarity_version: int | None = Field(default=None, ge=1, le=2)
+    clarity_reader_variation: ReaderVariation = "perspective"
     clarity_alpha_pass: float = Field(default=0.80, ge=0, le=1)
     clarity_alpha_floor: float = Field(default=0.667, ge=0, le=1)
     canary_critical_recall: float = Field(default=1.0, ge=0, le=1)

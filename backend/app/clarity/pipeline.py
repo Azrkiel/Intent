@@ -51,6 +51,13 @@ async def gather_all(*calls):
         raise
 
 
+READER_B = {
+    "perspective": ("clarity:reader:b", prompts.READER_SKEPTIC),
+    "temperature": ("clarity:reader:b:temperature", prompts.READER),
+    "tier": ("clarity:reader:b:tier", prompts.READER),
+}
+
+
 class ClarityPipeline:
     def __init__(self, call, save, thresholds: Thresholds):
         self.call, self.save, self.thresholds = call, save, thresholds
@@ -150,9 +157,10 @@ class ClarityPipeline:
                     for f in present
                 ]
             }
+            role_b, prompt_b = READER_B[session.clarity_reader_variation]
             first, second = await gather_all(
                 self.call(session, "clarity:reader:a", Answers, prompts.READER, reader_payload),
-                self.call(session, "clarity:reader:b", Answers, prompts.READER, reader_payload),
+                self.call(session, role_b, Answers, prompt_b, reader_payload),
             )
             for f in present:
                 ids = {p.id for p in f.probes}
