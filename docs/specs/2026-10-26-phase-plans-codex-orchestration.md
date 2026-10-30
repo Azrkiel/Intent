@@ -27,7 +27,7 @@ evidence and remaining manual audits are recorded in the implementation plan and
 
 ## Approved graph extension, 2026-10-28
 
-The user approved G0-G6 of the [graph design and review](../../.Codex/handoffs/2026-10-28-0843.md)
+The user approved G0-G6 of the graph design and review (session handoff 2026-10-28-0843, not retained)
 with: "yes, I approve and continue with all of it". The extension retains the
 original five delivery phases and does not authorize another live planning attempt.
 

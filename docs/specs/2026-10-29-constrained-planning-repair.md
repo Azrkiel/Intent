@@ -1,7 +1,7 @@
 # Constrained planning repair and complete prose review
 
 Status: approved by the user: "approve, please continue"; implemented and verified offline at `fa00240`.
-Scope: offline continuation of the [eighth-attempt handoff](../../.Codex/handoffs/2026-10-29-1610.md).
+Scope: offline continuation of the eighth-attempt handoff (session handoff 2026-10-29-1610, not retained).
 This design grants no additional live attempt, plan approval, export or dispatch.
 
 ## Evidence and problem

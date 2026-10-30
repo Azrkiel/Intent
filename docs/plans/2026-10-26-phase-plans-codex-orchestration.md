@@ -797,7 +797,7 @@ is included. Fresh verification remains required for each future checkpoint.
 ## Approved graph and ancestor-context extension, 2026-10-28
 
 The approved implementation contract and G0-G6 acceptance map are retained in the
-[original handoff](../../.Codex/handoffs/2026-10-28-0843.md). This extension keeps the
+original handoff (session handoff 2026-10-28-0843, not retained). This extension keeps the
 five-phase qualification plan intact. Its graph, worker context and shared
 publication projections are deterministic and require no new inference or planning
 allowance. The failed retained live counter is not a source of complete plan data.

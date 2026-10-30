@@ -10,7 +10,7 @@ retries. Keep the ordinary two-attempt policy and all human approval gates.
 Stack: Python, Pydantic, SQLite, existing OpenAI-compatible adapter, HTTPX and pytest.
 
 The user explicitly authorized an eighth attempt and required the handoff and
-all-attempt review first. The [handoff](../../.Codex/handoffs/2026-10-29-1533.md)
+all-attempt review first. The handoff (session handoff 2026-10-29-1533, not retained)
 was committed at `fbf9c0b` before reviewing historical attempts. The completed
 [retrospective](../retrospectives/2026-10-29-seven-planning-attempts.md) supplies the
 evidence and rationale. Execute this plan within that authorization; no additional

@@ -157,4 +157,4 @@ live planning and Phase 5 remain failed/incomplete.
 
 References: [original consumed extension](2026-10-28-planning-requalification-proposal.md),
 [five-phase plan](2026-10-26-phase-plans-codex-orchestration.md),
-[current handoff](../../.Codex/handoffs/2026-10-28-0843.md).
+current handoff (session handoff 2026-10-28-0843, not retained).
