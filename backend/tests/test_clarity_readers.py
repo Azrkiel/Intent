@@ -353,3 +353,46 @@ def test_an_item_planted_as_omitted_is_never_still_cited_by_another_planted_clai
                 omitted += 1
                 assert canary.target not in cited
     assert omitted
+
+
+class CountsCritics(DemoModels):
+    def __init__(self, fail=False):
+        self.critics, self.fail = 0, fail
+
+    async def call(self, session, role, schema, instruction, payload):
+        if role.startswith("critic:"):
+            self.critics += 1
+            if self.fail:
+                raise ModelError("critic failed.")
+        return await super().call(session, role, schema, instruction, payload)
+
+
+async def test_critics_do_not_run_while_the_north_star_is_still_being_asked(tmp_path):
+    models = CountsCritics()
+    engine = Engine(Store(str(tmp_path / "db")), models)
+    session = Session(mode="demo", clarity_version=2)
+    [event async for event in engine.turn(session, "A habit tracker for me.")]
+    assert session.clarity and not session.clarity.downstream_complete
+    assert models.critics == 0
+
+
+async def test_critics_run_once_the_north_star_passes_and_seed_stage_two(tmp_path):
+    models = CountsCritics()
+    engine = Engine(Store(str(tmp_path / "db")), models)
+    session = reading_queue_session()
+    [event async for event in engine.analyze(session)]
+    assert models.critics == 0
+    await engine.clarity_pipeline().downstream(session, session.clarity)
+    assert models.critics == 6
+    assert session.clarity.downstream_complete
+
+
+async def test_a_failed_critic_pass_keeps_stage_two_closed(tmp_path):
+    models = CountsCritics(fail=True)
+    engine = Engine(Store(str(tmp_path / "db")), models)
+    session = reading_queue_session()
+    [event async for event in engine.analyze(session)]
+    await engine.clarity_pipeline().downstream(session, session.clarity)
+    assert not session.clarity.downstream_complete
+    assert any("critic failed" in failure for failure in session.clarity.failures)
+    assert not gate_for(session).ready

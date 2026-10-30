@@ -74,8 +74,8 @@ READER_B = {
 
 
 class ClarityPipeline:
-    def __init__(self, call, save, thresholds: Thresholds):
-        self.call, self.save, self.thresholds = call, save, thresholds
+    def __init__(self, call, save, thresholds: Thresholds, seeds=None):
+        self.call, self.save, self.thresholds, self.seeds = call, save, thresholds, seeds
 
     async def run(self, session, seeds: list[str]):
         state = ClarityState(
@@ -340,6 +340,11 @@ class ClarityPipeline:
         state.assumed = list(drafts.assumed) if state.suggestions else []
 
     async def downstream(self, session, state):
+        if self.seeds and not state.seeds:
+            state.seeds, failures = await self.seeds(session)
+            if failures:  # Failed critic passes must not open the gate.
+                state.failures.extend(failures)
+                return
         base = {
             "north_star": {f.field: f.text for f in state.fields},
             "ledger": [item.model_dump(mode="json") for item in session.ledger],
