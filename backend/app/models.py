@@ -158,7 +158,9 @@ class LiveModels:
             started = time.monotonic()
             try:
                 extras = {}
-                if self.settings.send_thinking_controls or (fast and self.settings.nano_thinking_off):
+                # Nano without thinking misfiled extractor types live, so only clarity passes drop it.
+                nano_off = fast and role.startswith("clarity:") and self.settings.nano_thinking_off
+                if self.settings.send_thinking_controls or nano_off:
                     extras["chat_template_kwargs"] = {"enable_thinking": not fast}
                     if not fast:
                         extras["reasoning_budget"] = 6144 if compiler else self.settings.reasoning_budget

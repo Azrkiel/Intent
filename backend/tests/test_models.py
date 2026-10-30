@@ -34,7 +34,7 @@ async def test_live_model_repairs_json_once_and_tracks_both_calls():
         base_url="https://test.invalid/v1",
         http_client=httpx.AsyncClient(transport=httpx.MockTransport(handle)),
     )
-    provider = LiveModels(Settings(send_thinking_controls=False, nano_thinking_off=False), client=client)
+    provider = LiveModels(Settings(send_thinking_controls=False), client=client)
     session = Session()
     result = await provider.call(session, "extractor", Delta, "Extract evidence.", {"text": "hello"})
     assert result.add == []
@@ -142,9 +142,10 @@ async def test_requested_thinking_controls_are_sent(role, enabled, budget):
 
 
 @pytest.mark.parametrize(
-    "role,controls", [("clarity:rubric", {"enable_thinking": False}), ("critic:edges", None)]
+    "role,controls",
+    [("clarity:rubric", {"enable_thinking": False}), ("extractor", None), ("critic:edges", None)],
 )
-async def test_nano_thinking_is_off_by_default_and_super_is_untouched(role, controls):
+async def test_nano_clarity_thinking_is_off_by_default_and_others_untouched(role, controls):
     # Live Nano with provider-default thinking hit the 45s timeout on clarity passes.
     requests = []
 

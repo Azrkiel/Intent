@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     super_model: str = "nvidia/nemotron-3-super-120b-a12b"
     ultra_model: str = "nvidia/Nemotron-3-Ultra-550b-a55b"
     send_thinking_controls: bool = False
-    # Nano only: provider-default thinking pushed live clarity passes to the 45s client timeout.
+    # Nano clarity passes only: provider-default thinking pushed them to the 45s client timeout.
     nano_thinking_off: bool = True
     reasoning_budget: int = Field(default=2048, ge=256, le=8192)
     session_budget_usd: float = Field(default=2, gt=0, le=100)
