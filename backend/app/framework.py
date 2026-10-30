@@ -203,6 +203,10 @@ def framework_progress(session: "Session") -> float:
 
 
 def reviewed_context(session: "Session") -> dict | None:
+    if session.clarity_version == 2:
+        from .clarity.gate import reviewed_clarity
+
+        return reviewed_clarity(session)
     if not is_current(session) or framework_blockers(session):
         return None
     return session.framework_review.model_dump(mode="json")
