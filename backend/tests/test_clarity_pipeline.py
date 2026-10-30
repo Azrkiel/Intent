@@ -19,9 +19,9 @@ async def confirm_all(engine, session):
             await engine.confirm_readback(session, field.field, field.text_hash)
 
 
-async def analyzed(tmp_path, models=None):
+async def analyzed(tmp_path, models=None, answered=True):
     engine = Engine(Store(str(tmp_path / "db")), models or DemoModels())
-    session = reading_queue_session()
+    session = reading_queue_session(answered)
     [event async for event in engine.analyze(session)]
     return engine, session
 
@@ -112,26 +112,39 @@ async def test_divergent_candidates_create_an_open_decision(tmp_path):
     assert not gate_for(session).ready
 
 
-async def test_vague_field_gets_a_draft_and_picking_it_settles_the_field(tmp_path):
-    from backend.app.clarity.contracts import RuleVerdict
-
-    class Vague(DemoModels):
-        async def call(self, session, role, schema, instruction, payload):
-            result = await super().call(session, role, schema, instruction, payload)
-            if role == "clarity:rubric":
-                for field in result.fields:
-                    entry = next(e for e in payload["fields"] if e["field"] == field.field)
-                    if field.field == "who-when" and not entry["text"].startswith("Scripted draft"):
-                        field.verdicts[1] = RuleVerdict(rule="W2", passed=False, reason="No moment named")
-            return result
-
-    engine, session = await analyzed(tmp_path, Vague())
+async def test_unanswered_field_gets_a_draft_and_picking_it_settles_the_field(tmp_path):
+    engine, session = await analyzed(tmp_path, answered=False)
     question = session.current_question
-    assert question.suggestion and "My best guess" in question.question and "I filled in" in question.question
+    assert question.id.startswith("NS-who-when") and question.suggestion
+    assert "My best guess" in question.question and "I filled in" in question.question
     [event async for event in engine.turn(session, question.options[0])]
     assert session.turns[-1].suggested
     who = next(f for f in session.clarity.fields if f.field == "who-when")
     assert who.passed  # picked draft: rubric passes and no separate read-back is needed
+
+
+async def test_demo_fields_show_distinct_text_from_the_conversation(tmp_path):
+    engine, session = await analyzed(tmp_path)
+    texts = [f.text for f in session.clarity.fields]
+    assert all(texts) and len(set(texts)) == 6
+    assert next(f.text for f in session.clarity.fields if f.field == "today").startswith("I keep links")
+
+
+async def test_demo_v2_asks_north_star_and_decision_questions_not_slot_questions(tmp_path):
+    engine, session = await analyzed(tmp_path, answered=False)
+    asked = []
+    for _ in range(12):
+        question = session.current_question
+        if question is None:
+            await confirm_all(engine, session)
+            question = session.current_question
+        if question is None:
+            break
+        asked.append(question.lens)
+        [event async for event in engine.turn(session, question.options[0])]
+        await confirm_all(engine, session)
+    assert set(asked) == {"north-star", "decision"}
+    assert gate_for(session).ready, gate_for(session).blockers
 
 
 async def test_new_utterance_clears_clarity_but_keeps_read_backs(tmp_path):
