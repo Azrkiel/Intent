@@ -200,3 +200,39 @@ def test_a_veto_replaces_the_reproposed_default():
     veto = decisions[0].model_copy(update={"id": "V1", "status": "open", "owner": None, "outcome": None})
     settled = settle(decisions, [veto], [])
     assert [(d.id, d.status) for d in settled] == [("V1", "open")]
+
+
+def uncited_decision():
+    uncited = probe(category="identity").model_copy(update={"claims": []})
+    [d] = build([uncited], answers(0, 1, 0, 1), Counter(), Thresholds())
+    return d
+
+
+def test_a_decision_the_user_answered_needs_no_cited_claims():
+    d = uncited_decision()
+    asked = AskedQuestion(
+        question=Candidate(
+            id="D:identity:1:1",
+            lens="decision",
+            question=d.question,
+            options=d.options,
+            code_diff=d.code_diff,
+            divergence=3,
+            uncertainty=3,
+            cost_to_change=3,
+        ),
+        answer="Merge",
+        turn=2,
+    )
+    assert any(p.startswith("Decide:") for p in decision_problems([d]))
+    [d] = settle([d], [], [asked])
+    d.quality = quality(d, [], [])
+    assert d.owner == "user" and d.quality["reasoning"] and d.quality["commitment"]
+    assert decision_problems([d]) == []
+
+
+def test_an_uncited_model_default_still_needs_its_citations():
+    d = uncited_decision().model_copy(update={"status": "delegated", "owner": "delegated"})
+    d.quality = quality(d, [], [])
+    assert not d.quality["reasoning"] and not d.quality["commitment"]
+    assert any("reasoning" in p for p in decision_problems([d]))

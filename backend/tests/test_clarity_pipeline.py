@@ -173,3 +173,22 @@ async def test_a_failed_parallel_call_cancels_its_siblings(tmp_path):
     _, session = await analyzed(tmp_path, Fails())
     await asyncio.sleep(0.4)
     assert session.clarity.failures and not finished
+
+
+async def test_a_field_without_reader_probes_is_a_failure_not_a_repeating_question(tmp_path):
+    from backend.app.clarity.contracts import NorthStarProbes
+
+    class NoProbes(DemoModels):
+        async def call(self, session, role, schema, instruction, payload):
+            if role == "clarity:probes":
+                return NorthStarProbes(sets=[])
+            return await super().call(session, role, schema, instruction, payload)
+
+    engine, session = await analyzed(tmp_path, NoProbes())
+    assert any("reader probes missing for" in f for f in session.clarity.failures)
+    blockers = gate_for(session).blockers
+    assert any("reader probes missing for" in b for b in blockers)
+    assert not gate_for(session).ready
+    question = session.current_question
+    assert question is None or "G4" not in question.id
+    assert not gate_for(session).ready

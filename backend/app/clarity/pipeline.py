@@ -140,6 +140,9 @@ class ClarityPipeline:
                     p.model_copy(update={"id": f"{f.field}.p{i + 1}"})
                     for i, p in enumerate(sets.get(f.field, []))
                 ]
+            state.failures.extend(
+                f"clarity: reader probes missing for {FIELD_LABELS[f.field]}" for f in present if not f.probes
+            )
             reader_payload = {
                 "fields": [
                     {

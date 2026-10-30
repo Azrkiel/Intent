@@ -214,7 +214,7 @@ def follow_up(
         state = by_field.get(name)
         if state is None or state.passed:
             continue
-        codes = [code for code in state.failing if code != "G3"]
+        codes = [code for code in state.failing if code not in ("G3", "G4:readers")]  # readers: see failures
         if not codes:
             continue  # only the read-back confirmation remains; the UI asks for it
         question, options, key = _question(state, codes[0], revision)
