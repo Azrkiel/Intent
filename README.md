@@ -15,17 +15,21 @@ Nemotron** open models served by **Nebius Token Factory**.
 ![Models: NVIDIA Nemotron](https://img.shields.io/badge/models-NVIDIA%20Nemotron-76B900)
 ![Inference: Nebius Token Factory](https://img.shields.io/badge/inference-Nebius%20Token%20Factory-0A0A0A)
 
-> Working name in code: `prompt-caller`. The app, demo and homepage are called Intent.
+> Earlier work used the name Prompt Caller, which remains in some identifiers (`prompt-caller`).
+
+A hosted **scripted** demo runs at <https://show-intent.fly.dev>; its workspace asks you
+to sign in with GitHub.
 
 ## Demo
 
 [![Intent: Build what you mean](docs/demo/poster.jpg)](docs/demo/README.md)
 
 [Watch the 2:20 demo](docs/demo/README.md) (silent and music versions). At **1:28** it
-shows the Token Factory endpoint and Nemotron routing; at **1:40** a recorded live
-Nano + Super clarification turn; at **1:52** the redacted API evidence (eight Nano and
-six Super HTTP 200 responses, including validation repairs). Scripted and prebuilt
-sections of the video are labeled as such.
+shows the Token Factory endpoint and Nemotron routing; at **1:38** how the orchestrator
+validates model output and gates the build; at **1:46** the saved result of a live
+Nano + Super clarification turn; at **1:58** the request timeline from the redacted API
+log (eight Nano and six Super HTTP 200 responses, including validation repairs and six
+concurrent critics). Scripted and prebuilt sections of the video are labeled as such.
 
 ## The problem
 
@@ -284,7 +288,8 @@ agent-process isolation. None of them call a provider.
 
 - **Live-verified:** Token Factory authentication and model inventory; Nano, Lightning and
   Super smoke tests; a full live clarification session; Ultra brief compilation with Super
-  verification returning no rejected items; the recorded demo turn.
+  verification returning no rejected items; the live clarification turn shown in the
+  demo video.
 - **Not yet live-qualified:** live Nemotron phase planning has not produced a complete,
   approved plan (eight audited attempts: seven stopped at strict validation checks, one at a
   provider overload; see the
