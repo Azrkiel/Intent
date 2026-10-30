@@ -169,6 +169,8 @@ class LiveModels:
                     response_format={"type": "json_object"},
                     temperature=temperature,
                     max_tokens=max_tokens, extra_body=extras,
+                    # Nano clarity passes with thinking ran to 43s live; long outputs get room.
+                    timeout=120 if max_tokens > 4096 else 45,
                 )
                 usage = response.usage
                 incoming = usage.prompt_tokens if usage else len(json.dumps(messages).encode())

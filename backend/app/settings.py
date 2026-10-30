@@ -18,8 +18,8 @@ class Settings(BaseSettings):
     super_model: str = "nvidia/nemotron-3-super-120b-a12b"
     ultra_model: str = "nvidia/Nemotron-3-Ultra-550b-a55b"
     send_thinking_controls: bool = False
-    # Nano clarity passes only: provider-default thinking pushed them to the 45s client timeout.
-    nano_thinking_off: bool = True
+    # Opt-in, Nano clarity passes only: faster, but the live rubric judge then failed W1 on "I".
+    nano_thinking_off: bool = False
     reasoning_budget: int = Field(default=2048, ge=256, le=8192)
     session_budget_usd: float = Field(default=2, gt=0, le=100)
     database_path: str = ".data/prompt-caller.sqlite3"

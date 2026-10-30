@@ -142,15 +142,22 @@ async def test_requested_thinking_controls_are_sent(role, enabled, budget):
 
 
 @pytest.mark.parametrize(
-    "role,controls",
-    [("clarity:rubric", {"enable_thinking": False}), ("extractor", None), ("critic:edges", None)],
+    "role,controls,timeout",
+    [
+        ("clarity:rubric", {"enable_thinking": False}, 120),
+        ("extractor", None, 45),
+        ("critic:edges", None, 45),
+    ],
 )
-async def test_nano_clarity_thinking_is_off_by_default_and_others_untouched(role, controls):
-    # Live Nano with provider-default thinking hit the 45s timeout on clarity passes.
+async def test_nano_thinking_off_is_opt_in_for_clarity_and_long_outputs_wait_longer(role, controls, timeout):
+    # Live Nano clarity passes ran to 43s of a 45s timeout with thinking; without it the
+    # rubric judge failed W1 on "I" 3/3, so thinking stays on and 8192-token calls wait longer.
+    assert Settings.model_fields["nano_thinking_off"].default is False
     requests = []
 
     def handle(request):
         requests.append(json.loads(request.content))
+        assert request.extensions["timeout"]["read"] == timeout
         return httpx.Response(200, json=completion('{"add": []}'))
 
     client = AsyncOpenAI(
@@ -158,7 +165,7 @@ async def test_nano_clarity_thinking_is_off_by_default_and_others_untouched(role
         base_url="https://test.invalid/v1",
         http_client=httpx.AsyncClient(transport=httpx.MockTransport(handle)),
     )
-    provider = LiveModels(Settings(send_thinking_controls=False), client=client)
+    provider = LiveModels(Settings(send_thinking_controls=False, nano_thinking_off=True), client=client)
     try:
         await provider.call(Session(), role, Delta, "Return the test JSON contract.", {})
         assert requests[0].get("chat_template_kwargs") == controls
