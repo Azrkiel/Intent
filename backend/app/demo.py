@@ -90,6 +90,11 @@ class DemoModels:
         pass
 
     async def call(self, session, role, schema, instruction, payload):
+        if role.startswith("clarity:"):
+            from .clarity_demo import demo_clarity
+
+            return demo_clarity(session, role, payload)
+
         if role == "framework:map":
             from .framework_demo import demo_framework
 

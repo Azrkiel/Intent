@@ -133,7 +133,7 @@ class BriefLine(Contract):
 
 class Brief(Contract):
     lines: list[BriefLine] = Field(default_factory=list, max_length=150)
-    framework_lines: list[BriefLine] = Field(default_factory=list, max_length=160)
+    framework_lines: list[BriefLine] = Field(default_factory=list, max_length=200)
 
     @computed_field
     @property
@@ -274,11 +274,20 @@ def gate_for(session: Session) -> Gate:
     missing = [slot for slot in SLOTS if slot not in filled]
     blockers = [f"Clarify: {q.question}" for q in session.candidates if q.impact >= 12]
     blockers.extend(f"Resolve conflict: {item.text}" for item in session.ledger if item.status == "conflict")
-    blockers.extend(framework_blockers(session))
+    if session.clarity_version == 2:
+        from .clarity.gate import clarity_blockers
+
+        blockers.extend(clarity_blockers(session))
+    else:
+        blockers.extend(framework_blockers(session))
     if not session.analysis_complete:
         blockers.append("All six lenses must finish before building.")
     ready = not missing and not blockers
-    if session.mode == "live" or session.framework_review:
+    if session.clarity_version == 2:
+        from .clarity.gate import clarity_progress
+
+        progress = len(filled) / 6 * 30 + clarity_progress(session) * 65
+    elif session.mode == "live" or session.framework_review:
         progress = len(filled) / 6 * 45 + framework_progress(session) * 40
         if session.framework_review and not framework_blockers(session):
             progress += 15
@@ -333,24 +342,32 @@ def trace_brief(session: Session, brief: Brief, rejected: list[int] | None = Non
                 )
             )
     framework_lines = []
-    review = reviewed_context(session)
-    if review:
-        for section in session.framework_review.framework.sections:
-            for entry in section.entries:
-                label = "confirmed" if entry.status == "confirmed" else "proposal"
-                framework_lines.append(BriefLine(
-                    section=f"Framework {label}: {section.area}",
-                    text=f"{entry.aspect}: {entry.text}", ledger_ids=entry.ledger_ids,
-                ))
+    if session.clarity_version == 2:
+        from .clarity.gate import brief_lines
+
+        framework_lines = brief_lines(session)
+    else:
+        review = reviewed_context(session)
+        if review:
+            for section in session.framework_review.framework.sections:
+                for entry in section.entries:
+                    label = "confirmed" if entry.status == "confirmed" else "proposal"
+                    framework_lines.append(BriefLine(
+                        section=f"Framework {label}: {section.area}",
+                        text=f"{entry.aspect}: {entry.text}", ledger_ids=entry.ledger_ids,
+                    ))
     return Brief(lines=lines, framework_lines=framework_lines)
 
 
 def public_session(session: Session) -> dict:
+    from .clarity.gate import readout
+
     return {
         **session.model_dump(
             mode="json",
             exclude={"planning": {"extension", "requalification", "fifth_attempt", "sixth_attempt"}}
         ),
         "gate": gate_for(session).model_dump(),
+        "clarity_readout": readout(session) if session.clarity_version == 2 else None,
         "estimated_usd": round(sum(item.estimated_usd for item in session.usage), 6),
     }

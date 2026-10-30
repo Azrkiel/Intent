@@ -1,6 +1,10 @@
 import asyncio
 
 from . import prompts
+from .clarity.contracts import Thresholds
+from .clarity.gate import is_current as clarity_current
+from .clarity.northstar import KEEP
+from .clarity.pipeline import ClarityPipeline
 from .demo import slot_question
 from .domain import (
     LENSES,
@@ -89,13 +93,31 @@ def invalidate_understanding(session: Session):
     session.build = Build()
     session.analysis_complete = False
     session.framework_review = None
+    session.clarity = None  # readbacks and vetoes persist; they are bound to text hashes / user turns
     session.warnings = []
 
 
 class Engine:
-    def __init__(self, store: Store, models, critic_mode="lenses"):
+    def __init__(self, store: Store, models, critic_mode="lenses", thresholds=None):
         self.store, self.models = store, models
         self.critic_mode = critic_mode
+        self.thresholds = thresholds or Thresholds()
+
+    def clarity_pipeline(self):
+        return ClarityPipeline(self.call, self.store.save, self.thresholds)
+
+    async def confirm_readback(self, session: Session, field: str, digest: str):
+        state = session.clarity
+        target = next((f for f in state.fields if f.field == field), None) if state else None
+        if not clarity_current(session) or target is None or not target.text or target.text_hash != digest:
+            raise ValueError("This read-back is no longer current. Analyze again.")
+        session.readbacks[field] = digest
+        questions = await self.clarity_pipeline().refresh(session)
+        kept = [q for q in session.candidates if q.lens not in ("north-star", "decision")]
+        session.candidates = questions + kept
+        session.analysis_complete = session.analysis_complete and not session.clarity.failures
+        session.current_question = None if gate_for(session).ready else (session.candidates or [None])[0]
+        self.store.save(session)
 
     async def call(self, session, role, schema, instruction, payload):
         try:
@@ -135,6 +157,14 @@ class Engine:
         if session.extracted_revision == session.revision:
             return
         turn = session.turns[-1]
+        question = session.current_question
+        if question and question.lens == "north-star" and turn.text.strip() == KEEP:
+            # "Keep my wording" settles a prompt-once check without new intent to extract.
+            session.questions.append(AskedQuestion(question=question, answer=turn.text, turn=turn.number))
+            session.current_question = None
+            session.extracted_revision = session.revision
+            self.store.save(session)
+            return
         scope = {}
         if turn.scope:
             from .discussion.store import DiscussionStore
@@ -151,6 +181,13 @@ class Engine:
             {**context(session), "text": turn.text, "turn": turn.number, **scope},
         )
         apply_delta(session, delta, turn.number)
+        question = session.current_question
+        if question and (question.lens == "north-star" or (
+            question.lens == "decision" and turn.text.strip() in [o.strip() for o in question.options]
+        )):
+            delta.answers_question = question.id  # any reply to a North Star follow-up answers it
+        if question and question.suggestion and turn.text.strip() in [o.strip() for o in question.options]:
+            turn.suggested = True
         if session.current_question and delta.answers_question == session.current_question.id:
             session.questions.append(
                 AskedQuestion(question=session.current_question, answer=turn.text, turn=turn.number)
@@ -203,7 +240,12 @@ class Engine:
                     task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
         mandatory_questions = []
-        if session.ledger:
+        if session.ledger and session.clarity_version == 2:
+            yield stage("Checking how specific each part of your North Star is…", session)
+            mandatory_questions = await self.clarity_pipeline().run(session, [q.question for q in candidates])
+            failures.extend(session.clarity.failures)
+            candidates = []  # critic questions seed decision probes; agreement drops them
+        elif session.ledger:
             yield stage("Mapping journeys, components, data and recovery paths…", session)
             try:
                 map_payload = {
