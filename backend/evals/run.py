@@ -47,7 +47,7 @@ def pick_option(question, fixture):
     gaps = [g["answer"] + " " + " ".join(g["keywords"]) for g in fixture["ambiguities"]]
     target = words(" ".join([fixture["prompt"], *gaps]))
     best = max(options, key=lambda option: len(words(option) & target))
-    # Fewer than three shared words is noise; fall back to the first option, which is the model's own best guess.
+    # Under three shared words is noise; fall back to the first option (the model's best guess).
     return best if len(words(best) & target) >= 3 else options[0]
 
 
