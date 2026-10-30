@@ -13,8 +13,9 @@ rule id with passed true or false and a one-sentence reason. For each failing ru
 concrete, specific answers the user could pick, written in their voice and grounded in what they
 said. For each flagged word, decide whether it leaves real doubt about what to build (prompt=true)
 and offer 2-3 sharper replacements. Write one one-sentence readback per field, beside its verdicts
-and never inside a verdict, restating the field in plain words without adding anything. Do not judge rules that were not listed. For W1 the user
-themself ("I", "me", "just me") is an identified person."""
+and never inside a verdict, restating the field in plain words without adding anything. Do not
+judge rules that were not listed. For W1 the user themself ("I", "me", "just me") is an identified
+person."""
 
 READER_PROBES = """For each North Star field, write 6-8 multiple-choice questions whose answers
 a builder would need and that the field text should settle (for example: must it work on a phone?).

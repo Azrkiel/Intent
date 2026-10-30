@@ -32,6 +32,31 @@ async def test_failed_critic_keeps_the_gate_closed_and_preserves_ledger(tmp_path
     assert any("edges" in warning for warning in restored.warnings)
 
 
+async def test_invalid_critic_output_names_the_wrong_lens_and_unknown_targets(tmp_path):
+    # Live v2 runs only reported "invalid targets or the wrong lens", which cannot be diagnosed.
+    class StrayCritic(DemoModels):
+        async def call(self, session, role, schema, instruction, payload):
+            if role == "critic:edges":
+                question = dict(
+                    question="Which empty state comes first?", options=["Show a hint", "Show nothing"],
+                    code_diff="Render an onboarding hint versus a blank list",
+                    divergence=3, uncertainty=2, cost_to_change=3,
+                )
+                return schema(candidates=[
+                    Candidate(lens="data", targets=[session.ledger[0].id], **question),
+                    Candidate(lens="edges", targets=["L99"], **question),
+                ])
+            return await super().call(session, role, schema, instruction, payload)
+
+    store = Store(str(tmp_path / "sessions.db"))
+    session = ready_session()
+    store.save(session)
+    async for _ in Engine(store, StrayCritic()).analyze(session):
+        pass
+    warning = next(w for w in store.get(session.id).warnings if "edges" in w)
+    assert "lens data" in warning and "L99" in warning
+
+
 @pytest.mark.parametrize("ranking_fails", [False, True])
 async def test_ranker_can_check_settled_answers_without_bypassing_failures(tmp_path, ranking_fails):
     class ContextAware(DemoModels):

@@ -230,7 +230,13 @@ class Engine:
                     if (q.lens == lens or lens == "single") and set(q.targets) <= valid_ids
                 ]
                 if len(valid) != len(result.candidates):
-                    return lens, [], "Critic returned invalid targets or the wrong lens."
+                    lenses = sorted({q.lens for q in result.candidates} - {lens, "single"})
+                    unknown = sorted({t for q in result.candidates for t in q.targets} - valid_ids)
+                    detail = [f"lens {name}" for name in lenses]
+                    if unknown:
+                        detail.append(f"unknown targets {', '.join(unknown)}")
+                    reason = "; ".join(detail)
+                    return lens, [], f"Critic returned invalid targets or the wrong lens ({reason})."
                 return lens, valid, None
             except ModelError as error:
                 return lens, [], str(error)
