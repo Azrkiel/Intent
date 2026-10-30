@@ -107,7 +107,7 @@
 .secondaryAction:is(:hover, :focus-visible) {
   background: var(--green);
   border-color: var(--green);
-  color: #fff;
+  color: #000;
 }
 .rightNav .secondaryAction {
   font: 200 18px var(--display);
@@ -510,7 +510,7 @@
 }
 .faqList summary:is(:hover, :focus-visible) > svg,
 .faqList details[open] summary > svg {
-  color: #fff;
+  color: #000;
   background: var(--green);
   border-color: var(--green);
 }
