@@ -181,6 +181,28 @@ async def test_drafts_are_written_for_the_field_the_follow_up_asks_about(tmp_pat
     assert session.current_question.id.startswith("NS-job-") and session.current_question.suggestion
 
 
+async def test_probes_and_drafts_are_scoped_to_their_field(tmp_path):
+    # Live probes asked builder questions under Who & when ("one entry per habit?") that the field
+    # can never settle, and drafts restated sync and login; both kept the field failing.
+    from backend.app.clarity import prompts
+    from backend.app.clarity.northstar import QUESTIONS
+
+    class Payloads(DemoModels):
+        seen = {}
+
+        async def call(self, session, role, schema, instruction, payload):
+            self.seen[role] = payload
+            return await super().call(session, role, schema, instruction, payload)
+
+    models = Payloads()
+    await analyzed(tmp_path, models, answered=False)
+    probes = models.seen["clarity:probes"]["fields"]
+    assert probes and all(entry["scope"] == QUESTIONS[entry["field"]] for entry in probes)
+    suggest = models.seen["clarity:suggest"]
+    assert suggest["scope"] == QUESTIONS[suggest["field"]]
+    assert "scope" in prompts.READER_PROBES and "scope" in prompts.SUGGEST
+
+
 async def test_demo_fields_show_distinct_text_from_the_conversation(tmp_path):
     engine, session = await analyzed(tmp_path)
     texts = [f.text for f in session.clarity.fields]

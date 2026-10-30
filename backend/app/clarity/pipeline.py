@@ -34,6 +34,7 @@ from .decisions import build as build_decisions
 from .gate import describe
 from .lexicon import scan
 from .northstar import (
+    QUESTIONS,
     accept_drafted,
     evaluate,
     fatigued,
@@ -147,7 +148,11 @@ class ClarityPipeline:
                     "clarity:probes",
                     NorthStarProbes,
                     prompts.READER_PROBES,
-                    {"fields": [{"field": f.field, "text": f.text} for f in present]},
+                    {
+                        "fields": [
+                            {"field": f.field, "scope": QUESTIONS[f.field], "text": f.text} for f in present
+                        ]
+                    },
                 ),
             )
             judged = {entry.field: entry for entry in judgement.fields}
@@ -195,6 +200,7 @@ class ClarityPipeline:
                 {
                     "field": target.field,
                     "label": FIELD_LABELS[target.field],
+                    "scope": QUESTIONS[target.field],
                     "current": target.text,
                     "failing": [describe(code) for code in target.failing if code not in skip],
                     "turns": [t.text for t in session.turns],
