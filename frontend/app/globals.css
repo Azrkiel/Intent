@@ -3631,3 +3631,10 @@ summary:focus-visible {
     font-size: 23px;
   }
 }
+
+.clarity-readout { font-size: 0.82rem; color: var(--muted); margin: 0.5rem 0; }
+.north-star { list-style: none; padding: 0; display: grid; gap: 0.6rem; }
+.clarity-readback { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.clarity-readback p { flex-basis: 100%; margin: 0.25rem 0; }
+.clarity-review { font-size: 0.82rem; margin: 0.5rem 0; }
+.drafted-label { color: var(--muted); font-size: 0.75rem; }
