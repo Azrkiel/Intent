@@ -165,9 +165,9 @@ export default function LandingPage() {
           <div className={styles.processVisual}>
             <p className={styles.sectionEyebrow}>01 / The process</p>
             <h2 id="process-title">
-              Idea to
+              Noise to
               <br />
-              <span>action.</span>
+              <span>signal.</span>
             </h2>
             <figure className={styles.lakeArt}>
               <div className={styles.artOrbit} aria-hidden="true" />
