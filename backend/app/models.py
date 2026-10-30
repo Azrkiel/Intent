@@ -31,7 +31,7 @@ FAST_PREFIXES = (
 
 
 class ModelError(RuntimeError):
-    pass
+    raw: str | None = None  # last unparseable model output; only kept when LiveModels.capture_raw is on
 
 
 class LiveModels:
@@ -43,6 +43,8 @@ class LiveModels:
         if client:
             client.max_retries = 0
         self.reserved: dict[str, float] = {}
+        self.capture_raw = False  # eval-only; never serialized into sessions or API responses
+        self.raw_failures: dict[str, list[dict]] = {}
         self.semaphore = asyncio.Semaphore(6)
 
     async def close(self):
@@ -216,9 +218,13 @@ class LiveModels:
                         ):
                             category = "deterministic acceptance"
                 if attempt:
-                    raise ModelError(
-                        f"{role} failed {category} after one repair retry."
-                    ) from validation_error
+                    failure = ModelError(f"{role} failed {category} after one repair retry.")
+                    if self.capture_raw:
+                        failure.raw = content[:4000]
+                        self.raw_failures.setdefault(session.id, []).append(
+                            {"role": role, "category": category, "raw": failure.raw}
+                        )
+                    raise failure from validation_error
                 if constrained and isinstance(validation_error, ValidationError):
                     try:
                         repair = FieldRepair(schema, original, validation_error)

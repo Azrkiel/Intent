@@ -53,6 +53,8 @@ def answer_for(question, fixture):
 
 
 async def run_case(fixture, settings, models, store, strategy, clarity_version=1):
+    if isinstance(models, LiveModels):
+        models.capture_raw = True  # keep unparseable output for the report; never reaches the API
     session = Session(mode=settings.mode, clarity_version=clarity_version)
     store.save(session)
     engine = Engine(store, models, critic_mode=strategy)
@@ -94,6 +96,7 @@ async def run_case(fixture, settings, models, store, strategy, clarity_version=1
         "structurally_untraceable_lines": unsupported_lines(session),
         "semantic_invented_requirements": None,
         "clarity": clarity_metrics(session),
+        "raw_failures": getattr(models, "raw_failures", {}).get(session.id, []),
         "calls": len(session.usage),
         "estimated_usd": sum(item.estimated_usd for item in session.usage),
         "questions": [q.model_dump() for q in questions],
