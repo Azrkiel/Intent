@@ -1589,7 +1589,7 @@ html {
 .primary-button:not(:disabled):is(:hover, :focus-visible),
 .send-button:not(:disabled):is(:hover, :focus-visible) {
   background: var(--green);
-  color: #fff;
+  color: #000;
 }
 .new-session > span {
   margin-left: auto;
@@ -3501,7 +3501,7 @@ summary:focus-visible {
 }
 .graph-workspace-page .plan-tabs button:is(:hover, :focus-visible) {
   background: var(--green);
-  color: #fff;
+  color: #000;
   border-color: var(--green);
 }
 .graph-workspace-page .plan-tabs button:focus-visible {
@@ -3533,7 +3533,7 @@ summary:focus-visible {
   border-color: var(--line);
 }
 .workspace-nav-link:not(:disabled):is(:hover, :focus-visible) {
-  color: #fff;
+  color: #000;
   background: var(--green);
   border-color: var(--green);
 }

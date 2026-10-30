@@ -884,7 +884,7 @@
   ):not(:disabled):is(:hover, :focus-visible) {
   background: var(--green);
   border-color: var(--green);
-  color: #fff;
+  color: #000;
 }
 .vault-file:is(:hover, :focus-visible) > svg {
   color: inherit;
