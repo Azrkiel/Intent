@@ -81,6 +81,7 @@ async def run_case(fixture, settings, models, store, strategy, clarity_version=1
     engine = Engine(store, models, critic_mode=strategy)
     text = fixture["prompt"]
     error = None
+    rounds = []
     for _ in range(13):
         async for event in engine.turn(session, text):
             if event["type"] == "error":
@@ -90,6 +91,22 @@ async def run_case(fixture, settings, models, store, strategy, clarity_version=1
             for field in list(session.clarity.fields):
                 if field.failing == ["G3"]:
                     await engine.confirm_readback(session, field.field, field.text_hash)
+            # Per-round North Star state: convergence cannot be diagnosed from the final state alone.
+            rounds.append({
+                "answer": text,
+                "fields": {
+                    f.field: {
+                        "text": f.text,
+                        "failing": f.failing,
+                        "reasons": {
+                            v.rule: v.reason
+                            for v in (f.judgement.verdicts if f.judgement else [])
+                            if not v.passed
+                        },
+                    }
+                    for f in session.clarity.fields
+                },
+            })
         if error or session.warnings:
             error = error or "; ".join(session.warnings)
             break
@@ -118,6 +135,7 @@ async def run_case(fixture, settings, models, store, strategy, clarity_version=1
         "semantic_invented_requirements": None,
         "clarity": clarity_metrics(session),
         "raw_failures": getattr(models, "raw_failures", {}).get(session.id, []),
+        "rounds": rounds,
         "calls": len(session.usage),
         "estimated_usd": sum(item.estimated_usd for item in session.usage),
         "questions": [q.model_dump() for q in questions],

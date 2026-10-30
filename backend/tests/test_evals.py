@@ -90,3 +90,17 @@ def test_v2_simulated_user_picks_the_closest_draft_and_v1_still_types():
     assert answer_for(question, fixture, 1) != answer + " today"
     decision = question.model_copy(update={"lens": "decision", "suggestion": False})
     assert answer_for(decision, fixture, 2) == answer + " today"
+
+
+async def test_v2_case_records_each_round_of_north_star_state(tmp_path):
+    from backend.app.demo import DemoModels
+    from backend.app.settings import Settings
+    from backend.app.store import Store
+    from backend.evals.run import load_fixtures, run_case
+
+    fixture = load_fixtures()[0]
+    store = Store(str(tmp_path / "eval.db"))
+    result = await run_case(fixture, Settings(mode="demo"), DemoModels(), store, "lenses", clarity_version=2)
+    assert result["rounds"] and result["rounds"][0]["answer"] == fixture["prompt"]
+    who = result["rounds"][-1]["fields"]["who-when"]
+    assert set(who) == {"text", "failing", "reasons"}
