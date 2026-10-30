@@ -11,7 +11,7 @@ credentials and a live smoke test before a demo or submission.
 
 ## Demo video
 
-[Watch the 2:20 Intent demo](docs/demo/README.md). It includes the current Graph &
+[Watch the 2:00 Intent demo](docs/demo/README.md). It includes the current Graph &
 notes view, a recorded live Nebius Token Factory/NVIDIA Nemotron Nano and Super
 turn, and a labeled prebuilt preview. Silent and music versions are available.
 

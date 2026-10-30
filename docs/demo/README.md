@@ -1,6 +1,6 @@
 # Intent demo
 
-A 2:20 walkthrough of Intent, including its current Graph & notes view and a
+A 2:00 walkthrough of Intent, including its current Graph & notes view and a
 recorded live integration with Nebius Token Factory and NVIDIA Nemotron.
 
 [![Intent: Build what you mean](poster.jpg)](intent-demo-silent.mp4)
@@ -9,13 +9,14 @@ recorded live integration with Nebius Token Factory and NVIDIA Nemotron.
 - [Watch or download the video with original instrumental music](intent-demo-music.mp4)
 
 Both versions are 1920 × 1080, 30 fps, H.264 MP4, without narration.
+Chapters appear in one bottom progress bar; each scene focuses on a single idea.
 
 ## Key moments
 
-- **0:55:** Current Graph & notes canvas, followed by Markdown editing.
-- **1:28:** Nebius Token Factory endpoint and NVIDIA Nemotron model routing.
-- **1:40:** Recorded live Nano/Super clarification response in Intent.
-- **1:52:** Redacted API evidence: eight Nano and six Super HTTP 200 responses,
+- **0:50:** Current Graph & notes canvas, followed by Markdown editing.
+- **1:23:** Nebius Token Factory endpoint and NVIDIA Nemotron model routing.
+- **1:32:** Recorded live Nano/Super clarification response in Intent.
+- **1:43:** Redacted API evidence: eight Nano and six Super HTTP 200 responses,
   including validation repair attempts.
 
 ## What the recording demonstrates
