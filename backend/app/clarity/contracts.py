@@ -44,7 +44,7 @@ RUBRIC: dict[str, tuple[str, ...]] = {
 # Prompted once for higher clarity; never blocking by themselves (spec §2.1-2.2).
 PROMPT_ONCE_RULES: dict[str, tuple[str, ...]] = {"good": ("O2",)}
 RULE_TEXT = {
-    "W1": "name a person or group you can identify, not 'users' or 'people'",
+    "W1": "name a person or group you can identify (\"I\" counts for your own tool), not 'users' or 'people'",
     "W2": "describe the moment that makes them reach for it",
     "W3": "say which device or place they use",
     "W4": "say how often it happens",
