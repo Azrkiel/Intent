@@ -5,33 +5,87 @@ import { ClarityPanel } from "../components/clarity-panel";
 import type { Session } from "./types";
 
 const field = (name: string, failing: string[]) => ({
-  field: name, text: "Only me, on my laptop", text_hash: "h".repeat(64), alpha: 1,
-  judgement: { readback: "You alone use it on your laptop." }, failing, passed: failing.length === 0,
+  field: name,
+  text: "Only me, on my laptop",
+  text_hash: "h".repeat(64),
+  alpha: 1,
+  judgement: { readback: "You alone use it on your laptop." },
+  failing,
+  passed: failing.length === 0,
 });
 
 const session = {
-  mode: "live", revision: 2, clarity_version: 2, turns: [{ number: 1, text: "x" }],
-  gate: { ready: false, blockers: ["North Star Job: confirm Intent's read-back"] },
-  clarity: {
-    revision: 2, mode: "live", source_hash: "a".repeat(64), fatigued: false, downstream_complete: true,
-    fields: [field("who-when", []), field("job", ["G3"])],
-    claims: [{ id: "C7", text: "Keep the list in this browser's storage", tags: ["data/storage"],
-               status: "proposal", spans: [], flags: [] }],
-    review: { canaries: [1, 2, 3], caught: ["a", "b", "c"], trusted: true },
-    scenarios: [{ id: "S1", title: "Add a link", given: "an empty list", when: "I add a link",
-                  then: "it shows first", claims: ["C1"], kind: "journey" }],
-    decisions: [{ id: "D-P1", status: "delegated", question: "Allow duplicates?", options: ["Yes", "No"],
-                  outcome: "Yes", because: "good: 3 of 4 candidate builds chose this",
-                  reversibility: "two-way", due_phase: null }],
+  mode: "live",
+  revision: 2,
+  clarity_version: 2,
+  turns: [{ number: 1, text: "x" }],
+  gate: {
+    ready: false,
+    blockers: ["North Star Job: confirm Intent's read-back"],
   },
-  clarity_readout: { statements: 4, unmapped_words: 0, choices_made: 1, decisions_open: 0, scenarios: 1 },
+  clarity: {
+    revision: 2,
+    mode: "live",
+    source_hash: "a".repeat(64),
+    fatigued: false,
+    downstream_complete: true,
+    fields: [field("who-when", []), field("job", ["G3"])],
+    claims: [
+      {
+        id: "C7",
+        text: "Keep the list in this browser's storage",
+        tags: ["data/storage"],
+        status: "proposal",
+        spans: [],
+        flags: [],
+      },
+    ],
+    review: { canaries: [1, 2, 3], caught: ["a", "b", "c"], trusted: true },
+    scenarios: [
+      {
+        id: "S1",
+        title: "Add a link",
+        given: "an empty list",
+        when: "I add a link",
+        then: "it shows first",
+        claims: ["C1"],
+        kind: "journey",
+      },
+    ],
+    decisions: [
+      {
+        id: "D-P1",
+        status: "delegated",
+        question: "Allow duplicates?",
+        options: ["Yes", "No"],
+        outcome: "Yes",
+        because: "good: 3 of 4 candidate builds chose this",
+        reversibility: "two-way",
+        due_phase: null,
+      },
+    ],
+  },
+  clarity_readout: {
+    statements: 4,
+    unmapped_words: 0,
+    choices_made: 1,
+    decisions_open: 0,
+    scenarios: 1,
+  },
 } as unknown as Session;
 
 function render(value = session) {
-  return renderToStaticMarkup(createElement(ClarityPanel, {
-    session: value, busy: false, disabled: false,
-    onConfirm() {}, onCorrect() {}, onVeto() {}, onRetry() {},
-  }));
+  return renderToStaticMarkup(
+    createElement(ClarityPanel, {
+      session: value,
+      busy: false,
+      disabled: false,
+      onConfirm() {},
+      onCorrect() {},
+      onVeto() {},
+      onRetry() {},
+    }),
+  );
 }
 
 describe("clarity panel", () => {
@@ -50,7 +104,9 @@ describe("clarity panel", () => {
   });
 
   it("labels demo output as scripted", () => {
-    expect(render({ ...session, mode: "demo" })).toContain("Scripted example · no model reasoning");
+    expect(render({ ...session, mode: "demo" })).toContain(
+      "Scripted example · no model reasoning",
+    );
   });
 
   it("hides stale clarity", () => {
