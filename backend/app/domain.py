@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
-from .clarity.contracts import ClarityState, Decision, PriorVerdicts, ReaderVariation
+from .clarity.contracts import ClarityState, Decision, FieldReading, ReaderVariation
 from .discussion.contracts import DiscussionTarget
 from .framework import FrameworkReview, framework_blockers, framework_progress, reviewed_context
 from .planning.contracts import PlanningState
@@ -84,6 +84,8 @@ class Candidate(Contract):
     cost_to_change: int = Field(ge=1, le=3)
     slot: Slot | None = None
     suggestion: bool = Field(default=False, exclude_if=lambda value: not value)
+    # The reader question this asks, so a short answer like "Yes" still means something in the field.
+    probe: str | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @field_validator("options")
     @classmethod
@@ -191,8 +193,11 @@ class Session(Contract):
     clarity_reader_variation: ReaderVariation = "perspective"
     clarity: ClarityState | None = None
     readbacks: dict[str, str] = Field(default_factory=dict)
-    # Survives new turns like read-backs: a fresh judge re-rolled passed rules every round.
-    rubric_passes: dict[str, PriorVerdicts] = Field(default_factory=dict)
+    # Survive new turns like read-backs. Field text is these quotes plus the answers to each field's
+    # questions (northstar.field_entries); re-extracting every round moved answers between fields.
+    north_star_quotes: dict[str, str] = Field(default_factory=dict)
+    north_star_read_through: int = 0
+    north_star_readings: dict[str, FieldReading] = Field(default_factory=dict)
     vetoes: list[Decision] = Field(default_factory=list, max_length=12)
     playback: Playback | None = None
     playback_revision: int | None = None

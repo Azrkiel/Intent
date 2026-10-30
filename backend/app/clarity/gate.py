@@ -120,8 +120,10 @@ def reviewed_clarity(session) -> dict | None:
         return None
     state = session.clarity
     return {
-        "note": "Claims labeled proposal are reviewed proposals, not user requirements.",
+        "note": "Claims labeled proposal are reviewed proposals, not user requirements. North Star "
+        "fields with source drafted or mixed use Intent's wording, which the user confirmed.",
         "north_star": {f.field: f.text for f in state.fields},
+        "north_star_sources": {f.field: f.source for f in state.fields},
         "claims": [
             c.model_dump(mode="json", include={"id", "text", "tags", "status", "spans"}) for c in state.claims
         ],

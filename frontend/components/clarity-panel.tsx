@@ -109,6 +109,9 @@ export function ClarityPanel({
                   </span>
                 </div>
                 {field?.text && <p>{field.text}</p>}
+                {field?.text && field.source && field.source !== "user" && (
+                  <p>Drafted by Intent; you confirmed it.</p>
+                )}
                 {readback && (
                   <div className="clarity-readback">
                     <p>I understood: {field.judgement!.readback}</p>

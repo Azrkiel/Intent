@@ -153,35 +153,29 @@ async def test_unanswered_field_gets_a_draft_and_picking_it_settles_the_field(tm
     assert who.passed  # picked draft: rubric passes and no separate read-back is needed
 
 
-async def test_a_picked_draft_replaces_the_field_whole_and_is_not_flag_checked(tmp_path):
-    # Live extraction quoted a fragment of the picked draft, dropping the device and frequency it
-    # added, so W3/W4 kept failing; its "every" then drew a vague-word question about Intent's words.
-    from backend.app.clarity.contracts import FieldQuotes, NorthStarDraft
+async def test_a_picked_draft_replaces_the_field_whole_and_is_flag_checked_as_the_draft(tmp_path):
+    from backend.app.clarity.northstar import follow_up
 
-    class Fragments(DemoModels):
+    class Seen(DemoModels):
         seen = []
 
         async def call(self, session, role, schema, instruction, payload):
-            result = await super().call(session, role, schema, instruction, payload)
-            if role == "clarity:north-star":
-                picked = [t.text for t in session.turns if t.suggested]
-                if picked:
-                    fields = [f for f in result.fields if f.field != "who-when"]
-                    fragment = FieldQuotes(field="who-when", quotes=[picked[-1][:12]])
-                    result = NorthStarDraft(fields=[*fields, fragment])
             if role == "clarity:rubric":
                 self.seen = [f for f in payload["fields"] if f["field"] == "who-when"]
-            return result
+            return await super().call(session, role, schema, instruction, payload)
 
-    models = Fragments()
+    models = Seen()
     engine, session = await analyzed(tmp_path, models, answered=False)
     question = session.current_question
-    draft = "Every weekday I open it on my phone after breakfast"
+    draft = "It seems I open it on my phone after breakfast every day"
     question.options = [draft, *question.options[1:]]
     [event async for event in engine.turn(session, draft)]
     who = next(f for f in session.clarity.fields if f.field == "who-when")
-    assert who.text == draft and who.flags == []
-    assert models.seen and models.seen[0]["text"] == draft and models.seen[0]["flags"] == []
+    assert who.text == draft and who.source == "drafted"
+    assert "it" in [flag.word for flag in who.flags]
+    assert models.seen[0]["text"] == draft and models.seen[0]["flags"]
+    who.failing, who.passed = ["G1:it"], False
+    assert 'The draft says "it"' in follow_up([who], None, 3).question
 
 
 async def test_drafts_are_written_for_the_field_the_follow_up_asks_about(tmp_path):
@@ -233,10 +227,43 @@ async def test_probes_and_drafts_are_scoped_to_their_field(tmp_path):
     assert "scope" in prompts.READER_PROBES and "scope" in prompts.SUGGEST
 
 
-async def test_the_judge_sees_the_rules_a_field_passed_last_time(tmp_path):
+async def test_the_same_text_keeps_its_verdicts_and_the_judge_only_sees_changed_fields(tmp_path):
     # Live, the judge re-judged from scratch each round: W2 passed at round 4 and failed at round 7.
-    from backend.app.clarity import prompts
     from backend.app.domain import Session
+
+    class Judged(DemoModels):
+        payloads = []
+        readers = 0
+
+        async def call(self, session, role, schema, instruction, payload):
+            if role == "clarity:rubric":
+                self.payloads.append(payload)
+            if role == "clarity:reader:a":
+                self.readers += 1
+            return await super().call(session, role, schema, instruction, payload)
+
+    models = Judged()
+    engine, session = await analyzed(tmp_path, models, answered=False)
+    first_round = {entry["field"] for entry in models.payloads[0]["fields"]}
+    question = session.current_question
+    assert question.id.startswith("NS-who-when-")
+    [event async for event in engine.turn(session, question.options[0])]
+    assert [entry["field"] for entry in models.payloads[-1]["fields"]] == ["who-when"]
+    assert "who-when" not in first_round
+
+    # Nothing changed, so reanalyzing costs no judge or reader call and verdicts stay put.
+    judged, read = len(models.payloads), models.readers
+    verdicts = session.north_star_readings["who-when"].judgement.verdicts
+    await engine.reanalyze(session)
+    assert (len(models.payloads), models.readers) == (judged, read)
+    who = next(f for f in session.clarity.fields if f.field == "who-when")
+    assert who.judgement.verdicts == verdicts
+    restored = Session.model_validate_json(session.model_dump_json(round_trip=True))
+    assert restored.north_star_readings == session.north_star_readings
+
+
+async def test_a_changed_text_is_judged_again_with_the_rules_it_passed(tmp_path):
+    from backend.app.clarity import prompts
 
     class Judged(DemoModels):
         payloads = []
@@ -247,17 +274,103 @@ async def test_the_judge_sees_the_rules_a_field_passed_last_time(tmp_path):
             return await super().call(session, role, schema, instruction, payload)
 
     models = Judged()
-    engine, session = await analyzed(tmp_path, models, answered=True)
-    who = next(f for f in session.clarity.fields if f.field == "who-when")
-    prior = session.rubric_passes["who-when"]
-    assert prior.text == who.text and set(prior.passed) == {"W1", "W2", "W3", "W4"}
-    assert all("previous" not in entry for entry in models.payloads[0]["fields"])
-    [event async for event in engine.turn(session, "I also check it on my laptop at lunch.")]
+    engine, session = await analyzed(tmp_path, models, answered=False)
+    question = session.current_question
+    picked = question.options[0]
+    [event async for event in engine.turn(session, picked)]
+    assert "previous" not in models.payloads[-1]["fields"][0]
+    question = question.model_copy(update={"id": "NS-who-when-W2-r9", "suggestion": False})
+    session.current_question = question
+    [event async for event in engine.turn(session, "after breakfast")]
     entry = next(e for e in models.payloads[-1]["fields"] if e["field"] == "who-when")
-    assert entry["previous"] == {"text": prior.text, "passed": prior.passed}
+    assert entry["text"] == f"{picked} … after breakfast"
+    assert entry["previous"]["text"] == picked and set(entry["previous"]["passed"]) >= {"W1", "W2"}
     assert "previous" in prompts.RUBRIC_JUDGE
-    restored = Session.model_validate_json(session.model_dump_json(round_trip=True))
-    assert restored.rubric_passes == session.rubric_passes
+
+
+async def test_an_answer_changes_only_its_field_and_extraction_only_reads_free_turns(tmp_path):
+    # Live probe 11: re-extracting all turns put "Busy professional" in Today and emptied Good.
+    class Extraction(DemoModels):
+        turns = []
+
+        async def call(self, session, role, schema, instruction, payload):
+            if role == "clarity:north-star":
+                self.turns.append([t["number"] for t in payload["turns"]])
+            return await super().call(session, role, schema, instruction, payload)
+
+    models = Extraction()
+    engine, session = await analyzed(tmp_path, models, answered=False)
+    extractions = len(models.turns)
+    before = {f.field: f.text for f in session.clarity.fields}
+    question = session.current_question
+    assert question.id.startswith("NS-who-when-")
+    answer = "Just me on my laptop, and it fails if data is lost"
+    [event async for event in engine.turn(session, answer)]
+    after = {f.field: f.text for f in session.clarity.fields}
+    assert after["who-when"] == answer
+    assert {k: v for k, v in after.items() if k != "who-when"} == {
+        k: v for k, v in before.items() if k != "who-when"
+    }
+    assert len(models.turns) == extractions  # a follow-up answer needs no extraction
+
+
+async def test_changing_the_reader_variation_reads_the_field_again(tmp_path):
+    class Judged(DemoModels):
+        roles = []
+
+        async def call(self, session, role, schema, instruction, payload):
+            self.roles.append(role)
+            return await super().call(session, role, schema, instruction, payload)
+
+    models = Judged()
+    engine, session = await analyzed(tmp_path, models)
+    models.roles.clear()
+    await engine.reanalyze(session)
+    assert "clarity:rubric" not in models.roles
+    session.clarity_reader_variation = "temperature"
+    await engine.reanalyze(session)
+    assert "clarity:reader:b:temperature" in models.roles
+
+
+async def test_an_incomplete_reading_is_not_kept(tmp_path):
+    from backend.app.clarity.contracts import RubricJudgement
+
+    class Partial(DemoModels):
+        partial = True
+
+        async def call(self, session, role, schema, instruction, payload):
+            result = await super().call(session, role, schema, instruction, payload)
+            if role == "clarity:rubric" and self.partial:
+                for field in result.fields:
+                    field.verdicts = field.verdicts[1:]
+                return RubricJudgement(fields=result.fields)
+            return result
+
+    models = Partial()
+    engine, session = await analyzed(tmp_path, models)
+    assert session.north_star_readings == {}
+    models.partial = False
+    await engine.reanalyze(session)
+    assert set(session.north_star_readings) == {f.field for f in session.clarity.fields if f.text}
+
+
+async def test_drafts_written_for_another_field_are_not_offered(tmp_path):
+    engine, session = await analyzed(tmp_path, answered=False)
+    state = session.clarity
+    assert state.suggestions_field == "who-when" and state.suggestions
+    state.suggestions_field = "job"
+    question = engine.clarity_pipeline().questions(session, state)[0]
+    assert question.id.startswith("NS-who-when-") and not question.suggestion
+
+
+async def test_planners_see_which_north_star_fields_intent_drafted(tmp_path):
+    from backend.app.clarity.gate import reviewed_clarity
+
+    engine, session = await analyzed(tmp_path)
+    await confirm_all(engine, session)
+    reviewed = reviewed_clarity(session)
+    assert reviewed and set(reviewed["north_star_sources"]) == set(reviewed["north_star"])
+    assert "drafted" in reviewed["note"]
 
 
 async def test_demo_fields_show_distinct_text_from_the_conversation(tmp_path):
@@ -342,3 +455,46 @@ async def test_a_field_without_reader_probes_is_a_failure_not_a_repeating_questi
     question = session.current_question
     assert question is None or "G4" not in question.id
     assert not gate_for(session).ready
+
+
+class FailingRules(DemoModels):
+    """Fails the given rules for one field and records what it was asked to draft."""
+
+    def __init__(self, field, *rules):
+        super().__init__()
+        self.field, self.rules, self.drafting = field, rules, None
+
+    async def call(self, session, role, schema, instruction, payload):
+        result = await super().call(session, role, schema, instruction, payload)
+        if role == "clarity:rubric":
+            for entry in result.fields:
+                if entry.field == self.field:
+                    for verdict in entry.verdicts:
+                        verdict.passed = verdict.rule not in self.rules
+        if role == "clarity:suggest":
+            self.drafting = payload
+        return result
+
+
+async def test_a_field_missing_something_gets_drafts_that_extend_it(tmp_path):
+    # Live probe 12: Who & when passed every rule, then a rewrite dropped the moment and W2 failed.
+    models = FailingRules("who-when", "W4")
+    _, session = await analyzed(tmp_path, models)
+    who = next(f for f in session.clarity.fields if f.field == "who-when")
+    assert models.drafting["field"] == "who-when" and models.drafting["keep"] == who.text
+    assert all(o.startswith(who.text) for o in session.current_question.options if o != "Keep my wording")
+
+
+async def test_a_field_with_forbidden_wording_gets_a_rewrite_that_keeps_what_passed(tmp_path):
+    from backend.app.clarity.contracts import RULE_TEXT
+
+    models = FailingRules("who-when", "W1")
+    await analyzed(tmp_path, models)
+    assert "keep" not in models.drafting
+    assert models.drafting["still_satisfy"] == [RULE_TEXT[r] for r in ("W2", "W3", "W4")]
+
+
+async def test_a_field_that_passes_nothing_is_rewritten(tmp_path):
+    models = FailingRules("who-when", "W2", "W3", "W4", "W1")
+    await analyzed(tmp_path, models)
+    assert "keep" not in models.drafting and models.drafting["still_satisfy"] == []

@@ -5,8 +5,7 @@ substrings of the user turns only; never paraphrase, never invent, and return no
 field the user has not addressed. Fields: who-when = the person and the moment they reach for it;
 job = what they are trying to get done; ambition = throwaway, personal tool, shared or product,
 plus who else and how long; today = how they cope now and what goes wrong; good = the result
-they would notice; fails-if = what would make them call it a failure. When a later turn is a
-draft the user picked that replaces earlier words for a field, quote only the picked draft."""
+they would notice; fails-if = what would make them call it a failure."""
 
 RUBRIC_JUDGE = """Judge each North Star field against each listed rule. Return one verdict per
 rule id with passed true or false and a one-sentence reason. For each failing rule, offer 2-3
@@ -43,9 +42,10 @@ integrations or scale the idea does not need. Answer only the field's scope ques
 that belong to other fields or the plan (features, storage, sync, accounts) out of the draft. Each
 draft is one plain sentence of at most 30 words
 that keeps the user's own words, settles every failing check at once and adds nothing else: no clock
-times, button labels, product names or extra steps they did not give. When keep is given, the
-field already passes its rules: start every draft with keep exactly, word for word, and add one
-short clause that settles what is failing. The user will confirm or correct your draft."""
+times, button labels, product names or extra steps they did not give. When keep is given, start
+every draft with keep exactly, word for word, and add one short clause that settles what is
+failing. When still_satisfy is given, the draft must also keep doing each thing listed there. The
+user will confirm or correct your draft."""
 
 CLAIMS = """Map the product into atomic claims: one assertion each, at most about 25 words.
 basis=stated only when the claim says nothing beyond its spans; each span quotes an exact substring

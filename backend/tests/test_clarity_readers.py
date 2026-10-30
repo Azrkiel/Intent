@@ -150,9 +150,17 @@ async def test_live_routing_per_reader_role():
 
 async def test_clarity_passes_get_the_long_output_limit():
     # Live Nano filled 4096 tokens on every rubric/probe pass with default thinking.
-    roles = ("clarity:rubric", "clarity:probes", "clarity:suggest", "clarity:north-star", "clarity:reader:a")
+    # The extractor did too on long sessions, returning nothing at the limit (live probe 12).
+    roles = (
+        "clarity:rubric",
+        "clarity:probes",
+        "clarity:suggest",
+        "clarity:north-star",
+        "clarity:reader:a",
+        "extractor",
+    )
     for role in roles:
         request, _ = await live_request(role)
         assert request["max_tokens"] == 8192
-    request, _ = await live_request("extractor")
+    request, _ = await live_request("playback")
     assert request["max_tokens"] == 4096

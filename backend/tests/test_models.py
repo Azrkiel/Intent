@@ -145,7 +145,7 @@ async def test_requested_thinking_controls_are_sent(role, enabled, budget):
     "role,controls,timeout",
     [
         ("clarity:rubric", {"enable_thinking": False}, 120),
-        ("extractor", None, 45),
+        ("extractor", None, 120),
         ("critic:edges", None, 45),
     ],
 )

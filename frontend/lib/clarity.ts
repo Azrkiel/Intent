@@ -21,6 +21,7 @@ export interface FieldState {
   field: NorthStarField;
   text: string;
   text_hash: string;
+  source?: "user" | "drafted" | "mixed";
   judgement: { readback: string } | null;
   alpha: number | null;
   failing: string[];

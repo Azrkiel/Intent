@@ -23,6 +23,8 @@ Options = Annotated[list[Option], AfterValidator(_distinct)]
 
 NorthStarField = Literal["who-when", "job", "ambition", "today", "good", "fails-if"]
 ReaderVariation = Literal["perspective", "temperature", "tier"]
+# Whose words a North Star field holds: the user's, a draft they picked, or a draft plus their edits.
+FieldSource = Literal["user", "drafted", "mixed"]
 # Question order: who/job/ambition set proportionality for the rest (spec §2.3).
 NORTH_STAR_FIELDS: tuple[str, ...] = ("who-when", "job", "ambition", "today", "good", "fails-if")
 FIELD_LABELS = {
@@ -41,6 +43,9 @@ RUBRIC: dict[str, tuple[str, ...]] = {
     "good": ("O1", "O3"),
     "fails-if": ("F1", "F2"),
 }
+# Rules that forbid wording: only a rewrite can fix them, and added words can break them. The others
+# ask for something to be said, so added words can satisfy them and cannot undo them.
+REWRITE_RULES = frozenset({"W1", "J1", "J2", "O3"})
 # Prompted once for higher clarity; never blocking by themselves (spec §2.1-2.2).
 PROMPT_ONCE_RULES: dict[str, tuple[str, ...]] = {"good": ("O2",)}
 RULE_TEXT = {
@@ -72,13 +77,6 @@ FindingKind = Literal["invented", "omitted", "negated", "miscited", "scope-creep
 
 class Contract(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
-
-class PriorVerdicts(Contract):
-    """The rules a North Star field passed when last judged; shown to the next judge."""
-
-    text: Text
-    passed: list[Identifier] = Field(default_factory=list, max_length=8)
 
 
 class Thresholds(Contract):
@@ -254,10 +252,23 @@ class LexiconFlag(Contract):
     auto: bool
 
 
+class FieldReading(Contract):
+    """A field's last judged and read text. The same text keeps these results; models don't re-roll."""
+
+    text: str
+    text_hash: str
+    variation: ReaderVariation
+    judgement: FieldJudgement
+    probes: list[Probe]
+    reader_a: list[ProbeAnswer]
+    reader_b: list[ProbeAnswer]
+
+
 class FieldState(Contract):
     field: NorthStarField
     text: str = ""
     text_hash: str = ""
+    source: FieldSource = "user"
     flags: list[LexiconFlag] = Field(default_factory=list)
     judgement: FieldJudgement | None = None
     probes: list[Probe] = Field(default_factory=list)
@@ -329,6 +340,8 @@ class ClarityState(Contract):
     fields: list[FieldState] = Field(default_factory=list)
     fatigued: bool = False
     suggestions: list[str] = Field(default_factory=list)
+    suggestions_field: NorthStarField | None = None
+    dropped_suggestions: list[str] = Field(default_factory=list)  # failed screening; for eval traces
     assumed: list[str] = Field(default_factory=list)
     seeds: list[str] = Field(default_factory=list)
     claims: list[Claim] = Field(default_factory=list)

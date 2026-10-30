@@ -52,7 +52,7 @@ def pick_option(question, fixture):
 
 
 def answer_for(question, fixture, clarity_version=1):
-    if clarity_version == 2 and (question.suggestion or question.lens == "decision"):
+    if clarity_version == 2 and (question.suggestion or question.lens in ("decision", "north-star")):
         return pick_option(question, fixture)
     text = (question.question + " " + question.code_diff).casefold()
     matches = [
@@ -82,7 +82,7 @@ async def run_case(fixture, settings, models, store, strategy, clarity_version=1
     text = fixture["prompt"]
     error = None
     rounds = []
-    for _ in range(13):
+    for _ in range(30):  # North Star has no question cap; the session budget ends a stuck case
         async for event in engine.turn(session, text):
             if event["type"] == "error":
                 error = event["message"]
@@ -94,6 +94,8 @@ async def run_case(fixture, settings, models, store, strategy, clarity_version=1
             # Per-round North Star state: convergence cannot be diagnosed from the final state alone.
             rounds.append({
                 "answer": text,
+                "drafts": session.clarity.suggestions,
+                "dropped_drafts": session.clarity.dropped_suggestions,
                 "fields": {
                     f.field: {
                         "text": f.text,
