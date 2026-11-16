@@ -61,6 +61,8 @@ matter most, and hands the agent a brief where nothing is invented.
 - **Phase plans, graph and notes.** Generate a phased plan with wireframes and work
   packages, explore it as an interactive graph, discuss any section, and edit an
   Obsidian-compatible Markdown vault linked to it.
+- **Agent Skill.** The same method, without the app, as a skill for Claude Code, claude.ai
+  and Codex in [`skills/intent`](skills/intent/README.md).
 - **Agent handoff (optional).** Build a self-contained HTML app with Claude Code, or run
   plan work packages through sandboxed Codex workers with per-phase human review.
 
@@ -318,6 +320,7 @@ backend/app/main.py      FastAPI routes and streamed turn events
 backend/evals/           Annotated ambiguity fixtures and comparison runner
 backend/tests/           Offline test suite
 docs/                    Demo, specs, plans, retrospectives and engineering log
+skills/intent/           The Intent method as an Agent Skill (Claude Code, claude.ai, Codex)
 ```
 
 ## Further reading
