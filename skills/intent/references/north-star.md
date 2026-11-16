@@ -1,7 +1,8 @@
-# North Star and clarity checks (full mode)
+# North Star and clarity checks
 
-Six fields describe why the thing exists. They set proportionality for every later
-decision, so settle them first, in this order:
+Six fields describe why the thing exists. They are Steer's compass: every unanticipated
+decision and every feature Intent adds on its own is judged against them. Settle them
+first, in this order (the depth table in `SKILL.md` says which are required):
 
 1. **Who & when** 2. **Job** 3. **Ambition** 4. **Today** 5. **Good looks like** 6. **Fails if**
 
@@ -28,7 +29,7 @@ doesn't count.
 
 ## G1: vague words (deterministic, not blocking)
 
-Run `python3 scripts/lexicon.py "<field text>"`. It flags subjective words ("easy",
+Run `python scripts/lexicon.py "<field text>"`. It flags subjective words ("easy",
 "intuitive"), vague words ("fast", "some", "stuff"), escape clauses ("if possible", "as
 needed"), open endings ("etc", "and so on"), absolutes ("always", "every"), comparatives,
 pronouns and negations.
@@ -50,7 +51,7 @@ Restate the field in one plain sentence, adding nothing. The user confirms or co
 correction is a new turn and reruns the checks. A field written entirely from a draft the
 user just picked skips G3 (they've confirmed that exact text), but not the rubric or G4.
 
-## G4: reader agreement
+## G4: reader agreement (product depth, optional otherwise)
 
 Two independent readers, given only the field text, answer the same 6-8 multiple-choice
 probes a builder would need settled (e.g. "Must it work on a phone? yes / no / cannot
@@ -63,7 +64,7 @@ model, identity, an external integration or deletion of user data.
   tell" whenever a reasonable person could pick differently. In Codex, use two separate
   sub-tasks the same way. With no subagents, answer inline as two deliberately different
   readers and say the check was inline.
-- Compute agreement with `python3 scripts/agreement.py reader_a.json reader_b.json` (lists
+- Compute agreement with `python scripts/agreement.py reader_a.json reader_b.json` (lists
   of option indexes, `-1` for cannot tell; optional `--one-way` probe indexes).
 - **Pass:** alpha >= 0.80, no "cannot tell", no disagreement on a one-way probe.
 - **Ask one follow-up:** 0.667 <= alpha < 0.80; ask about the disagreeing probe.

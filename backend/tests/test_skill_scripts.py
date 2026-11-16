@@ -41,6 +41,23 @@ def test_skill_agreement_matches_app():
         assert skill.alpha_nominal(first, second) == alpha_nominal(first, second)
 
 
+def test_proxy_check_verdicts():
+    proxy = load("proxy_check")
+    user = ["yes", "no", "yes", "no", "yes"]
+    exact = [list(user), list(user), list(user)]
+    assert proxy.check(user, exact)["verdict"] == "trusted"
+    # One unanimous false yes caps trust even when accuracy is high.
+    one_false_yes = [["yes", "yes", "yes", "no", "yes"]] * 3
+    result = proxy.check(user, one_false_yes)
+    assert (result["verdict"], result["false_yes"]) == ("cautious", [1])
+    # A single dissenting proxy doesn't make a majority yes.
+    split = [["yes", "yes", "yes", "no", "yes"], list(user), list(user)]
+    assert proxy.check(user, split)["verdict"] == "trusted"
+    assert proxy.check(user, [["yes"] * 5] * 3)["verdict"] == "untrusted"
+    # "unsure" and ties never count as yes.
+    assert proxy.check(["no", "no"], [["unsure", "yes"], ["no", "unsure"]])["false_yes"] == []
+
+
 def test_skill_agreement_verdicts():
     skill = load("agreement")
     assert skill.verdict([0, 1, 1, 0, 2, 0], [0, 1, 1, 0, 2, 0])["verdict"] == "pass"

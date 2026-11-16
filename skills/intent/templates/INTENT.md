@@ -1,22 +1,32 @@
 # Intent: <working title>
 
-Mode: quick | full · Last updated: <date> · Approval: not yet | approved on <date> (reopened by any new statement)
+Stage: understand | steer | done · Depth: throwaway | personal | shared | product
+Last updated: <date> · Charter: not yet | approved on <date> (CHARTER.md)
 
-## Gate
+## North Star
 
-Slots: goal ☐ · core-flow ☐ · data ☐ · access ☐ · non-goals ☐ · success-criterion ☐
-Open: <conflicts, high-impact questions, one-way decisions, failing North Star fields>
-
-## North Star (full mode)
-
-| Field | Text | Source | Status |
+| Field | Text | Origin | Status |
 | --- | --- | --- | --- |
-| Who & when | | user / drafted / mixed | passing / failing: W2 |
+| Who & when | | user / drafted | passing / failing: W2 |
 | Job | | | |
 | Ambition | | | |
 | Today | | | |
 | Good looks like | | | |
 | Fails if | | | |
+
+## Principles and trade-offs
+
+| ID | Rule | Origin | From |
+| --- | --- | --- | --- |
+| P1 | <one-line rule> | user / drafted | L4 |
+
+## Calibration
+
+| ID | Candidate addition | User said | Reason |
+| --- | --- | --- | --- |
+| K1 | <feature> | yes / no | "<quote>" |
+
+Proxy check: <trusted / cautious / untrusted, accuracy, false yes> · Addition budget: <none / small / moderate / N>
 
 ## Ledger
 
@@ -24,16 +34,28 @@ Open: <conflicts, high-impact questions, one-way decisions, failing North Star f
 | --- | --- | --- | --- | --- | --- | --- |
 | L1 | goal | goal | confirmed | | "" | 1 |
 
-## Decisions
+## Decisions (Understand)
 
-| ID | Question | Status | Outcome | Because | Owner | Reversibility |
-| --- | --- | --- | --- | --- | --- | --- |
-| D1 | | open | | | user / delegated | one-way / two-way |
+| ID | Question | Outcome | Because | Owner | Reversibility |
+| --- | --- | --- | --- | --- | --- |
+| D1 | | | | user / intent (P2) | one-way / two-way |
 
-## Choices I made for you
+## Prerequisites
 
-- <choice>: <reason>. Say "veto D2" to change it.
+| Need | Status | Where it lives / fallback |
+| --- | --- | --- |
+| <API key> | provided / fallback | env `NAME` / mock |
 
-## Questions asked
+## Steer run state
 
-1. <question> → "<answer quote>" (turn N)
+Phase: <n of m> · Must-haves passing: <x of y> · Additions: <used of budget>
+Last passing commit: <sha>
+
+## Decision log (Steer)
+
+```text
+D12  phase 2 · "<question>"
+     chose: <option>
+     because: <rule 1-5 and what it cites>
+     reversible: yes / no · commit <sha>
+```

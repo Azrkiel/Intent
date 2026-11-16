@@ -1,106 +1,95 @@
 ---
 name: intent
-description: Turns a rough software idea into a cited build brief a coding agent can follow without guessing. Keeps an Intent Ledger of what the user actually said (exact quotes), asks one build-changing question at a time with 2-3 concrete options, drafts specific answers for the user to confirm, and only writes the brief (CLAUDE.md or AGENTS.md) and phase plan once a gate passes. Use when someone describes an app, tool or feature they want built but the request is vague or underspecified ("I want an app that...", "build me something to...", "spec this out", "turn my idea into a brief/PRD/plan", "what do you need to know before building this?"), or when they ask for the Intent method. Not for clear, fully specified coding tasks.
+description: Takes a rough software idea and builds the whole project hands-off. First it interviews the user until it understands what they want and how they make product decisions (goals, principles, trade-offs, taste), then it builds autonomously, steering by that understanding, adding features it judges serve the user's goals, and reporting what it built, added and decided at the end. Use when someone wants an app, tool or product built from an idea and wants the agent to run with it ("I want an app that...", "build this for me end to end", "take this idea and run with it", "make the whole thing, don't ask me every step"), or asks for the Intent method. Not for small, fully specified coding tasks.
 ---
 
-# Intent: build what they mean
+# Intent: understand once, then steer
 
-Coding agents build what was typed, not what was meant. A one-line idea like "a habit
-tracker that syncs automatically" hides a dozen decisions the builder would silently guess.
-This skill finds the decisions that would change the build, asks only about those, and
-hands over a brief where nothing is invented.
+Coding agents build what was typed, not what was meant, and they stop to ask about every
+gap. Intent works the other way: it spends the human's time once, up front, learning what
+they are after and how they decide, then builds the entire project without asking again. It
+behaves like a product owner who knows the user's goals, not a spec-taker: when a feature
+would clearly serve those goals, it builds it and says so afterwards.
 
-**One principle:** ask only what would change the build, and never pass off a guess as
-the user's word.
+**One principle:** understand the user well enough to decide as they would, and never pass
+off your own decision as their words.
+
+## Two stages
+
+1. **Understand** (the only stage that talks to the user). Learn the goal, the North Star,
+   the user's principles and trade-offs, and their taste; settle every one-way decision;
+   collect what only a human can provide; end with one approval of the charter. See
+   `references/understand.md`.
+2. **Steer** (no questions). Plan, build, verify with real checks, decide what nobody
+   anticipated by the charter's rules, add aligned features within a budget, and finish with
+   a report. See `references/steer.md`.
+
+When the user approves the charter, tell them plainly: *"I won't ask you anything else
+until the report, unless I hit a stop condition."* Then keep that promise.
 
 ## Hard rules
 
-1. **Confirmed needs a quote.** A ledger item is `confirmed` only with an exact verbatim
-   substring of the user's own message. Never quote your own question. No quote means
-   `inferred`. A draft the user picks counts as their words, marked `(drafted)`.
-2. **One question per turn**, the single most build-changing one, with 2-3 concrete
-   options and one line on what each would change in the code. Never ask what a sensible,
-   reversible default can settle.
-3. **Propose, then confirm.** When an answer is missing or vague, write the most plausible
-   specific answer yourself, list what you assumed, and let the user pick, edit or reject
-   it. Never adopt a draft they didn't pick.
-4. **One-way doors are always the user's.** Data model, identity/accounts, external
-   integrations, and deleting or overwriting user data are never defaulted. Two-way doors
-   may be defaulted and listed under "Choices I made for you" with a veto.
-5. **Stay proportional.** A personal tool gets no accounts, servers, sync, payments or
-   scale unless the user's words need them. Respect explicit exclusions; never reopen them.
-6. **New words reopen the gate.** Any new user statement after approval invalidates the
-   playback approval and the brief until they are re-confirmed.
-7. **Be honest about checks.** Report a check as passed only if you ran it. If readers or
-   candidate builds were not independent (no subagents), say the check was done inline.
+1. **Provenance on everything.** Every requirement, decision and feature is labeled by
+   origin: `user` (exact quote from their message), `drafted` (a draft the user picked), or
+   `intent` (your own call, with the goal it serves). Never present an `intent` item as the
+   user's.
+2. **Learn the why and the how-you-decide, not only the what.** A list of features can't
+   steer; principles, trade-offs and worked yes/no examples can.
+3. **Propose, then confirm.** In Understand, when an answer is missing or vague, draft the
+   most plausible specific answer, list your assumptions, and let the user pick or edit. One
+   question per turn, with 2-3 concrete options.
+4. **One-way doors belong to the user.** Accounts and identity, the data model's storage
+   and anything that needs a migration to undo, external or paid services, deleting or
+   overwriting user data, credentials, spending money, and publishing anything outward.
+   Settle them in Understand. In Steer, never cross one for a feature you added on your own;
+   if the build itself forces an unforeseen one, take a reversible path or stop (rule 7).
+5. **Additions must pass the alignment test** in `references/steer.md`: serve a named
+   North Star outcome or principle, fit the Ambition, break no non-goal, cross no one-way
+   door, stay reversible and isolated, fit the budget, and win the proxy vote.
+6. **Must-haves first, done means checked.** Additions start only after every must-have
+   passes its check. "Done" means the charter's acceptance commands pass, with their output.
+7. **Stop conditions are the only reason to come back early.** They are listed in the
+   charter. Anything else, decide, log it, and keep going.
+8. **Be honest about checks.** Report a check as run only if you ran it. If proxies,
+   readers or builders weren't independent subagents, say so and halve the addition budget.
 
-## Choose a mode first
+## Depth scales with Ambition
 
-- **Quick** (throwaway script, small personal tool, user says "keep it light"): ledger +
-  critics + playback + brief. Skip the North Star rubric, reader agreement and the map.
-- **Full** (shared tool or product, money/data/identity involved, or the user asks): every
-  step below.
+| Ambition (from the North Star) | Understand covers | Addition budget default |
+| --- | --- | --- |
+| Throwaway script | Job, Good looks like, Fails if; 3 calibration items | none |
+| Personal tool | full North Star, 3 principles, 5 calibration items | small |
+| Shared with a few people | full North Star, principles, trade-offs, 6-8 calibration items | small |
+| Product | everything in `references/understand.md` | moderate |
 
-Say which mode you picked in one line; the user can switch.
+Say which depth you picked in one line; the user can change it.
 
-## The loop
+## State on disk
 
-1. **Listen and record.** Extract each independently actionable clause from the user's
-   message into the ledger with its quote. Save it to `INTENT.md` in the project root (use
-   `templates/INTENT.md`) when a filesystem is available, otherwise keep it in the chat.
-   See `references/ledger.md`.
-2. **North Star (full mode).** Make six fields specific, in this order: Who & when, Job,
-   Ambition, Today, Good looks like, Fails if. Check each against its rubric and the
-   vague-word lexicon (`scripts/lexicon.py`), read it back in one sentence, and if you can,
-   have two independent readers answer probes about it (`scripts/agreement.py`). See
-   `references/north-star.md`.
-3. **Find the gaps.** Run the six critic lenses (data, identity & access, behaviour words,
-   contradictions, edges & failure, done-ness). Score each candidate question and drop any
-   whose options would build the same code. In full mode, discover decisions by divergence:
-   ask several independent candidate builders the same probes and turn disagreements into
-   decisions. See `references/critics-and-decisions.md`.
-4. **Ask or decide.** Ask the top one-way or must-have decision. Default the rest with a
-   stated reason. Record each as a decision. Go back to step 1 with the answer.
-5. **Map the product (full mode).** Fill the eight areas (purpose, journeys, structure,
-   data, access, failure-recovery, verification, scope) with cited entries marked
-   `confirmed`, `proposal` or `unresolved`, write Given/When/Then scenarios, then review
-   the map independently. See `references/framework-map.md`.
-6. **Gate.** Walk the checklist in `references/gate-playback-brief.md`. If anything is
-   open, name it and return to step 3.
-7. **Playback.** At most three plain sentences, then ask "What did I get wrong?". Show
-   "Choices I made for you". Wait for explicit approval.
-8. **Brief.** Compile the cited brief (`templates/brief.md`): every line cites ledger IDs,
-   inferred items go under Undecided. Verify it both ways: no line adds anything the
-   ledger doesn't support, and every confirmed item appears. Write it to `CLAUDE.md` for
-   Claude Code or `AGENTS.md` for Codex (ask which if unclear; default to the one already
-   in the repo).
-9. **Phase plan (if asked).** Break the brief into small phases and work packages with
-   acceptance checks and a human review between phases. See `references/phase-plan.md`.
+Keep everything in the project so a fresh session or another agent can resume:
 
-## Asking a question
+- `INTENT.md` (`templates/INTENT.md`): ledger, North Star, principles, calibration,
+  decisions, and during Steer the run state and decision log.
+- `CHARTER.md` (`templates/charter.md`): the approved charter the build follows.
+  Reference it from the agent's instructions file instead of pasting it there: add
+  `@CHARTER.md` to `CLAUDE.md` for Claude Code, or "Read CHARTER.md before any work" to
+  `AGENTS.md` for Codex.
+- `INTENT-REPORT.md` (`templates/report.md`): the end-of-run report.
 
-Use this shape, one per turn:
-
-> You said "syncs automatically". Which is closest?
-> 1. Saved in this browser only (no server; nothing to set up)
-> 2. Synced through your own cloud drive file (no accounts; one integration)
-> 3. Synced through an account on a small server (accounts, a database, hosting)
-> Or tell me in your own words.
-
-When drafting instead: *My best guess from what you told me: "…". I filled in: … Does that
-fit, or would you pick one of these?* followed by 2-3 alternatives.
-
-## What to show the user
-
-Keep the ledger and checks visible but short: a progress line such as
-`Gate: 4/6 slots confirmed · 1 one-way decision open · North Star 5/6`, the current
-question, and on request the full `INTENT.md`. Never bury the question under the ledger.
+If the user edits a file or speaks during Steer, treat it as a new turn: update the ledger
+and charter, log the change, and continue without re-running Understand unless it touches
+a one-way door.
 
 ## References
 
-- `references/ledger.md`: item types, statuses, slots, extraction rules, file format.
-- `references/north-star.md`: the six fields, rubric rules, G1-G4 checks, drafting.
-- `references/critics-and-decisions.md`: lenses, scoring, divergence, disposition, records.
-- `references/framework-map.md`: eight areas, claims, scenarios, independent review.
-- `references/gate-playback-brief.md`: gate checklist, playback, brief and verification.
-- `references/phase-plan.md`: phases, work packages, review, agent handoff.
+- `references/understand.md`: the interview, in order, and its gate.
+- `references/ledger.md`: ledger items, provenance, extraction rules.
+- `references/north-star.md`: the six fields, rubric, checks G1-G4, drafting.
+- `references/critics-and-decisions.md`: finding build-changing gaps; builder divergence.
+- `references/charter.md`: playback, the charter's sections, and verifying it.
+- `references/steer.md`: the autonomous loop, decision policy, alignment test, proxy vote,
+  budget, stop conditions, report.
+- `references/phase-plan.md`: phases, work packages and automated phase gates.
+- `scripts/lexicon.py`: vague-word scan (G1).
+- `scripts/agreement.py`: two-reader agreement (G4, optional).
+- `scripts/proxy_check.py`: how well proxies predict the user's calibration answers.

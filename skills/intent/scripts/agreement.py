@@ -6,8 +6,8 @@ text. Each reader's answers are a JSON list of option indexes (0-based), with -1
 "cannot tell", in probe order.
 
 Usage:
-    python3 agreement.py reader_a.json reader_b.json [--one-way 0,3]
-    python3 agreement.py '[0,1,1,0,2,0]' '[0,1,1,0,2,1]'
+    python agreement.py reader_a.json reader_b.json [--one-way 0,3]
+    python agreement.py '[0,1,1,0,2,0]' '[0,1,1,0,2,1]'
 
 Prints nominal Krippendorff's alpha and a verdict:
     pass      alpha >= 0.80, no "cannot tell", no disagreement on a one-way probe

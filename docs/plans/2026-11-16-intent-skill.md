@@ -93,3 +93,30 @@ answer, let the user confirm or correct, repeat. The gate is what stops the loop
 
 Defaults chosen without asking: folder `skills/intent/`, skill name `intent`, ledger file
 name `INTENT.md`, alpha thresholds and lexicon copied unchanged from the app.
+
+## 5. Revision, same day: from spec-taker to product owner
+
+Kevin clarified the vision after reviewing the first version: Intent should understand
+the user well enough that the agent needs no human input after the interview, steers on
+its own, and adds features it judges serve the project's goals without asking. The first
+version did the opposite on purpose (never add scope, never invent requirements, human
+review between phases), so the skill was reworked:
+
+| First version | Revised |
+| --- | --- |
+| Clarify, then hand over a brief | Two stages: **Understand** (the only one that asks) and **Steer** (builds to the end without asking) |
+| "Never add features the user didn't ask for" | Additions allowed after must-haves pass, if they pass an alignment test (serve a North Star outcome or principle, fit the Ambition, break no non-goal, cross no one-way door, reversible, within budget) and a unanimous vote of 3 independent taste-proxies |
+| Requirements only | Also principles, trade-offs and yes/no calibration examples, so the agent can decide as the user would |
+| No measure of the agent's judgment | `scripts/proxy_check.py`: proxies predict held-out calibration answers; accuracy and false yeses set the addition budget |
+| Human review between phases | Automated phase gates (acceptance commands), a decision policy for unanticipated choices, a decision log, stop conditions, and an end-of-run report |
+| Brief written into `CLAUDE.md` / `AGENTS.md` | `CHARTER.md`, referenced with `@CHARTER.md` or one `AGENTS.md` line, plus `INTENT-REPORT.md` |
+| Quick and full modes | Depth scales with the Ambition field |
+| Framework map, Decision Quality links, calibrated map review | Removed as ceremony that resolves no decision; builder divergence kept as the test for "would the agent have to guess?" |
+
+Kept: provenance on everything (the user's words, drafted, or Intent's own call, never
+blurred), propose-and-confirm, one-way doors as the user's alone (and never crossed by an
+addition), the North Star rubric and G1-G4 checks.
+
+Unproven: no end-to-end run yet. The next step is to plan and build one small project
+with no human after the charter, and count the additions and decisions the user would
+have made differently.

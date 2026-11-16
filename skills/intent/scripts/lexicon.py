@@ -2,9 +2,9 @@
 """Flag vague wording in a requirement (Intent skill, check G1).
 
 Usage:
-    python3 lexicon.py "find an article fast, etc"
-    echo "text" | python3 lexicon.py
-    python3 lexicon.py --json "text"
+    python lexicon.py "find an article fast, etc"
+    echo "text" | python lexicon.py
+    python lexicon.py --json "text"
 
 Word lists follow INCOSE GtWR rules R7-R9 and R26 and the requirement smells of
 Femmer et al. (2017). They are copied from backend/app/clarity/lexicon.py in the Intent
